@@ -1,12 +1,14 @@
 """
-Download Wahapedia's CSV export and build a structured data tree.
+Download Wahapedia's CSV export and mission deck, and build a structured data tree.
 
     python -m crunch fetch                  # -> <project>/wahapedia_data/wh40k11ed/
     python -m crunch fetch --force          # re-download even if unchanged
-    python -m crunch fetch --from-dir DIR   # build from CSVs saved by hand
-    python -m crunch fetch --rebuild-json   # only rebuild json/ from raw/
+    python -m crunch fetch --from-dir DIR   # build from CSVs (and mission_deck.html) saved by hand
+    python -m crunch fetch --rebuild-json   # only rebuild json/ (and missions/json/) from what's saved
+    python -m crunch fetch --no-missions    # CSVs only
 
-Output: <root>/<edition>/{raw/, archive/<update>/, json/, manifest.json, README.txt}
+Output: <root>/<edition>/{raw/, archive/<update>/, json/, missions/, manifest.json, README.txt}
+The CSVs and the mission deck are checked for updates separately (see crunch.data.missions).
 
 Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are (c) Games Workshop.
 """
@@ -29,6 +31,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from crunch import config
+from crunch.data import missions
 
 BASE_URL = config.WAHAPEDIA_BASE_URL
 DEFAULT_EDITION = config.EDITION
@@ -327,7 +330,10 @@ raw/          Wahapedia's CSV export, unchanged ('|'-delimited, UTF-8, HTML in t
               Use this folder as mathhammer.py's --data.
 archive/      Earlier raw exports, one folder per Wahapedia update.
 json/         The same data regrouped per faction / detachment / datasheet.
-manifest.json Row counts and SHA-256 per table, to detect changes.
+missions/     The mission deck page ({missions_url}):
+              raw/mission_deck.html, json/ (force_dispositions, primary_missions,
+              secondary_missions, deployments), maps/ (deployment maps), archive/.
+manifest.json Row counts and SHA-256 per table, and the mission deck's content hash.
 
 Please keep the attribution line with any copy or use of this data.
 """
@@ -340,42 +346,75 @@ def main(argv=None) -> None:
     ap.add_argument("--force", action="store_true", help="download and rebuild even if unchanged")
     ap.add_argument("--from-dir", type=Path, help="build from CSVs already on disk instead of downloading")
     ap.add_argument("--rebuild-json", action="store_true", help="only rebuild json/ from the existing raw/")
+    ap.add_argument("--no-missions", action="store_true", help="skip the mission deck page")
     a = ap.parse_args(argv)
 
     edition_dir = Path(a.out) / a.edition
     edition_dir.mkdir(parents=True, exist_ok=True)
     base_url = BASE_URL.format(edition=a.edition)
+    missions_url = config.MISSION_DECK_URL.format(edition=a.edition)
 
     if a.rebuild_json:
         raw = edition_dir / "raw"
         blobs = {p.stem: p.read_bytes() for p in raw.glob("*.csv")}
         if not blobs:
             sys.exit(f"No CSVs in {raw}")
+        if not a.no_missions:
+            counts = missions.rebuild_missions(edition_dir, missions_url)
+            log(f"Rebuilt missions/json: {counts}" if counts else "No saved mission deck page to rebuild.")
     else:
         try:
             blobs = download(edition_dir, base_url, a.force, a.from_dir)
         except RuntimeError as e:
             sys.exit(f"{e}\nIf Wahapedia blocks scripted downloads, save the CSVs from "
                      f"{base_url}  (links on its 'Data Export' page) into a folder and rerun with --from-dir.")
+        if not a.no_missions:
+            update_missions_step(edition_dir, missions_url, a.force, a.from_dir)
         if blobs is None:
             return
 
+    build_csv_tree(edition_dir, base_url, missions_url, a.edition, blobs)
+
+
+def update_missions_step(edition_dir: Path, url: str, force: bool, from_dir: Path | None) -> None:
+    """Check the mission deck for changes; a failure here never stops the CSV update."""
+    manifest_path = edition_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
+    saved = from_dir / missions.PAGE_FILE if from_dir else None
+    page = saved.read_bytes() if saved and saved.exists() else None
+    log("Checking the mission deck...")
+    try:
+        entry = missions.update_missions(edition_dir, url, fetch, force, manifest.get("missions"), page, log)
+    except RuntimeError as e:
+        log(f"  Mission deck skipped: {e}\n  (save the page as {missions.PAGE_FILE} and rerun with --from-dir)")
+        return
+    if entry:
+        manifest["missions"] = entry
+        write_json(manifest_path, manifest)
+
+
+def build_csv_tree(edition_dir: Path, base_url: str, missions_url: str, edition: str,
+                   blobs: dict[str, bytes]) -> None:
+    manifest_path = edition_dir / "manifest.json"
+    old_manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
     log("Building JSON tree...")
     counts = build(edition_dir, blobs)
     stamp = last_update_stamp(blobs["Last_update"]) if "Last_update" in blobs else ""
     fetched = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    write_json(edition_dir / "manifest.json", {
+    write_json(manifest_path, {
         "attribution": ATTRIBUTION,
         "source": base_url,
-        "edition": a.edition,
+        "edition": edition,
         "last_update": stamp,
         "fetched_at": fetched,
         "tables": {t: {"rows": counts.get(t, 0), "sha256": hashlib.sha256(blobs[t]).hexdigest()}
                    for t in sorted(blobs)},
         "missing_tables": [t for t in TABLES if t not in blobs],
+        **({"missions": old_manifest["missions"]} if "missions" in old_manifest else {}),
     })
     (edition_dir / "README.txt").write_text(
-        README.format(attribution=ATTRIBUTION, url=base_url, stamp=stamp or "unknown", fetched=fetched),
+        README.format(attribution=ATTRIBUTION, url=base_url, stamp=stamp or "unknown", fetched=fetched,
+                      missions_url=missions_url),
         encoding="utf-8")
 
     n_f = len(json.loads((edition_dir / "json" / "index.json").read_text(encoding="utf-8"))["factions"])

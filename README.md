@@ -10,7 +10,7 @@ Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are © Games
 
 ```bash
 pip install -r requirements.txt        # numpy (tkinter ships with Python on Windows)
-python -m crunch fetch                  # download Wahapedia data into wahapedia_data/
+python -m crunch fetch                  # download Wahapedia data (and the mission deck) into wahapedia_data/
 python main.py                          # launch the app   (or double-click run_app.bat)
 ```
 
@@ -23,6 +23,7 @@ python -m crunch show  --unit "Knight Castellan"
 python -m crunch fight --attacker "Kabalite Warriors" --attacker-models 10 \
                        --defender "Custodian Guard" --defender-models 5 --mod cover
 python -m crunch fetch --force          # refresh the data
+python -m crunch fetch --no-missions    # CSVs only
 ```
 
 Tests (standard library `unittest`, no extra packages):
@@ -48,7 +49,9 @@ crunch/
     modifiers.py          everything that can change an attack sequence
     engine.py             simulate() and allocation (11th-edition save ordering)
   data/
-    fetch.py              download Wahapedia CSVs, build json/ tree
+    fetch.py              download Wahapedia CSVs, build json/ tree, check the mission deck
+    missions.py           mission deck page -> missions/: Force Dispositions, primary and
+                          secondary missions, deployments + map images
     wahapedia.py          CSVs -> Unit objects
     rules.py              army rules, detachments, stratagems, abilities (lazy)
   lists/

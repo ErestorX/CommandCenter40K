@@ -8,6 +8,9 @@ LISTS_DIR = PROJECT_ROOT / "lists"
 
 EDITION = "wh40k11ed"
 WAHAPEDIA_BASE_URL = "https://wahapedia.ru/{edition}/"
+# Mission deck page (no CSV export): Force Dispositions, primary / secondary missions, deployments.
+# Change the season here when a new deck is published.
+MISSION_DECK_URL = "https://wahapedia.ru/{edition}/the-rules/mission-deck-2026-27/"
 
 # Where fetch writes by default, followed by other places the data may already live.
 DATA_ROOT = PROJECT_ROOT / "wahapedia_data"
