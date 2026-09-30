@@ -15,3 +15,6 @@ venv/
 run_log.txt
 test_log.txt
 *.log
+
+# Saved test plans and other per-user state
+/user_data/

@@ -56,24 +56,52 @@ crunch/
     newrecruit.py         NewRecruit text export
     model.py              ArmyList / ListUnit (format-independent)
     linking.py            list -> datasheets, weapon loads, targets
+  analysis/               unit finder back end (no UI)
+    variants.py           catalogue of attacker / defender test scenarios
+    plan.py               per-unit test plans, saved to user_data/test_plans.json
+    sweep.py              build every test, run them in parallel worker processes
+    results.py            filtering, hiding and aggregation (best / average / worst)
   ui/
     app.py                Tk root, launcher, opens tools
     registry.py           @register_tool + auto-discovery
     toolwindow.py         base class for tool windows
     launcher.py           choose attacker/defender lists, then a tool
     theme.py, widgets.py  colours, styles, shared widgets
+    charts.py             canvas heatmap and bar chart with tooltips
     richtext.py           Wahapedia HTML -> text window, stratagem cards
     views/rules.py        army-rules and unit-abilities windows (reusable)
     tools/
       matchup/            the matchup tool (army panels | results)
+      finder/             the unit finder (test plans | run | results window)
 tests/                    unit tests + small fixtures
 lists/                    your army lists
+user_data/                saved test plans (git-ignored)
 wahapedia_data/           downloaded data (git-ignored)
 ```
 
 Dependencies only point downwards: `ui → lists → data → core`. Nothing in `core`
 imports from `data`, `lists` or `ui`, so the engine can be reused (CLI, tests,
 a future web front end) without tkinter.
+
+## Unit finder
+
+Tick attacking and defending units, then for each unit tick the scenarios to test
+(Tests tab). Attackers have separate Shooting and Fight columns; defenders have one.
+Scenarios are tried **one at a time**, never combined: an attacker with
+Shooting {No modifiers, Target in cover} and Fight {No modifiers, Re-roll 1s to hit}
+against a defender with {No modifiers, -1 AP} makes 4 x 2 = 8 tests.
+Plans are saved per list file, side and unit.
+
+Results open in their own window:
+
+- **Matrix** - attackers x defenders heatmap; click a cell for every test behind it,
+  right-click to hide the pairing.
+- **Best attackers into... / Best targets for...** - ranked bars; click a bar to hide
+  that scenario and let the unit's next best one take its place.
+- **All tests** - sortable table; tick / untick rows to hide them.
+- Filters on the left (attackers, defenders, phase, scenarios), metric
+  (damage, models slain, % wounds, wipe chance, points removed, points per 100 pts),
+  best / average / worst over attacker scenarios and defender tests, CSV export.
 
 ## Adding a new window (tool)
 

@@ -13,6 +13,9 @@ WAHAPEDIA_BASE_URL = "https://wahapedia.ru/{edition}/"
 DATA_ROOT = PROJECT_ROOT / "wahapedia_data"
 DATA_ROOT_CANDIDATES = [DATA_ROOT, PROJECT_ROOT / "data"]
 
+# Per-user state that isn't part of the code (saved test plans, ...). Git-ignored.
+USER_DATA_DIR = PROJECT_ROOT / "user_data"
+
 ATTRIBUTION = "Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are (c) Games Workshop."
 ATTRIBUTION_SHORT = "Powered by Wahapedia · rules and stats © Games Workshop"
 
