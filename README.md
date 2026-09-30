@@ -10,7 +10,7 @@ Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are © Games
 
 ```bash
 pip install -r requirements.txt        # numpy (tkinter ships with Python on Windows)
-python -m crunch fetch                  # download Wahapedia data (and the mission deck) into wahapedia_data/
+python -m crunch fetch                  # download Wahapedia data, mission deck and layouts into wahapedia_data/
 python main.py                          # launch the app   (or double-click run_app.bat)
 ```
 
@@ -49,9 +49,11 @@ crunch/
     modifiers.py          everything that can change an attack sequence
     engine.py             simulate() and allocation (11th-edition save ordering)
   data/
-    fetch.py              download Wahapedia CSVs, build json/ tree, check the mission deck
-    missions.py           mission deck page -> missions/: Force Dispositions, primary and
-                          secondary missions, deployments + map images
+    fetch.py              download Wahapedia CSVs, build json/ tree, check missions and layouts
+    missions.py           Wahapedia mission deck page -> missions/json/: Force Dispositions,
+                          primary and secondary missions
+    layouts.py            Rapid Ingress layout data -> missions/json/layouts.json: the 45
+                          layouts (deployment zones, objectives, terrain) per disposition pairing
     wahapedia.py          CSVs -> Unit objects
     rules.py              army rules, detachments, stratagems, abilities (lazy)
   lists/

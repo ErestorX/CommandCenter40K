@@ -11,6 +11,9 @@ WAHAPEDIA_BASE_URL = "https://wahapedia.ru/{edition}/"
 # Mission deck page (no CSV export): Force Dispositions, primary / secondary missions, deployments.
 # Change the season here when a new deck is published.
 MISSION_DECK_URL = "https://wahapedia.ru/{edition}/the-rules/mission-deck-2026-27/"
+# Battlefield layouts (deployment zones, objectives, terrain per Force Disposition pairing), published
+# as data by Rapid Ingress: https://rapidingress.com/40k-layout-reference
+LAYOUTS_BASE_URL = "https://rapidingress.com/"
 
 # Where fetch writes by default, followed by other places the data may already live.
 DATA_ROOT = PROJECT_ROOT / "wahapedia_data"

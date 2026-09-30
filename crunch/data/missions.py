@@ -1,12 +1,12 @@
-"""Mission deck: Force Dispositions, primary missions, secondary missions and deployment maps.
+"""Mission deck: Force Dispositions, primary missions and secondary missions.
 
 Wahapedia has no CSV export for these, so they are scraped from its mission deck page
 (config.MISSION_DECK_URL). Each Force Disposition card lists, for every opposing disposition, the
 primary mission played; each primary mission card names its pair of dispositions.
+The page's deployment cards are not this edition's: deployments come from crunch.data.layouts.
 
     <edition>/missions/raw/mission_deck.html     the page as downloaded
     <edition>/missions/json/*.json               the parsed cards
-    <edition>/missions/maps/*.png                deployment maps
     <edition>/missions/archive/<date>/           earlier versions of the page
 
 The page is only re-parsed into JSON when its parsed content changes (the HTML itself also
@@ -19,20 +19,19 @@ import html as html_lib
 import json
 import re
 import shutil
-import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Callable
-from urllib.parse import urljoin
 
 SECTIONS = {
     "force_dispositions": "Force-Disposition-Cards",
     "primary_missions": "Primary-Mission-deck",
-    "deployments": "Deployment-deck",
     "secondary_missions": "Secondary-Mission-deck",
 }
+# written by earlier versions, from the page's (outdated) deployment cards: removed on update
+_STALE = ("json/deployments.json", "maps")
 PAGE_FILE = "mission_deck.html"
 _VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
 _BLOCK = {"div", "p", "li", "br", "h1", "h2", "h3", "h4", "tr"}
@@ -137,18 +136,14 @@ def parse_html(text: str) -> Node:
 # page -> cards
 # -----------------------------------------------------------------------------
 def _sections(page: str) -> dict[str, Node]:
-    """Each deck section of the page (from its <h2 id=...> to the next deck heading)."""
-    starts = []
-    for key, anchor in SECTIONS.items():
-        m = re.search(rf'<h2[^>]*id="{re.escape(anchor)}"', page)
-        if m:
-            starts.append((m.start(), key))
-    starts.sort()
-    ends = [m.start() for m in re.finditer(r'<h2[^>]*id="Twist-deck"', page)]
+    """Each deck section of the page (from its <h2 id=...> to the next <h2 id=...>, whatever it is)."""
+    headings = [m.start() for m in re.finditer(r'<h2[^>]*\bid="', page)] + [len(page)]
     out = {}
-    for i, (pos, key) in enumerate(starts):
-        end = starts[i + 1][0] if i + 1 < len(starts) else min([e for e in ends if e > pos] or [len(page)])
-        out[key] = parse_html(page[pos:end])
+    for key, anchor in SECTIONS.items():
+        m = re.search(rf'<h2[^>]*\bid="{re.escape(anchor)}"', page)
+        if m:
+            end = next(h for h in headings if h > m.start())
+            out[key] = parse_html(page[m.start():end])
     return out
 
 
@@ -219,8 +214,8 @@ def _card_common(card: Node) -> dict:
     }
 
 
-def parse_deck(page: str, page_url: str = "") -> dict:
-    """The mission deck page -> {"force_dispositions", "primary_missions", "secondary_missions", "deployments"}."""
+def parse_deck(page: str) -> dict:
+    """The mission deck page -> {"force_dispositions", "primary_missions", "secondary_missions"}."""
     sec = _sections(page)
     empty = Node("root")
     cards = {k: sec.get(k, empty).find_all("cgCardCA7") for k in SECTIONS}
@@ -254,23 +249,7 @@ def parse_deck(page: str, page_url: str = "") -> dict:
     secondaries = [{**_card_common(c), "fixed": c.find("ca7Fixed") is not None}
                    for c in cards["secondary_missions"]]
 
-    deployments = []
-    for c in cards["deployments"]:
-        img = next((n for n in _walk(c) if n.tag == "img"), None)
-        src = img.attrs.get("src", "") if img else ""
-        deployments.append({"name": c.find("ca7Name").line(),
-                            "image": f"maps/{src.rsplit('/', 1)[-1]}" if src else "",
-                            "image_url": urljoin(page_url, src) if src else ""})
-
-    return {"force_dispositions": dispositions, "primary_missions": primaries,
-            "secondary_missions": secondaries, "deployments": deployments}
-
-
-def _walk(n: Node):
-    for c in n.children:
-        if isinstance(c, Node):
-            yield c
-            yield from _walk(c)
+    return {"force_dispositions": dispositions, "primary_missions": primaries, "secondary_missions": secondaries}
 
 
 def content_hash(deck: dict) -> str:
@@ -285,32 +264,16 @@ def _write_json(path: Path, data) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def write_deck(missions_dir: Path, deck: dict, fetch: Callable[[str], bytes | None] | None = None,
-               refresh_maps: bool = False, log: Callable[[str], None] = print) -> None:
-    """Write the JSON files and download missing (or all, with refresh_maps) deployment maps."""
-    json_dir = missions_dir / "json"
-    if json_dir.exists():
-        shutil.rmtree(json_dir)
+def write_deck(missions_dir: Path, deck: dict) -> None:
+    """Write the JSON files (other files in json/, such as layouts.json, are left alone)."""
     for key in SECTIONS:
-        _write_json(json_dir / f"{key}.json", deck[key])
-    if fetch is None:
-        return
-    for d in deck["deployments"]:
-        if not d["image_url"]:
-            continue
-        path = missions_dir / d["image"]
-        if path.exists() and not refresh_maps:
-            continue
-        log(f"  GET {d['image']}")
-        try:
-            blob = fetch(d["image_url"])
-        except RuntimeError as e:
-            log(f"    map not downloaded: {e}")
-            continue
-        if blob:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(blob)
-        time.sleep(0.5)
+        _write_json(missions_dir / "json" / f"{key}.json", deck[key])
+    for rel in _STALE:
+        stale = missions_dir / rel
+        if stale.is_dir():
+            shutil.rmtree(stale)
+        elif stale.exists():
+            stale.unlink()
 
 
 def update_missions(edition_dir: Path, url: str, fetch: Callable[[str], bytes | None], force: bool = False,
@@ -325,14 +288,14 @@ def update_missions(edition_dir: Path, url: str, fetch: Callable[[str], bytes | 
         page = fetch(url)
         if page is None:
             raise RuntimeError(f"mission deck page not found: {url}")
-    deck = parse_deck(page.decode("utf-8", errors="replace"), url)
+    deck = parse_deck(page.decode("utf-8", errors="replace"))
     if not deck["primary_missions"] and not deck["secondary_missions"]:
         raise RuntimeError("no mission cards found on the page - has its layout changed?")
     digest = content_hash(deck)
     old = old or {}
-    if not force and digest == old.get("content_sha256") and (missions_dir / "json").exists():
+    written = all((missions_dir / "json" / f"{k}.json").exists() for k in SECTIONS)
+    if not force and digest == old.get("content_sha256") and written:
         log("Missions already up to date.")
-        write_deck(missions_dir, deck, fetch, log=log)       # still fetch any map that went missing
         return None
 
     prev = raw_dir / PAGE_FILE
@@ -344,18 +307,18 @@ def update_missions(edition_dir: Path, url: str, fetch: Callable[[str], bytes | 
         log(f"Archived previous mission page to {arch}")
     raw_dir.mkdir(parents=True, exist_ok=True)
     prev.write_bytes(page)
-    write_deck(missions_dir, deck, fetch, refresh_maps=digest != old.get("content_sha256"), log=log)
+    write_deck(missions_dir, deck)
     counts = {k: len(deck[k]) for k in SECTIONS}
     log("Missions: " + ", ".join(f"{n} {k.replace('_', ' ')}" for k, n in counts.items()))
     return {"source": url, "content_sha256": digest, "counts": counts,
             "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
 
 
-def rebuild_missions(edition_dir: Path, url: str = "") -> dict | None:
+def rebuild_missions(edition_dir: Path) -> dict | None:
     """Re-parse the saved page into JSON, offline. None if no page was saved."""
     page = edition_dir / "missions" / "raw" / PAGE_FILE
     if not page.exists():
         return None
-    deck = parse_deck(page.read_text(encoding="utf-8", errors="replace"), url)
+    deck = parse_deck(page.read_text(encoding="utf-8", errors="replace"))
     write_deck(edition_dir / "missions", deck)
     return {k: len(deck[k]) for k in SECTIONS}

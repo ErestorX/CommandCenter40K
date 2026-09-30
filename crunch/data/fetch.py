@@ -1,14 +1,16 @@
 """
-Download Wahapedia's CSV export and mission deck, and build a structured data tree.
+Download Wahapedia's CSV export and mission deck, the battlefield layouts, and build a data tree.
 
     python -m crunch fetch                  # -> <project>/wahapedia_data/wh40k11ed/
     python -m crunch fetch --force          # re-download even if unchanged
-    python -m crunch fetch --from-dir DIR   # build from CSVs (and mission_deck.html) saved by hand
+    python -m crunch fetch --from-dir DIR   # build from files saved by hand: the CSVs, and optionally
+                                            # mission_deck.html, terrain-data-11e.js, measurements-11e.js
     python -m crunch fetch --rebuild-json   # only rebuild json/ (and missions/json/) from what's saved
     python -m crunch fetch --no-missions    # CSVs only
 
 Output: <root>/<edition>/{raw/, archive/<update>/, json/, missions/, manifest.json, README.txt}
-The CSVs and the mission deck are checked for updates separately (see crunch.data.missions).
+The CSVs, the mission deck (crunch.data.missions) and the layouts (crunch.data.layouts) are checked
+for updates separately.
 
 Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are (c) Games Workshop.
 """
@@ -31,7 +33,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from crunch import config
-from crunch.data import missions
+from crunch.data import layouts, missions
 
 BASE_URL = config.WAHAPEDIA_BASE_URL
 DEFAULT_EDITION = config.EDITION
@@ -330,10 +332,11 @@ raw/          Wahapedia's CSV export, unchanged ('|'-delimited, UTF-8, HTML in t
               Use this folder as mathhammer.py's --data.
 archive/      Earlier raw exports, one folder per Wahapedia update.
 json/         The same data regrouped per faction / detachment / datasheet.
-missions/     The mission deck page ({missions_url}):
-              raw/mission_deck.html, json/ (force_dispositions, primary_missions,
-              secondary_missions, deployments), maps/ (deployment maps), archive/.
-manifest.json Row counts and SHA-256 per table, and the mission deck's content hash.
+missions/     json/force_dispositions, primary_missions, secondary_missions.json from the mission
+              deck page ({missions_url}), and json/layouts.json: the battlefield layouts
+              (deployment zones, objectives, terrain) from {layouts_url}.
+              raw/ holds the sources as downloaded, archive/ their earlier versions.
+manifest.json Row counts and SHA-256 per table, and content hashes of the missions and layouts.
 
 Please keep the attribution line with any copy or use of this data.
 """
@@ -360,8 +363,10 @@ def main(argv=None) -> None:
         if not blobs:
             sys.exit(f"No CSVs in {raw}")
         if not a.no_missions:
-            counts = missions.rebuild_missions(edition_dir, missions_url)
+            counts = missions.rebuild_missions(edition_dir)
             log(f"Rebuilt missions/json: {counts}" if counts else "No saved mission deck page to rebuild.")
+            n = layouts.rebuild_layouts(edition_dir)
+            log(f"Rebuilt missions/json/layouts.json: {n} layouts" if n else "No saved layout data to rebuild.")
     else:
         try:
             blobs = download(edition_dir, base_url, a.force, a.from_dir)
@@ -377,7 +382,7 @@ def main(argv=None) -> None:
 
 
 def update_missions_step(edition_dir: Path, url: str, force: bool, from_dir: Path | None) -> None:
-    """Check the mission deck for changes; a failure here never stops the CSV update."""
+    """Check the mission deck and the layouts for changes; a failure here never stops the CSV update."""
     manifest_path = edition_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
     saved = from_dir / missions.PAGE_FILE if from_dir else None
@@ -385,12 +390,23 @@ def update_missions_step(edition_dir: Path, url: str, force: bool, from_dir: Pat
     log("Checking the mission deck...")
     try:
         entry = missions.update_missions(edition_dir, url, fetch, force, manifest.get("missions"), page, log)
+        if entry:
+            manifest["missions"] = entry
     except RuntimeError as e:
         log(f"  Mission deck skipped: {e}\n  (save the page as {missions.PAGE_FILE} and rerun with --from-dir)")
-        return
-    if entry:
-        manifest["missions"] = entry
-        write_json(manifest_path, manifest)
+
+    saved = {n: from_dir / n for n in layouts.LAYOUT_FILES} if from_dir else {}
+    files = {n: p.read_bytes() for n, p in saved.items() if p.exists()}
+    log("Checking the battlefield layouts...")
+    try:
+        entry = layouts.update_layouts(edition_dir, config.LAYOUTS_BASE_URL, fetch, force, manifest.get("layouts"),
+                                       files, log)
+        if entry:
+            manifest["layouts"] = entry
+    except (RuntimeError, ValueError) as e:
+        log(f"  Layouts skipped: {e}\n  (save {', '.join(layouts.LAYOUT_FILES)} from "
+            f"{config.LAYOUTS_BASE_URL} and rerun with --from-dir)")
+    write_json(manifest_path, manifest)
 
 
 def build_csv_tree(edition_dir: Path, base_url: str, missions_url: str, edition: str,
@@ -410,11 +426,11 @@ def build_csv_tree(edition_dir: Path, base_url: str, missions_url: str, edition:
         "tables": {t: {"rows": counts.get(t, 0), "sha256": hashlib.sha256(blobs[t]).hexdigest()}
                    for t in sorted(blobs)},
         "missing_tables": [t for t in TABLES if t not in blobs],
-        **({"missions": old_manifest["missions"]} if "missions" in old_manifest else {}),
+        **{k: old_manifest[k] for k in ("missions", "layouts") if k in old_manifest},
     })
     (edition_dir / "README.txt").write_text(
         README.format(attribution=ATTRIBUTION, url=base_url, stamp=stamp or "unknown", fetched=fetched,
-                      missions_url=missions_url),
+                      missions_url=missions_url, layouts_url=config.LAYOUTS_BASE_URL),
         encoding="utf-8")
 
     n_f = len(json.loads((edition_dir / "json" / "index.json").read_text(encoding="utf-8"))["factions"])
