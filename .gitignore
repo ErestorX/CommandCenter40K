@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# IDE
+.idea/
+
+# Downloaded game data (regenerate with: python -m crunch fetch). Rules and stats are (c) Games Workshop.
+wahapedia_data/
+data/
+
+# Local run artefacts
+run_log.txt
+*.log

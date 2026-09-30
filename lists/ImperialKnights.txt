@@ -1,0 +1,21 @@
+Imperium - Imperial Knights - Saturday - [1995 pts]
+
+# ++ Army Roster ++ [1995 pts, 3 Detachment Points]
+## Configuration
+Battle Size: Strike Force (2000 Point limit)
+Code Chivalric: Deed, Quality
+Detachment [3 Detachment Points]: Freeblade Company [3 Detachment Points]
+Force Disposition: Priority Assets
+Show/Hide Options
+
+## Character [1715 pts]
+Cerastus Knight Lancer [445 pts]: Warlord, Bringer of Justice [30 pts], Cerastus shock lance
+Knight Castellan [460 pts]: Mysterious Guardian [35 pts], Plasma decimator, Titanic feet, 2x Twin meltagun, Volcano lance, 2 shieldbreaker missile launchers and twin siegebreaker cannon (2x Shieldbreaker missile launcher, Twin siegebreaker cannon)
+Knight Crusader [435 pts]: Hunter's Eye [25 pts], Avenger gatling cannon, Heavy flamer, Titanic feet, Stormspear rocket pod, Questoris heavy stubber, Rapid-fire battlecannon and Questoris heavy stubber [15 pts] (Questoris heavy stubber, Rapid-fire battle cannon)
+Knight Warden [375 pts]: Avenger gatling cannon, Heavy flamer, Stormspear rocket pod, Meltagun, Thunderstrike gauntlet
+
+## Vehicle [280 pts]
+Armiger Helverin [140 pts]: 2x Armiger autocannon, Armoured feet, Questoris heavy stubber
+Armiger Warglaive [140 pts]: Reaper chain-cleaver, Thermal spear, Meltagun
+
+Created with newrecruit.eu v36.28

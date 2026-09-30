@@ -1,0 +1,4 @@
+# Normalise line endings in the repo; Windows checkouts still get what git is configured for.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary

@@ -1,0 +1,83 @@
+Xenos - Drukhari - Emo Elves - [1995 pts]
+
+# ++ Army Roster ++ [1995 pts, 3 Detachment Points]
+## Configuration
+Battle Size: Strike Force (2000 Point limit)
+Detachment [3 Detachment Points]: Kabalite Agonysts [1 Detachment Points], Realspace Raiders [2 Detachment Points]
+Force Disposition: Priority Assets
+Show/Hide Options
+
+## Epic Hero [295 pts]
+Lady Malys [100 pts]: Melee Weapons, Warlord
+  • Leading: Incubi
+Lelith Hesperax [80 pts]: Lelith's blades
+  • Leading: Wyches
+Solitaire [115 pts]: Solitaire Weapons
+
+## Character [150 pts]
+Archon [100 pts]: Dark Vitality [20 pts], Shadowfield, Huskblade, Soul Trap
+  • Leading: Kabalite Warriors
+Haemonculus [50 pts]: Haemonculus tools and scissorhands, Stinger pistol
+
+## Battleline [260 pts]
+Kabalite Warriors [110 pts]:
+• 1x Sybarite: Phantasm Grenade Launcher, Power Weapon, Blast Pistol
+• 5x Kabalite Warrior: Close Combat Weapon, Splinter rifle
+• 1x Kabalite Warrior with Blaster: Blaster, Close Combat Weapon
+• 1x Kabalite Warrior with Dark Lance: Close Combat Weapon, Dark lance
+• 1x Kabalite Warrior with Shredder: Close Combat Weapon, Shredder
+• 1x Kabalite Warrior with Splinter Cannon: Close Combat Weapon, Splinter cannon
+  • Leader: Archon
+Wracks [60 pts]:
+• 1x Acothyst: Power weapon, Liquifier gun
+• 4x Wrack: Twin torturer's tools
+Wyches [90 pts]:
+• 1x Hekatrix: Power weapon, Blast Pistol
+• 6x Wych: Hekatarii Blade, Splinter Pistol
+• 3x Wych w/ Gladiatorial weapons: Gladiatorial weapons
+  • Leader: Lelith Hesperax
+
+## Infantry [600 pts]
+Hand of the Archon [115 pts]:
+• 1x Kabalite Archsybarite: Phantasm Grenade Launcher, Power Weapon, Blast Pistol
+• 5x Kabalite Agent: Close Combat Weapon, Splinter rifle
+• 1x Kabalite Agent with heavy weapon: Close Combat Weapon, Dark lance
+• 1x Kabalite Agent with razorflail: Close Combat Weapon, Razorflail, Splinter Pistol
+• 1x Kabalite Agent with special weapon: Close Combat Weapon, Blaster
+• 1x Kabalite Agent with stimm-needler: Close Combat Weapon, Splinter rifle, Stimm-needler
+Incubi [90 pts]: Incubi Shrine Token
+• 1x Klaivex: Demiklaives
+• 4x Incubi: Klaive
+  • Leader: Lady Malys
+Mandrakes [80 pts]:
+• 1x Nightfiend: Baleblast, Glimmersteel Blade
+• 4x Mandrake: Baleblast, Glimmersteel Blade
+Scourges with Heavy Weapons [130 pts]:
+• 1x Solarite: Close combat weapon, 1 Blast pistol and 1 Power weapon
+• 4x Scourge with Heavy Weapon [5 pts]: Close combat weapon, Haywire Blaster [5 pts]
+Scourges with Heavy Weapons [110 pts]:
+• 1x Solarite: Close combat weapon, 1 Blast pistol and 1 Power weapon
+• 4x Scourge with Heavy Weapon: Close combat weapon, Splinter Cannon
+Scourges with Shardcarbines [75 pts]:
+• 1x Solarite: Close combat weapon, 1 Blast pistol and 1 Power weapon
+• 4x Scourge: Close combat weapon, Shardcarbine
+
+## Mounted [180 pts]
+Hellions [180 pts]:
+• 1x Heliarch: Phantasm Grenade Launcher, Splinter Pods, Hellglaive
+• 9x Hellion: Hellglaive, Splinter Pods
+
+## Monster [55 pts]
+Cronos [55 pts]:
+• 1x Cronos: Spirit Syphon, Spirit-leech Tentacles
+
+## Vehicle [250 pts]
+Ravager [125 pts]: Bladevanes, 3x Dark Lance [5 pts]
+Ravager [125 pts]: Bladevanes, 3x Dark Lance [5 pts]
+
+## Dedicated Transport [205 pts]
+Raider [75 pts]: Bladevanes and chainsnares, Dark Lance
+Venom [65 pts]: Bladevanes, 2x Splinter Cannon
+Venom [65 pts]: Bladevanes, 2x Splinter Cannon
+
+Created with newrecruit.eu v36.28
