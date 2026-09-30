@@ -1,0 +1,71 @@
+Imperium - Adeptus Astartes - Blood Angels - Next BA - [1790 pts]
+
+# ++ Army Roster ++ [1790 pts, 3 Detachment Points]
+## Configuration
+Battle Size: Strike Force (2000 Point limit)
+Detachment [3 Detachment Points]: Angelic Inheritors [3 Detachment Points]
+Force Disposition: Priority Assets
+Show/Hide Options
+
+## Epic Hero [110 pts]
+Chief Librarian Mephiston [110 pts]: Fury of the Ancients, Plasma pistol, Vitarus
+
+## Character [430 pts]
+Blood Angels Captain [80 pts]: Power fist, Inferno pistol
+  • Leading: Assault Intercessor Squad
+Blood Angels Captain [80 pts]: Warlord, Power fist, Inferno pistol
+  • Leading: Company Heroes
+Captain with Jump Pack [80 pts]: Thunder Hammer and Relic Shield (Relic Shield, Thunder Hammer)
+  • Leading: Sanguinary Guard[1]
+Death Company Captain with Jump Pack [100 pts]: Ordained Sacrifice [25 pts], Power fist, Hand flamer
+Sanguinary Priest [90 pts]: Troubling Visions [15 pts], Absolvor bolt pistol, Astartes Chainsword
+  • Supporting: Bladeguard Veteran Squad
+
+## Battleline [80 pts]
+Assault Intercessor Squad [80 pts]:
+• 1x Assault Intercessor Sergeant: Plasma pistol, Thunder Hammer
+• 4x Assault Intercessors: Astartes Chainsword, Heavy Bolt Pistol
+  • Led by: Blood Angels Captain[1]
+
+## Infantry [1030 pts]
+Bladeguard Veteran Squad [170 pts]:
+• 1x Bladeguard Veteran Sergeant: Master-crafted power weapon, Plasma pistol
+• 5x Bladeguard Veterans: Heavy Bolt Pistol, Master-crafted power weapon
+  • Supported by: Sanguinary Priest
+Company Heroes [105 pts]:
+• 1x Ancient: Bolt pistol, Bolt Rifle, Close combat weapon
+• 1x Company Champion: Bolt pistol, Master-crafted Power Weapon
+• 1x Company Veteran w/ Bolt Rifle: Bolt pistol, Close combat weapon, Master-crafted Bolt Rifle
+• 1x Company Veteran w/ Heavy Bolter: Bolt pistol, Close combat weapon, Master-crafted Heavy Bolter
+  • Led by: Blood Angels Captain[2]
+Eradicator Squad [90 pts]:
+• 1x Eradicator: Bolt pistol, Close combat weapon, Melta rifle
+• 1x Eradicator Sergeant: Bolt pistol, Close combat weapon, Melta rifle
+• 1x Eradicator with Multi-melta: Bolt pistol, Close combat weapon, Multi-melta
+Eradicator Squad [90 pts]:
+• 1x Eradicator: Bolt pistol, Close combat weapon, Melta rifle
+• 1x Eradicator Sergeant: Bolt pistol, Close combat weapon, Melta rifle
+• 1x Eradicator with Multi-melta: Bolt pistol, Close combat weapon, Multi-melta
+Inceptor Squad [125 pts]:
+• 2x Inceptor: Close combat weapon, Plasma Exterminators
+• 1x Inceptor Sergeant: Close combat weapon, Plasma Exterminators
+Inceptor Squad [125 pts]:
+• 2x Inceptor: Close combat weapon, Assault Bolters
+• 1x Inceptor Sergeant: Close combat weapon, Assault Bolters
+Incursor Squad [85 pts]:
+• 3x Incursor: Bolt pistol, Occulus Bolt Carbine, Paired Combat Blades
+• 1x Incursor: Bolt pistol, Occulus Bolt Carbine, Paired Combat Blades, Haywire Mine
+• 1x Incursor Sergeant: Bolt pistol, Occulus Bolt Carbine, Paired Combat Blades
+Sanguinary Guard [120 pts]:
+• 1x Sanguinary Guard: Encarmine Spear, Inferno Pistol, Sanguinary Banner
+• 2x Sanguinary Guard: Encarmine Spear, Angelus Boltgun
+  • Led by: Captain with Jump Pack
+Sanguinary Guard [120 pts]:
+• 1x Sanguinary Guard: Encarmine Spear, Inferno Pistol, Sanguinary Banner
+• 2x Sanguinary Guard: Encarmine Spear, Angelus Boltgun
+
+## Dedicated Transport [140 pts]
+Impulsor [70 pts]: Armoured Hull, Ironhail Heavy Stubber, Orbital Comms Array, 2 Storm Bolters (2x Storm bolter)
+Impulsor [70 pts]: Armoured Hull, Ironhail Heavy Stubber, Orbital Comms Array, 2 Storm Bolters (2x Storm bolter)
+
+Created with newrecruit.eu v36.28
