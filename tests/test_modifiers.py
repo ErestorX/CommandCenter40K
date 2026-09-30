@@ -83,6 +83,44 @@ class FreeFieldTest(unittest.TestCase):
         self.assertAlmostEqual(w.unsaved / w.wounds, 2 / 6, delta=0.01)           # 4+ improved to 3+
 
 
+class SustainedHitsTest(unittest.TestCase):
+    def test_keeps_the_bigger_sustained_hits(self):
+        def hits_per_attack(own=None, extra=""):
+            w = gun(sustained_hits=own) if own else gun()                    # BS4+: 3/6 hit, 1/6 crit
+            return run(w, Modifiers(add_sustained_hits=Dice.parse(extra))).weapons[0].hits / 10
+        cases = [
+            ((Dice.parse("2"), ""), "", 5 / 6),         # own Sustained 2
+            ((Dice.parse("2"), ""), "1", 5 / 6),        # own 2 beats added 1 (not 2 + 1)
+            ((Dice.parse("2"), ""), "3", 1),            # added 3 beats own 2
+            (None, "D3", 5 / 6),                        # added only
+            ((Dice.parse("3"), "vehicle"), "1", 4 / 6), # own doesn't apply to infantry: added 1
+        ]
+        for own, extra, expected in cases:
+            with self.subTest(own=own, extra=extra):
+                self.assertAlmostEqual(hits_per_attack(own, extra), expected, delta=0.01)
+
+
+class FeelNoPainTest(unittest.TestCase):
+    def test_fnp_restricted_to_psychic_or_mortal_wounds(self):
+        big = target(ModelProfile("Big", "", 4, 7, None, 40), 1)            # no save: damage = wounds
+        normal, psychic = gun(skill=2, S=8), gun(skill=2, S=8, psychic=True)
+        mortal = gun(skill=2, S=8, devastating_wounds="")                    # with crit wounds on 2+: all mortal
+
+        def kept(weapon, against, **m):
+            dmg = lambda mods: run(weapon, mods, tgt=big).stats()["damage_mean"]
+            return dmg(Modifiers(feel_no_pain=4, fnp_against=against, **m)) / dmg(Modifiers(**m))
+        cases = [
+            (normal, "all", {}, 0.5), (normal, "psychic", {}, 1), (normal, "mortal", {}, 1),
+            (normal, "psychic_mortal", {}, 1),
+            (psychic, "psychic", {}, 0.5), (psychic, "mortal", {}, 1), (psychic, "psychic_mortal", {}, 0.5),
+            (mortal, "mortal", {"crit_wound_on": 2}, 0.5), (mortal, "psychic", {"crit_wound_on": 2}, 1),
+            (mortal, "psychic_mortal", {"crit_wound_on": 2}, 0.5),
+        ]
+        for weapon, against, m, expected in cases:
+            with self.subTest(weapon=weapon.keywords.tags(), against=against):
+                self.assertAlmostEqual(kept(weapon, against, **m), expected, delta=0.03)
+
+
 class TagsTest(unittest.TestCase):
     def test_tags_show_changes_only(self):
         m = Modifiers(extra_damage=DiceMod.parse("+D3"), reroll_hits="ones_twos")
@@ -131,3 +169,27 @@ class SituationTest(unittest.TestCase):
         self.assertAlmostEqual(wound_rate(extra_strength=4), 5 / 6, delta=0.01)    # S8 v T4
         self.assertAlmostEqual(wound_rate(extra_strength=-1), 2 / 6, delta=0.01)   # S3 v T4 -> 5+
         self.assertAlmostEqual(wound_rate(extra_strength=-2), 1 / 6, delta=0.01)   # S2 v T4 (half) -> 6+
+
+    def test_wound_mod_depending_on_strength_vs_toughness(self):
+        def wound_rate(S, **m):
+            w = run(gun(skill=2, S=S), Modifiers(**m)).weapons[0]      # target is T4
+            return w.wounds / w.hits
+        cases = [
+            # defender: -1 to be wounded if S > T / S >= T
+            (5, {"wound_minus_if_stronger": "gt"}, 3 / 6),     # S5 v T4: 3+ -> 4+
+            (4, {"wound_minus_if_stronger": "gt"}, 3 / 6),     # S4 v T4: not stronger, 4+
+            (4, {"wound_minus_if_stronger": "ge"}, 2 / 6),     # S4 v T4: 4+ -> 5+
+            (3, {"wound_minus_if_stronger": "ge"}, 2 / 6),     # S3 v T4: weaker, 5+
+            # attacker: +1 to wound if S < T / S <= T
+            (3, {"wound_plus_if_weaker": "lt"}, 3 / 6),        # S3 v T4: 5+ -> 4+
+            (4, {"wound_plus_if_weaker": "lt"}, 3 / 6),        # S4 v T4: not weaker, 4+
+            (4, {"wound_plus_if_weaker": "le"}, 4 / 6),        # S4 v T4: 4+ -> 3+
+            (5, {"wound_plus_if_weaker": "le"}, 4 / 6),        # S5 v T4: stronger, 3+
+            # uses modified characteristics, and both cancel out
+            (4, {"wound_minus_if_stronger": "gt", "extra_strength": 1}, 3 / 6),   # S5 v T4: 3+ -> 4+
+            (4, {"wound_plus_if_weaker": "lt", "toughness_mod": 1}, 3 / 6),       # S4 v T5: 5+ -> 4+
+            (4, {"wound_plus_if_weaker": "le", "wound_minus_if_stronger": "ge"}, 3 / 6),
+        ]
+        for S, m, expected in cases:
+            with self.subTest(S=S, **m):
+                self.assertAlmostEqual(wound_rate(S, **m), expected, delta=0.01)

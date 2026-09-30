@@ -80,6 +80,14 @@ class AllocationTest(unittest.TestCase):
         self.assertLess(base, 0.05)
         self.assertGreater(aimed, 0.5)
 
+    def test_precision_modifier_grants_precision(self):
+        sniper = Weapon("Sniper", "Ranged", '36"', Dice(0, 0, 1), 2, 5, 2, Dice(0, 0, 3), WeaponKeywords())
+        t = self.unit()
+        t.precision_pos = 10
+        p = lambda m: simulate([WeaponLoad(sniper, 10)], t, m, trials=20_000, seed=5).stats()["p_character_slain"]
+        self.assertLess(p(Modifiers()), 0.05)
+        self.assertGreater(p(Modifiers(add_precision=True)), 0.5)
+
     def test_custom_order_is_respected(self):
         t = self.unit()
         t.model_order = [1] + [0] * 10   # defender puts the Dominus first

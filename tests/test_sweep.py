@@ -35,6 +35,11 @@ class VariantTest(unittest.TestCase):
         combined(ATTACKER_VARIANTS["hit+1"], DEFENDER_VARIANTS["baseline"])
         self.assertEqual(combined(ATTACKER_VARIANTS["baseline"], DEFENDER_VARIANTS["baseline"]).hit_mod, 0)
 
+    def test_strength_vs_toughness_variants(self):
+        m = combined(ATTACKER_VARIANTS["wound+1_weaker_eq"], DEFENDER_VARIANTS["wound-1_stronger"])
+        self.assertEqual((m.wound_plus_if_weaker, m.wound_minus_if_stronger), ("le", "gt"))
+        self.assertEqual(m.wound_mod, 0)
+
     def test_keys_are_unique_and_labelled(self):
         for cat in (ATTACKER_VARIANTS, DEFENDER_VARIANTS):
             for k, v in cat.items():

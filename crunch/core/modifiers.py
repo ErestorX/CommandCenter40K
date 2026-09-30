@@ -15,6 +15,7 @@ class Modifiers:
     # --- attacker ---
     hit_mod: int = 0                 # +1 / -1 to hit (net capped at +/-1)
     wound_mod: int = 0               # +1 / -1 to wound (capped at +/-1)
+    wound_plus_if_weaker: str = "none"      # none | lt | le   +1 to wound if S < T (lt) or S <= T (le)
     reroll_hits: str = "none"        # none | ones | ones_twos | fails   (only failed rolls are re-rolled)
     reroll_wounds: str = "none"      # none | ones | ones_twos | fails
     crit_hit_on: int = 6
@@ -26,6 +27,7 @@ class Modifiers:
     add_lethal_hits: bool = False
     add_sustained_hits: Dice = field(default_factory=Dice)   # grants [SUSTAINED HITS X]: 1, 2, D3
     add_devastating_wounds: bool = False
+    add_precision: bool = False
     # --- situation ---
     stationary: bool = False         # Heavy: +1 to hit rolls
     plunging_fire: bool = False      # Plunging Fire: improve BS of ranged attacks by 1
@@ -38,9 +40,11 @@ class Modifiers:
     cover: bool = False
     save_mod: int = 0                # modifier to the save roll (capped at +1)
     save_char_mod: int = 0           # +1 improves the Save characteristic (3+ -> 2+, never better than 2+)
+    wound_minus_if_stronger: str = "none"   # none | gt | ge   -1 to be wounded if S > T (gt) or S >= T (ge)
     ap_mod: int = 0                  # defender-side change to incoming AP: -1 worsens it (AP-2 -> AP-1)
     invuln_override: int | None = None
     feel_no_pain: int | None = None
+    fnp_against: str = "all"         # all | psychic | mortal | psychic_mortal   (mortal = Devastating Wounds)
     damage_reduction: int = 0
     halve_damage: bool = False
     toughness_mod: int = 0           # added to the unit's Toughness

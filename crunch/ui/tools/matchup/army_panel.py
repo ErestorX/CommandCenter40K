@@ -185,6 +185,9 @@ class ArmyPanel(ttk.Frame):
 
     # ---------------- modifiers ----------------
     REROLLS = {"none": "none", "1s": "ones", "1s & 2s": "ones_twos", "failed": "fails"}
+    IF_WEAKER = {"never": "none", "always": "always", "S < T": "lt", "S <= T": "le"}      # +1 to wound
+    IF_STRONGER = {"never": "none", "always": "always", "S > T": "gt", "S >= T": "ge"}   # -1 to be wounded
+    FNP_AGAINST = {"all": "all", "psychic": "psychic", "mortal": "mortal", "psychic/mortal": "psychic_mortal"}
 
     def _build_mods(self, attacker: bool):
         box = ttk.LabelFrame(self, text="Attacker modifiers" if attacker else "Defender modifiers",
@@ -195,10 +198,10 @@ class ArmyPanel(ttk.Frame):
         self.vars: dict[str, tk.Variable] = {}
         self.fields: dict[str, tuple[tk.StringVar, str, tk.Entry]] = {}
 
-        def combo(r, c, label, key, values, default):
+        def combo(r, c, label, key, values, default, width=7):
             ttk.Label(box, text=label, style="Panel.TLabel").grid(row=r, column=c, sticky="w", padx=(0, 4), pady=2)
             v = tk.StringVar(value=default)
-            cb = ttk.Combobox(box, textvariable=v, values=values, state="readonly", width=7)
+            cb = ttk.Combobox(box, textvariable=v, values=values, state="readonly", width=width)
             cb.grid(row=r, column=c + 1, sticky="w", padx=(0, 10), pady=2)
             cb.bind("<<ComboboxSelected>>", lambda e: self.win.schedule())
             self.vars[key] = v
@@ -210,7 +213,7 @@ class ArmyPanel(ttk.Frame):
             self.vars[key] = v
 
         def fields(r, specs):
-            """A row of small free-text fields: (label, key, 'dice'|'int', tooltip)."""
+            """A row of small free-text fields: (label, key, 'dice'|'amount'|'int', tooltip)."""
             row = ttk.Frame(box, style="Flat.TFrame")
             row.grid(row=r, column=0, columnspan=4, sticky="w", pady=(4, 2))
             for label, key, kind, tip in specs:
@@ -225,26 +228,29 @@ class ArmyPanel(ttk.Frame):
 
         if attacker:
             combo(0, 0, "Hit roll", "hit_mod", ["-1", "0", "+1"], "0")
-            combo(0, 2, "Wound roll", "wound_mod", ["-1", "0", "+1"], "0")
+            combo(0, 2, "+1 to wound", "wound_plus", list(self.IF_WEAKER), "never")
             combo(1, 0, "Re-roll hits", "reroll_hits", list(self.REROLLS), "none")
             combo(1, 2, "Re-roll wounds", "reroll_wounds", list(self.REROLLS), "none")
             combo(2, 0, "Crit hits on", "crit_hit_on", ["6+", "5+", "4+", "3+", "2+"], "6+")
             combo(2, 2, "Crit wounds on", "crit_wound_on", ["6+", "5+", "4+", "3+", "2+"], "6+")
-            combo(3, 0, "Sustained Hits", "add_sustained_hits", ["0", "1", "2", "3", "D3"], "0")
-            check(4, 0, "Lethal Hits", "add_lethal_hits")
-            check(4, 2, "Devastating Wounds", "add_devastating_wounds")
-            fields(5, [("Attacks", "extra_attacks", "dice", "Added to each model's Attacks: +1, -1, D3, +D3"),
+            check(3, 0, "Lethal Hits", "add_lethal_hits")
+            check(3, 2, "Devastating Wounds", "add_devastating_wounds")
+            check(4, 0, "Precision", "add_precision")
+            fields(5, [("Sustained Hits", "add_sustained_hits", "amount",
+                        "Grants [SUSTAINED HITS X]: 1, 2, D3. A weapon that already has it keeps the bigger one")])
+            fields(6, [("Attacks", "extra_attacks", "dice", "Added to each model's Attacks: +1, -1, D3, +D3"),
                        ("S", "extra_strength", "int", "Added to the weapons' Strength: +1, -1"),
                        ("AP", "extra_ap", "int", "+1 improves AP (AP-1 becomes AP-2), -1 worsens it"),
                        ("Damage", "extra_damage", "dice", "Added to each attack's Damage: +1, -1, D3")])
         else:
             check(0, 0, "Cover (-1 BS)", "cover")
-            combo(0, 2, "Feel No Pain", "feel_no_pain", ["none", "6+", "5+", "4+", "3+"], "none")
+            combo(0, 2, "Invuln (override)", "invuln_override", ["none", "6+", "5+", "4+", "3+"], "none")
             check(1, 0, "-1 to be hit", "minus_hit")
-            check(1, 2, "-1 to be wounded", "minus_wound")
+            combo(1, 2, "-1 to be wounded", "minus_wound", list(self.IF_STRONGER), "never")
             check(2, 0, "-1 Damage", "damage_reduction")
             check(2, 2, "Halve Damage", "halve_damage")
-            combo(3, 0, "Invuln (override)", "invuln_override", ["none", "6+", "5+", "4+", "3+"], "none")
+            combo(3, 0, "Feel No Pain", "feel_no_pain", ["none", "6+", "5+", "4+", "3+"], "none")
+            combo(3, 2, "FNP against", "fnp_against", list(self.FNP_AGAINST), "all", width=13)
             fields(4, [("Toughness", "toughness_mod", "int", "Added to the unit's Toughness: +1, -1"),
                        ("Save", "save_char_mod", "int", "+1 improves the Save characteristic (3+ becomes 2+)"),
                        ("AP", "ap_mod", "int", "Change to incoming AP: -1 worsens it (AP-2 becomes AP-1)")])
@@ -255,6 +261,8 @@ class ArmyPanel(ttk.Frame):
         t = text.strip()
         if kind == "dice":
             return DiceMod.parse(t)
+        if kind == "amount":
+            return Dice.parse(t)
         if t in ("", "+", "-"):
             return 0
         return int(t.replace(" ", ""))
@@ -273,21 +281,25 @@ class ArmyPanel(ttk.Frame):
         try:
             return self._parse_field(v.get(), kind)
         except ValueError:
-            return DiceMod() if kind == "dice" else 0
+            return {"dice": DiceMod(), "amount": Dice()}.get(kind, 0)
 
     def apply_mods(self, m: Modifiers) -> None:
         v = {k: var.get() for k, var in self.vars.items()}
         num = lambda s: int(str(s).rstrip("+")) if s not in ("none", "") else None
         if self.role == "attacker":
             m.hit_mod += int(v["hit_mod"])
-            m.wound_mod += int(v["wound_mod"])
             m.reroll_hits = self.REROLLS[v["reroll_hits"]]
             m.reroll_wounds = self.REROLLS[v["reroll_wounds"]]
+            wound_plus = self.IF_WEAKER[v["wound_plus"]]
+            if wound_plus == "always":
+                m.wound_mod += 1
+            else:
+                m.wound_plus_if_weaker = wound_plus
             m.crit_hit_on = num(v["crit_hit_on"])
             m.crit_wound_on = num(v["crit_wound_on"])
-            sus = v["add_sustained_hits"]
-            m.add_sustained_hits = Dice.parse(sus)
+            m.add_sustained_hits = self.field_value("add_sustained_hits")
             m.add_lethal_hits, m.add_devastating_wounds = v["add_lethal_hits"], v["add_devastating_wounds"]
+            m.add_precision = v["add_precision"]
             m.extra_attacks = self.field_value("extra_attacks")
             m.extra_strength += self.field_value("extra_strength")
             m.extra_ap += self.field_value("extra_ap")
@@ -295,11 +307,16 @@ class ArmyPanel(ttk.Frame):
         else:
             m.cover = v["cover"]
             m.feel_no_pain = num(v["feel_no_pain"])
+            m.fnp_against = self.FNP_AGAINST[v["fnp_against"]]
             m.hit_mod -= int(v["minus_hit"])
-            m.wound_mod -= int(v["minus_wound"])
             m.damage_reduction = int(v["damage_reduction"])
             m.halve_damage = v["halve_damage"]
             m.invuln_override = num(v["invuln_override"])
+            minus_wound = self.IF_STRONGER[v["minus_wound"]]
+            if minus_wound == "always":
+                m.wound_mod -= 1
+            else:
+                m.wound_minus_if_stronger = minus_wound
             m.toughness_mod += self.field_value("toughness_mod")
             m.save_char_mod += self.field_value("save_char_mod")
             m.ap_mod += self.field_value("ap_mod")

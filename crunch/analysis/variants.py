@@ -62,6 +62,8 @@ _A = [
     Variant("lethal", "Lethal Hits", "Hit", BOTH, _set(add_lethal_hits=True)),
     # wound roll
     Variant("wound+1", "+1 to wound", "Wound", BOTH, _add(wound_mod=1)),
+    Variant("wound+1_weaker", "+1 to wound if S < T", "Wound", BOTH, _set(wound_plus_if_weaker="lt")),
+    Variant("wound+1_weaker_eq", "+1 to wound if S <= T", "Wound", BOTH, _set(wound_plus_if_weaker="le")),
     Variant("rr_wound_1", "Re-roll 1s to wound", "Wound", BOTH, _set(reroll_wounds="ones")),
     Variant("rr_wound_all", "Re-roll failed wounds", "Wound", BOTH, _set(reroll_wounds="fails")),
     Variant("crit_wound_5", "Crit wounds on 5+", "Wound", BOTH, _set(crit_wound_on=5)),
@@ -87,6 +89,9 @@ _D = [
     Variant("cover", "Cover", "Defence", (RANGED,), _set(cover=True)),
     Variant("hit-1", "-1 to be hit", "Defence", BOTH, _add(hit_mod=-1)),
     Variant("wound-1", "-1 to be wounded", "Defence", BOTH, _add(wound_mod=-1)),
+    Variant("wound-1_stronger", "-1 to be wounded if S > T", "Defence", BOTH, _set(wound_minus_if_stronger="gt")),
+    Variant("wound-1_stronger_eq", "-1 to be wounded if S >= T", "Defence", BOTH,
+            _set(wound_minus_if_stronger="ge")),
     Variant("ap-1", "-1 AP (worsen)", "Defence", BOTH, _add(ap_mod=-1)),
     Variant("dmg-1", "-1 Damage", "Defence", BOTH, _set(damage_reduction=1)),
     Variant("halve", "Halve Damage", "Defence", BOTH, _set(halve_damage=True)),

@@ -43,6 +43,27 @@ def _clamp(m: int) -> int:
     return max(-1, min(1, m))
 
 
+def _s_vs_t_wound_mod(S: int, T: int, mods: Modifiers) -> int:
+    """Wound roll modifiers that depend on Strength vs Toughness (both after modifiers)."""
+    m = 0
+    if (mods.wound_plus_if_weaker == "lt" and S < T) or (mods.wound_plus_if_weaker == "le" and S <= T):
+        m += 1
+    if (mods.wound_minus_if_stronger == "gt" and S > T) or (mods.wound_minus_if_stronger == "ge" and S >= T):
+        m -= 1
+    return m
+
+
+def _fnp_applies(against: str, psychic: bool, mortal: bool) -> bool:
+    """Whether a Feel No Pain restricted to `against` (all | psychic | mortal | psychic_mortal) is used."""
+    if against == "psychic":
+        return psychic
+    if against == "mortal":
+        return mortal
+    if against == "psychic_mortal":
+        return psychic or mortal
+    return True
+
+
 def _roll_d6(rng, n: int, reroll: str, success) -> np.ndarray:
     r = rng.integers(1, 7, size=n)
     if reroll == "fails":
@@ -155,10 +176,8 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
 
         # ---------- hits ----------
         lethal = (kw.lethal_hits is not None and target_matches(kw.lethal_hits, tkw)) or mods.add_lethal_hits
-        if kw.sustained_hits and target_matches(kw.sustained_hits[1], tkw):
-            sustained = kw.sustained_hits[0]
-        else:
-            sustained = mods.add_sustained_hits
+        own = kw.sustained_hits[0] if kw.sustained_hits and target_matches(kw.sustained_hits[1], tkw) else Dice()
+        sustained = max(own, mods.add_sustained_hits, key=lambda d: d.mean)   # never both: keep the bigger
         if kw.torrent or w.skill is None:
             crit = np.zeros(idx.size, bool)
             normal_hit = np.ones(idx.size, bool)
@@ -197,8 +216,9 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
             roll_idx = np.concatenate([roll_idx, np.repeat(c_idx, sustained.roll(rng, c_idx.size))])
 
         # ---------- wounds ----------
-        wmod = _clamp(mods.wound_mod + (1 if kw.lance and mods.charged else 0))
-        need_w = wound_target(max(1, w.S + mods.extra_strength), T) - wmod
+        S = max(1, w.S + mods.extra_strength)
+        wmod = _clamp(mods.wound_mod + (1 if kw.lance and mods.charged else 0) + _s_vs_t_wound_mod(S, T, mods))
+        need_w = wound_target(S, T) - wmod
         crit_w = mods.crit_wound_on
         for cond, v in kw.anti:
             if target_matches(cond, tkw):
@@ -215,14 +235,17 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
         dev_idx = roll_idx[crit_wound]
 
         # ---------- damage per wound ----------
-        def dmg(k):
+        fnp_norm = _fnp_applies(mods.fnp_against, kw.psychic, mortal=False)
+        fnp_dev = _fnp_applies(mods.fnp_against, kw.psychic, mortal=True)
+
+        def dmg(k, fnp):
             d = w.D.roll(rng, k) + (kw.melta if mods.half_range else 0)
             if mods.extra_damage:
                 d = d + mods.extra_damage.roll(rng, k)
             if mods.halve_damage:
                 d = (d + 1) // 2
             d = np.maximum(1, d - mods.damage_reduction)
-            if mods.feel_no_pain and k:
+            if mods.feel_no_pain and fnp and k:
                 owner = np.repeat(np.arange(k), d)
                 ignored = rng.integers(1, 7, size=owner.size) >= mods.feel_no_pain
                 d = d - np.bincount(owner, weights=ignored, minlength=k).astype(np.int64)
@@ -242,9 +265,9 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
 
         n_norm, n_dev = normal_idx.size, dev_idx.size
         e_trial += [normal_idx, dev_idx]
-        e_dmg += [dmg(n_norm), dmg(n_dev)]
+        e_dmg += [dmg(n_norm, fnp_norm), dmg(n_dev, fnp_dev)]
         e_mortal += [np.zeros(n_norm, bool), np.ones(n_dev, bool)]
-        e_prec += [np.full(n_norm + n_dev, kw.precision)]
+        e_prec += [np.full(n_norm + n_dev, kw.precision or mods.add_precision)]
         e_weapon += [np.full(n_norm + n_dev, wi)]
         e_unsaved += [unsaved, np.ones((n_dev, G), bool)]
         e_sr += [sr, np.zeros(n_dev, np.int64)]
