@@ -56,6 +56,7 @@ crunch/
                           layouts (deployment zones, objectives, terrain) per disposition pairing
     wahapedia.py          CSVs -> Unit objects
     rules.py              army rules, detachments, stratagems, abilities (lazy)
+    missionbook.py        primary missions and layouts from missions/json (lazy), per disposition pairing
   lists/
     registry.py           pluggable list formats
     newrecruit.py         NewRecruit text export
@@ -79,6 +80,7 @@ crunch/
     tools/
       finder/             the Finder: one unit against another (army panels | results)
       optimizer/          the Optimizer (test plans | run | results window)
+      deployer/           the Deployer: missions + army summaries | the pairing's three layouts
 tests/                    unit tests + small fixtures
 lists/                    your army lists
 user_data/                saved test plans (git-ignored)
@@ -121,6 +123,14 @@ simulated separately, so a total doesn't account for Shooting casualties before 
 - Filters on the left (attackers, defenders, phase, scenarios), metric
   (damage, models slain, % wounds, wipe chance, points removed, points per 100 pts),
   best / average / worst over attacker scenarios and defender tests, CSV export.
+
+## Deployer
+
+Uses each list's `Force Disposition:` line (changeable in the window) to show the
+primary mission each player plays, a compact view of both armies (Leaders and Support
+characters merged into their unit), and the three battlefield layouts of the pairing:
+deployment zones, terrain, objectives and, optionally, the table-setup measurements.
+Needs the mission data from `python -m crunch fetch`.
 
 ## Adding a new window (tool)
 

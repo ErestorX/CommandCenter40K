@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from crunch.data.missionbook import MissionBook
 from crunch.data.rules import RulesBook
 from crunch.data.wahapedia import Wahapedia
 
@@ -22,6 +23,7 @@ class AppContext:
         self.wd = Wahapedia(data_dir)          # raises FileNotFoundError if no data yet
         self.settings = settings or Settings()
         self._rules: RulesBook | None = None
+        self._missions: MissionBook | None = None
 
     @property
     def rules(self) -> RulesBook:
@@ -29,3 +31,10 @@ class AppContext:
         if self._rules is None:
             self._rules = RulesBook(self.wd)
         return self._rules
+
+    @property
+    def missions(self) -> MissionBook:
+        """Primary missions and battlefield layouts (written by `crunch fetch`), loaded on first use."""
+        if self._missions is None:
+            self._missions = MissionBook(Path(self.wd.data_dir).parent / "missions" / "json")
+        return self._missions

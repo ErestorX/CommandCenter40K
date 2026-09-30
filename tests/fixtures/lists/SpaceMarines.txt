@@ -4,6 +4,7 @@ Imperium - Space Marines - Test Company - [300 pts]
 ## Configuration
 Battle Size: Incursion (1000 Point limit)
 Detachment: Gladius Task Force
+Force Disposition: Take and Hold
 
 ## Character [150 pts]
 Captain [80 pts]: Master-crafted bolter, Power weapon, Warlord

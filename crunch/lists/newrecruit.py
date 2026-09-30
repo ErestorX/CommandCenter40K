@@ -73,7 +73,7 @@ def parse(text: str, path: Path, wd: Wahapedia) -> ArmyList:
     pts = re.search(r"\[(\d+)\s*pts", title)
 
     units: list[ListUnit] = []
-    category, detachment, in_config = "", "", False
+    category, detachment, disposition, in_config = "", "", "", False
     current: ListUnit | None = None
     for raw in lines[1:]:
         line = raw.rstrip()
@@ -88,6 +88,8 @@ def parse(text: str, path: Path, wd: Wahapedia) -> ArmyList:
         if in_config:
             if s.lower().startswith("detachment"):
                 detachment = PTS_RE.sub("", s.split(":", 1)[-1]).strip()
+            elif s.lower().startswith("force disposition") and ":" in s:
+                disposition = s.split(":", 1)[1].strip()
             continue
         if s.startswith("•"):
             body = s.lstrip("•").strip()
@@ -107,7 +109,8 @@ def parse(text: str, path: Path, wd: Wahapedia) -> ArmyList:
                                split_items(m["gear"] or ""))
             units.append(current)
 
-    return ArmyList(path, title, faction, faction_id, detachment, int(pts.group(1)) if pts else 0, units)
+    return ArmyList(path, title, faction, faction_id, detachment, int(pts.group(1)) if pts else 0, units,
+                    disposition)
 
 
 register_parser("newrecruit-text", "NewRecruit text export", detect, parse)

@@ -25,6 +25,8 @@ class NewRecruitTest(unittest.TestCase):
         a = self.army
         self.assertEqual((a.faction, a.faction_id, a.points), ("Space Marines", "SM", 300))
         self.assertEqual(a.detachment_names, ["Gladius Task Force"])
+        self.assertEqual(a.force_disposition, "Take and Hold")
+        self.assertEqual(parse_list(FIXTURES / "lists" / "LedBy.txt", self.wd).force_disposition, "")
         self.assertEqual([u.label for u in a.units],
                          ["Captain", "Apothecary", "Intercessor Squad #1", "Intercessor Squad #2"])
         self.assertEqual(a.unmatched_units, [])

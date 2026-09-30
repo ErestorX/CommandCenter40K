@@ -53,6 +53,7 @@ class ArmyList:
     detachment: str
     points: int
     units: list[ListUnit]
+    force_disposition: str = ""        # "Priority Assets" (sets the primary mission and battlefield layouts)
 
     def unit(self, uid: int) -> ListUnit:
         return next(u for u in self.units if u.uid == uid)
