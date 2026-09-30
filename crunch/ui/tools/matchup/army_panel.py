@@ -6,11 +6,11 @@ import tkinter as tk
 from tkinter import ttk
 from typing import TYPE_CHECKING
 
-from crunch.core import Modifiers, WeaponLoad
+from crunch.core import Dice, DiceMod, Modifiers, WeaponLoad
 from crunch.lists import ArmyList, ListUnit, target_for, weapon_loads
 from crunch.ui.theme import C
 from crunch.ui.views.rules import show_army_rules, show_unit_abilities
-from crunch.ui.widgets import EyeButton, make_tree
+from crunch.ui.widgets import EyeButton, Tooltip, make_tree
 
 if TYPE_CHECKING:
     from crunch.ui.tools.matchup.window import MatchupWindow
@@ -87,7 +87,7 @@ class ArmyPanel(ttk.Frame):
         else:
             self._build_allocation()
         self.note = ttk.Label(self, text="", style="Muted.TLabel", wraplength=420, justify="left")
-        self.note.pack(anchor="w", pady=(4, 4))
+        self.note.pack(anchor="w", pady=(4, 0))
         self._build_mods(attacker)
 
         first = self._pending.get("uid")
@@ -105,7 +105,7 @@ class ArmyPanel(ttk.Frame):
                              padding=6)
         box.pack(fill="both", expand=True, pady=(0, 2))
         f, self.alloc_tree = make_tree(box, [("i", "#"), ("m", "Model"), ("sv", "Save"), ("w", "W")],
-                                       [30, -170, 70, 36], height=5)
+                                       [30, -170, 70, 36], height=4)
         f.pack(fill="both", expand=True)
         self.alloc_tree.tag_configure("char", foreground=C["def"])
         self.alloc_tree.bind("<ButtonPress-1>", self._drag_start)
@@ -184,11 +184,16 @@ class ArmyPanel(ttk.Frame):
         target.precision_pos = self.order_keys.index(key) if key in self.order_keys else None
 
     # ---------------- modifiers ----------------
+    REROLLS = {"none": "none", "1s": "ones", "1s & 2s": "ones_twos", "failed": "fails"}
+
     def _build_mods(self, attacker: bool):
         box = ttk.LabelFrame(self, text="Attacker modifiers" if attacker else "Defender modifiers",
                              style="Panel.TLabelframe", padding=6)
-        box.pack(fill="x", pady=(4, 0))
+        # pinned to the bottom and packed first, so tables above shrink instead of hiding the modifiers
+        box.pack(side="bottom", fill="x", pady=(4, 0), before=self.winfo_children()[0])
+        self.note.pack_configure(side="bottom", before=box)
         self.vars: dict[str, tk.Variable] = {}
+        self.fields: dict[str, tuple[tk.StringVar, str, tk.Entry]] = {}
 
         def combo(r, c, label, key, values, default):
             ttk.Label(box, text=label, style="Panel.TLabel").grid(row=r, column=c, sticky="w", padx=(0, 4), pady=2)
@@ -204,27 +209,70 @@ class ArmyPanel(ttk.Frame):
                             command=self.win.schedule).grid(row=r, column=c, columnspan=2, sticky="w", pady=2)
             self.vars[key] = v
 
+        def fields(r, specs):
+            """A row of small free-text fields: (label, key, 'dice'|'int', tooltip)."""
+            row = ttk.Frame(box, style="Flat.TFrame")
+            row.grid(row=r, column=0, columnspan=4, sticky="w", pady=(4, 2))
+            for label, key, kind, tip in specs:
+                ttk.Label(row, text=label, style="Panel.TLabel").pack(side="left", padx=(0, 4))
+                v = tk.StringVar(value="")
+                e = tk.Entry(row, textvariable=v, width=6, relief="solid", borderwidth=1, highlightthickness=0,
+                             bg="white", justify="center")
+                e.pack(side="left", padx=(0, 12))
+                Tooltip(e, tip)
+                v.trace_add("write", lambda *_a, k=key: self._on_field(k))
+                self.fields[key] = (v, kind, e)
+
         if attacker:
             combo(0, 0, "Hit roll", "hit_mod", ["-1", "0", "+1"], "0")
             combo(0, 2, "Wound roll", "wound_mod", ["-1", "0", "+1"], "0")
-            combo(1, 0, "Re-roll hits", "reroll_hits", ["none", "ones", "fails"], "none")
-            combo(1, 2, "Re-roll wounds", "reroll_wounds", ["none", "ones", "fails"], "none")
-            combo(2, 0, "Crit hits on", "crit_hit_on", ["6+", "5+", "4+"], "6+")
-            combo(2, 2, "Sustained", "add_sustained_hits", ["0", "1", "2"], "0")
-            check(3, 0, "Lethal Hits", "add_lethal_hits")
-            check(3, 2, "Dev. Wounds", "add_devastating_wounds")
-            check(4, 0, "+1 AP", "extra_ap")
-            check(4, 2, "+1 Damage", "extra_damage")
-            check(5, 0, "+1 Attack", "extra_attacks")
-            check(5, 2, "Twin-linked", "add_twin_linked")
+            combo(1, 0, "Re-roll hits", "reroll_hits", list(self.REROLLS), "none")
+            combo(1, 2, "Re-roll wounds", "reroll_wounds", list(self.REROLLS), "none")
+            combo(2, 0, "Crit hits on", "crit_hit_on", ["6+", "5+", "4+", "3+", "2+"], "6+")
+            combo(2, 2, "Crit wounds on", "crit_wound_on", ["6+", "5+", "4+", "3+", "2+"], "6+")
+            combo(3, 0, "Sustained Hits", "add_sustained_hits", ["0", "1", "2", "3", "D3"], "0")
+            check(4, 0, "Lethal Hits", "add_lethal_hits")
+            check(4, 2, "Devastating Wounds", "add_devastating_wounds")
+            fields(5, [("Attacks", "extra_attacks", "dice", "Added to each model's Attacks: +1, -1, D3, +D3"),
+                       ("AP", "extra_ap", "int", "+1 improves AP (AP-1 becomes AP-2), -1 worsens it"),
+                       ("Damage", "extra_damage", "dice", "Added to each attack's Damage: +1, -1, D3")])
         else:
             check(0, 0, "Cover (-1 BS)", "cover")
-            combo(0, 2, "Feel No Pain", "feel_no_pain", ["none", "6+", "5+", "4+"], "none")
+            combo(0, 2, "Feel No Pain", "feel_no_pain", ["none", "6+", "5+", "4+", "3+"], "none")
             check(1, 0, "-1 to be hit", "minus_hit")
             check(1, 2, "-1 to be wounded", "minus_wound")
             check(2, 0, "-1 Damage", "damage_reduction")
             check(2, 2, "Halve Damage", "halve_damage")
             combo(3, 0, "Invuln (override)", "invuln_override", ["none", "6+", "5+", "4+", "3+"], "none")
+            fields(4, [("Toughness", "toughness_mod", "int", "Added to the unit's Toughness: +1, -1"),
+                       ("Save", "save_char_mod", "int", "+1 improves the Save characteristic (3+ becomes 2+)"),
+                       ("AP", "ap_mod", "int", "Change to incoming AP: -1 worsens it (AP-2 becomes AP-1)")])
+
+    @staticmethod
+    def _parse_field(text: str, kind: str):
+        """Parsed value, or raises ValueError. Empty means no modifier."""
+        t = text.strip()
+        if kind == "dice":
+            return DiceMod.parse(t)
+        if t in ("", "+", "-"):
+            return 0
+        return int(t.replace(" ", ""))
+
+    def _on_field(self, key: str):
+        v, kind, entry = self.fields[key]
+        try:
+            self._parse_field(v.get(), kind)
+            entry.configure(bg="white")
+        except ValueError:
+            entry.configure(bg="#f6d4d4")     # invalid: shown in red, ignored in the simulation
+        self.win.schedule()
+
+    def field_value(self, key: str):
+        v, kind, _ = self.fields[key]
+        try:
+            return self._parse_field(v.get(), kind)
+        except ValueError:
+            return DiceMod() if kind == "dice" else 0
 
     def apply_mods(self, m: Modifiers) -> None:
         v = {k: var.get() for k, var in self.vars.items()}
@@ -232,12 +280,16 @@ class ArmyPanel(ttk.Frame):
         if self.role == "attacker":
             m.hit_mod += int(v["hit_mod"])
             m.wound_mod += int(v["wound_mod"])
-            m.reroll_hits, m.reroll_wounds = v["reroll_hits"], v["reroll_wounds"]
+            m.reroll_hits = self.REROLLS[v["reroll_hits"]]
+            m.reroll_wounds = self.REROLLS[v["reroll_wounds"]]
             m.crit_hit_on = num(v["crit_hit_on"])
-            m.add_sustained_hits = int(v["add_sustained_hits"])
+            m.crit_wound_on = num(v["crit_wound_on"])
+            sus = v["add_sustained_hits"]
+            m.add_sustained_hits = Dice.parse(sus)
             m.add_lethal_hits, m.add_devastating_wounds = v["add_lethal_hits"], v["add_devastating_wounds"]
-            m.add_twin_linked = v["add_twin_linked"]
-            m.extra_ap, m.extra_damage, m.extra_attacks = int(v["extra_ap"]), int(v["extra_damage"]), int(v["extra_attacks"])
+            m.extra_attacks = self.field_value("extra_attacks")
+            m.extra_ap += self.field_value("extra_ap")
+            m.extra_damage = self.field_value("extra_damage")
         else:
             m.cover = v["cover"]
             m.feel_no_pain = num(v["feel_no_pain"])
@@ -246,6 +298,9 @@ class ArmyPanel(ttk.Frame):
             m.damage_reduction = int(v["damage_reduction"])
             m.halve_damage = v["halve_damage"]
             m.invuln_override = num(v["invuln_override"])
+            m.toughness_mod += self.field_value("toughness_mod")
+            m.save_char_mod += self.field_value("save_char_mod")
+            m.ap_mod += self.field_value("ap_mod")
 
     # ---------------- selection ----------------
     def _attached(self, kind: str) -> ListUnit | None:
@@ -286,6 +341,7 @@ class ArmyPanel(ttk.Frame):
         attached = self.attached
         target = target_for(u, attached)
         self.models_tree.delete(*self.models_tree.get_children())
+        self.models_tree.configure(height=min(5, max(3, len(target.groups))))   # show every model line
         for g in target.groups:
             p = g.profile
             self.models_tree.insert("", "end", values=(("★ " if g.character else "") + (g.label or p.name), g.count,

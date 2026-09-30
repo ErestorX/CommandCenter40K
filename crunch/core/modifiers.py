@@ -5,7 +5,9 @@ should be expressible as field changes here (plus conditions) to be simulated.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, fields
+from dataclasses import dataclass, field, fields
+
+from crunch.core.dice import Dice, DiceMod
 
 
 @dataclass
@@ -13,17 +15,16 @@ class Modifiers:
     # --- attacker ---
     hit_mod: int = 0                 # +1 / -1 to hit (net capped at +/-1)
     wound_mod: int = 0               # +1 / -1 to wound (capped at +/-1)
-    reroll_hits: str = "none"        # none | ones | fails
-    reroll_wounds: str = "none"      # none | ones | fails
+    reroll_hits: str = "none"        # none | ones | ones_twos | fails   (only failed rolls are re-rolled)
+    reroll_wounds: str = "none"      # none | ones | ones_twos | fails
     crit_hit_on: int = 6
     crit_wound_on: int = 6
-    extra_ap: int = 0
-    extra_damage: int = 0
-    extra_attacks: int = 0           # per model
+    extra_ap: int = 0                # +1 improves AP by 1 (AP-1 -> AP-2), -1 worsens it
+    extra_damage: DiceMod = field(default_factory=DiceMod)    # added to each attack's Damage ("+1", "+D3", "-1")
+    extra_attacks: DiceMod = field(default_factory=DiceMod)   # added to each model's Attacks ("+1", "+D3")
     add_lethal_hits: bool = False
-    add_sustained_hits: int = 0
+    add_sustained_hits: Dice = field(default_factory=Dice)   # grants [SUSTAINED HITS X]: 1, 2, D3
     add_devastating_wounds: bool = False
-    add_twin_linked: bool = False
     # --- situation ---
     stationary: bool = False         # Heavy
     charged: bool = False            # Lance
@@ -32,12 +33,14 @@ class Modifiers:
     not_visible: bool = False        # Indirect Fire: target gets cover, hits of 1-5 fail, no hit re-rolls
     # --- defender ---
     cover: bool = False
-    save_mod: int = 0
+    save_mod: int = 0                # modifier to the save roll (capped at +1)
+    save_char_mod: int = 0           # +1 improves the Save characteristic (3+ -> 2+, never better than 2+)
+    ap_mod: int = 0                  # defender-side change to incoming AP: -1 worsens it (AP-2 -> AP-1)
     invuln_override: int | None = None
     feel_no_pain: int | None = None
     damage_reduction: int = 0
     halve_damage: bool = False
-    toughness_mod: int = 0
+    toughness_mod: int = 0           # added to the unit's Toughness
 
     @classmethod
     def from_pairs(cls, pairs: list[str]) -> "Modifiers":
@@ -48,7 +51,11 @@ class Modifiers:
             if not hasattr(m, k):
                 raise KeyError(f"Unknown modifier {k!r}. Valid: {', '.join(f.name for f in fields(cls))}")
             cur = getattr(m, k)
-            if isinstance(cur, bool):
+            if isinstance(cur, DiceMod):
+                val = DiceMod.parse(v)
+            elif isinstance(cur, Dice):
+                val = Dice.parse(v)
+            elif isinstance(cur, bool):
                 val = v.strip().lower() in ("1", "true", "yes", "y", "")
             elif isinstance(cur, str):
                 val = v.strip()
@@ -59,4 +66,9 @@ class Modifiers:
 
     def tags(self) -> list[str]:
         default = Modifiers()
-        return [f"{k}={v}" for k, v in asdict(self).items() if v != getattr(default, k)]
+        out = []
+        for f in fields(self):
+            v = getattr(self, f.name)
+            if v != getattr(default, f.name):
+                out.append(f"{f.name}={v}")
+        return out

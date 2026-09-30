@@ -49,6 +49,8 @@ def _roll_d6(rng, n: int, reroll: str, success) -> np.ndarray:
         mask = ~success(r)
     elif reroll == "ones":
         mask = r == 1
+    elif reroll == "ones_twos":
+        mask = (r <= 2) & ~success(r)
     else:
         return r
     return np.where(mask, rng.integers(1, 7, size=n), r)
@@ -128,7 +130,7 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
              trials: int = 20_000, seed: int | None = None) -> SimResult:
     rng = np.random.default_rng(seed)
     groups = target.groups
-    T = target.toughness + mods.toughness_mod
+    T = max(1, target.toughness + mods.toughness_mod)
     tkw = target.keywords
     n_target = target.models
     G = len(groups)
@@ -141,12 +143,14 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
         w, kw = ld.weapon, ld.weapon.keywords
         # ---------- attacks ----------
         attacks = np.zeros(trials, dtype=np.int64)
-        per_model_bonus = mods.extra_attacks + (kw.blast + kw.cleave) * (n_target // 5)
+        bonus_dice = (kw.blast + kw.cleave) * (n_target // 5)
         for _ in range(ld.count):
-            attacks += w.A.roll(rng, trials) + per_model_bonus
+            a = w.A.roll(rng, trials)
+            if mods.extra_attacks:
+                a = np.maximum(1, a + mods.extra_attacks.roll(rng, trials))   # Attacks can't drop below 1
+            attacks += a + bonus_dice
             if mods.half_range and kw.rapid_fire:
                 attacks += kw.rapid_fire.roll(rng, trials)
-        attacks = np.maximum(attacks, 0)
         idx = np.repeat(np.arange(trials), attacks)
 
         # ---------- hits ----------
@@ -154,7 +158,7 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
         if kw.sustained_hits and target_matches(kw.sustained_hits[1], tkw):
             sustained = kw.sustained_hits[0]
         else:
-            sustained = Dice(0, 0, mods.add_sustained_hits)
+            sustained = mods.add_sustained_hits
         if kw.torrent or w.skill is None:
             crit = np.zeros(idx.size, bool)
             normal_hit = np.ones(idx.size, bool)
@@ -191,8 +195,7 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
 
         def wound_ok(r):
             return (r >= crit_w) | ((r != 1) & (r >= need_w))
-        twin = kw.twin_linked or mods.add_twin_linked
-        rr = "fails" if twin else mods.reroll_wounds
+        rr = "fails" if kw.twin_linked else mods.reroll_wounds
         rw = _roll_d6(rng, roll_idx.size, rr, wound_ok)
         dev = (kw.devastating_wounds is not None and target_matches(kw.devastating_wounds, tkw)) \
             or mods.add_devastating_wounds
@@ -202,7 +205,9 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
 
         # ---------- damage per wound ----------
         def dmg(k):
-            d = w.D.roll(rng, k) + mods.extra_damage + (kw.melta if mods.half_range else 0)
+            d = w.D.roll(rng, k) + (kw.melta if mods.half_range else 0)
+            if mods.extra_damage:
+                d = d + mods.extra_damage.roll(rng, k)
             if mods.halve_damage:
                 d = (d + 1) // 2
             d = np.maximum(1, d - mods.damage_reduction)
@@ -213,12 +218,13 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
             return d
 
         # ---------- saves, one result per allocation group ----------
-        ap = w.AP + mods.extra_ap
+        ap = max(0, w.AP + mods.extra_ap + mods.ap_mod)
         sr = rng.integers(1, 7, size=normal_idx.size)
         unsaved = np.empty((normal_idx.size, G), bool)
         for gi, g in enumerate(groups):
             p = g.profile
-            armour_ok = (sr != 1) & (sr - ap + min(1, mods.save_mod) >= p.Sv)
+            sv = max(2, p.Sv - mods.save_char_mod)
+            armour_ok = (sr != 1) & (sr - ap + min(1, mods.save_mod) >= sv)
             inv = mods.invuln_override or p.inv
             inv_ok = (sr >= inv) if inv else np.zeros(sr.size, bool)
             unsaved[:, gi] = ~(armour_ok | inv_ok)
