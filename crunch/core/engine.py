@@ -13,6 +13,8 @@ Rules applied (11th edition):
 - Normal damage is resolved before mortal wounds ([DEVASTATING WOUNDS]); mortal wounds spill over,
   excess normal damage is lost.
 - A qualified ability such as "LETHAL HITS: non-MONSTER/VEHICLE" only applies when the target matches.
+- A [PSYCHIC] weapon ignores every malus to its hit rolls and its Skill (e.g. -1 to be hit, cover);
+  bonuses still apply.
 """
 from __future__ import annotations
 
@@ -185,12 +187,15 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
             indirect = kw.indirect_fire and mods.not_visible
             skill = w.skill
             if not w.melee:
-                if (mods.cover or indirect) and not kw.ignores_cover:
+                if (mods.cover or indirect) and not kw.ignores_cover and not kw.psychic:
                     skill += 1                  # Benefit of Cover: worsen BS by 1
                 if mods.plunging_fire:
                     skill -= 1                  # Plunging Fire: improve BS by 1
                 skill = max(2, skill)           # a characteristic can't be better than 2+
-            need = skill - _clamp(mods.hit_mod + (1 if kw.heavy and mods.stationary else 0))
+            hit_mods = [mods.hit_mod, mods.to_be_hit_mod, 1 if kw.heavy and mods.stationary else 0]
+            if kw.psychic:
+                hit_mods = [max(0, m) for m in hit_mods]     # [PSYCHIC]: maluses are ignored
+            need = skill - _clamp(sum(hit_mods))
             crit_on = mods.crit_hit_on
             if kw.conversion and mods.beyond_12:
                 crit_on = min(crit_on, 4)

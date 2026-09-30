@@ -84,7 +84,7 @@ _A = [
 
 _D = [
     Variant("cover", "Cover", "Defence", (RANGED,), _set(cover=True)),
-    Variant("hit-1", "-1 to be hit", "Defence", BOTH, _add(hit_mod=-1)),
+    Variant("hit-1", "-1 to be hit", "Defence", BOTH, _add(to_be_hit_mod=-1)),
     Variant("wound-1", "-1 to be wounded", "Defence", BOTH, _add(wound_mod=-1), "wound-1"),
     Variant("wound-1_stronger", "-1 to be wounded if S > T", "Defence", BOTH, _set(wound_minus_if_stronger="gt"),
             "wound-1"),

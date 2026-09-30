@@ -308,7 +308,7 @@ class ArmyPanel(ttk.Frame):
             m.cover = v["cover"]
             m.feel_no_pain = num(v["feel_no_pain"])
             m.fnp_against = self.FNP_AGAINST[v["fnp_against"]]
-            m.hit_mod -= int(v["minus_hit"])
+            m.to_be_hit_mod -= int(v["minus_hit"])
             m.damage_reduction = int(v["damage_reduction"])
             m.halve_damage = v["halve_damage"]
             m.invuln_override = num(v["invuln_override"])

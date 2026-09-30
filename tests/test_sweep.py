@@ -34,7 +34,7 @@ def defender(tests):
 class PackageTest(unittest.TestCase):
     def test_numeric_modifiers_add_up_across_sides(self):
         m = combined(["hit+1"], ["hit-1"])
-        self.assertEqual(m.hit_mod, 0)
+        self.assertEqual((m.hit_mod, m.to_be_hit_mod), (1, -1))
         m = combined(["ap+1"], ["ap-1"])
         self.assertEqual((m.extra_ap, m.ap_mod), (1, -1))
 

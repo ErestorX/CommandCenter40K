@@ -161,6 +161,22 @@ class SituationTest(unittest.TestCase):
                 self.assertAlmostEqual(self.hit_rate(indirect, not_visible=True, spotted=True, **m), 3 / 6,
                                        delta=0.01)
 
+    def test_psychic_ignores_hit_maluses(self):
+        psychic = gun(psychic=True)                                          # BS4+
+        cases = [
+            ({}, 3 / 6, 3 / 6),
+            ({"cover": True}, 3 / 6, 2 / 6),                                 # BS not worsened
+            ({"to_be_hit_mod": -1}, 3 / 6, 2 / 6),
+            ({"hit_mod": -1}, 3 / 6, 2 / 6),
+            ({"hit_mod": 1, "to_be_hit_mod": -1}, 4 / 6, 3 / 6),            # keeps the +1 only
+            ({"hit_mod": 1}, 4 / 6, 4 / 6),                                  # bonuses still apply
+            ({"plunging_fire": True, "cover": True}, 4 / 6, 3 / 6),
+        ]
+        for m, want_psychic, want_normal in cases:
+            with self.subTest(**m):
+                self.assertAlmostEqual(self.hit_rate(psychic, **m), want_psychic, delta=0.01)
+                self.assertAlmostEqual(self.hit_rate(**m), want_normal, delta=0.01)
+
     def test_strength_modifier(self):
         def wound_rate(**m):
             w = run(gun(skill=2, S=4), Modifiers(**m)).weapons[0]

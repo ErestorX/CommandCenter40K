@@ -13,7 +13,7 @@ from crunch.core.dice import Dice, DiceMod
 @dataclass
 class Modifiers:
     # --- attacker ---
-    hit_mod: int = 0                 # +1 / -1 to hit (net capped at +/-1)
+    hit_mod: int = 0                 # attacker's +1 / -1 to hit (net of all hit modifiers capped at +/-1)
     wound_mod: int = 0               # +1 / -1 to wound (capped at +/-1)
     wound_plus_if_weaker: str = "none"      # none | lt | le   +1 to wound if S < T (lt) or S <= T (le)
     reroll_hits: str = "none"        # none | ones | ones_twos | fails   (only failed rolls are re-rolled)
@@ -38,6 +38,7 @@ class Modifiers:
     spotted: bool = False            # ...unless the target is spotted: hits on a fixed 4+
     # --- defender ---
     cover: bool = False
+    to_be_hit_mod: int = 0           # defender's modifier to incoming hit rolls: -1 to be hit
     save_mod: int = 0                # modifier to the save roll (capped at +1)
     save_char_mod: int = 0           # +1 improves the Save characteristic (3+ -> 2+, never better than 2+)
     wound_minus_if_stronger: str = "none"   # none | gt | ge   -1 to be wounded if S > T (gt) or S >= T (ge)
