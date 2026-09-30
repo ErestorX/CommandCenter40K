@@ -37,14 +37,24 @@ class ResultsPanel(ttk.Frame):
         sit = ttk.LabelFrame(self, text="Situation", style="Panel.TLabelframe", padding=6)
         sit.pack(fill="x", pady=(6, 8))
         self.sit_vars = {}
-        opts = [("stationary", "Remained stationary (Heavy)"), ("half_range", "Within half range (Melta, Rapid Fire)"),
-                ("charged", "Charged this turn (Lance)"), ("beyond_12", "Target beyond 12\" (Conversion)"),
-                ("not_visible", "Target not visible (Indirect Fire)")]
-        for i, (key, label) in enumerate(opts):
+        layout = [  # (row, column, key, label)
+            (0, 0, "stationary", "Remained stationary (Heavy +1 to hit)"),
+            (0, 1, "plunging_fire", "Plunging Fire (+1 BS)"),
+            (1, 0, "half_range", "Within half range (Melta, Rapid Fire)"),
+            (1, 1, "charged", "Charged this turn (Lance)"),
+            (2, 0, "beyond_12", "Target beyond 12\" (Conversion)"),
+            (3, 0, "not_visible", "Target not visible (Indirect Fire, 6s)"),
+            (3, 1, "spotted", "Spotted (fixed 4+)"),
+        ]
+        self._sit_checks = {}
+        for r, c, key, label in layout:
             v = tk.BooleanVar(value=False)
-            ttk.Checkbutton(sit, text=label, variable=v, style="Panel.TCheckbutton",
-                            command=win.schedule).grid(row=i // 2, column=i % 2, sticky="w", padx=(0, 12), pady=1)
+            cb = ttk.Checkbutton(sit, text=label, variable=v, style="Panel.TCheckbutton",
+                                 command=lambda k=key: self._on_situation(k))
+            cb.grid(row=r, column=c, sticky="w", padx=(0, 12), pady=1)
             self.sit_vars[key] = v
+            self._sit_checks[key] = cb
+        self._sit_checks["spotted"].state(["disabled"])
 
         self.title_lbl = ttk.Label(self, text="", style="H2.TLabel", wraplength=440, justify="center")
         self.title_lbl.pack(fill="x", pady=(2, 8))
@@ -79,6 +89,15 @@ class ResultsPanel(ttk.Frame):
         self.status.pack(anchor="w")
         ttk.Label(self, text=ATTRIBUTION, style="Muted.TLabel").pack(anchor="w")
         self.result: SimResult | None = None
+
+    def _on_situation(self, key: str):
+        if key == "not_visible":      # "Spotted" only means something for a non-visible target
+            if self.sit_vars["not_visible"].get():
+                self._sit_checks["spotted"].state(["!disabled"])
+            else:
+                self.sit_vars["spotted"].set(False)
+                self._sit_checks["spotted"].state(["disabled"])
+        self.win.schedule()
 
     def apply_mods(self, m: Modifiers):
         for k, v in self.sit_vars.items():

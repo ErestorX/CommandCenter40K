@@ -19,6 +19,7 @@ class Modifiers:
     reroll_wounds: str = "none"      # none | ones | ones_twos | fails
     crit_hit_on: int = 6
     crit_wound_on: int = 6
+    extra_strength: int = 0          # added to the weapon's Strength (never below 1)
     extra_ap: int = 0                # +1 improves AP by 1 (AP-1 -> AP-2), -1 worsens it
     extra_damage: DiceMod = field(default_factory=DiceMod)    # added to each attack's Damage ("+1", "+D3", "-1")
     extra_attacks: DiceMod = field(default_factory=DiceMod)   # added to each model's Attacks ("+1", "+D3")
@@ -26,11 +27,13 @@ class Modifiers:
     add_sustained_hits: Dice = field(default_factory=Dice)   # grants [SUSTAINED HITS X]: 1, 2, D3
     add_devastating_wounds: bool = False
     # --- situation ---
-    stationary: bool = False         # Heavy
+    stationary: bool = False         # Heavy: +1 to hit rolls
+    plunging_fire: bool = False      # Plunging Fire: improve BS of ranged attacks by 1
     charged: bool = False            # Lance
     half_range: bool = False         # Melta, Rapid Fire
     beyond_12: bool = False          # Conversion
-    not_visible: bool = False        # Indirect Fire: target gets cover, hits of 1-5 fail, no hit re-rolls
+    not_visible: bool = False        # Indirect Fire: only 6s hit, unmodifiable, no hit re-rolls
+    spotted: bool = False            # ...unless the target is spotted: hits on a fixed 4+
     # --- defender ---
     cover: bool = False
     save_mod: int = 0                # modifier to the save roll (capped at +1)

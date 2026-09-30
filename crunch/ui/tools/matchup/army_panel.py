@@ -216,9 +216,9 @@ class ArmyPanel(ttk.Frame):
             for label, key, kind, tip in specs:
                 ttk.Label(row, text=label, style="Panel.TLabel").pack(side="left", padx=(0, 4))
                 v = tk.StringVar(value="")
-                e = tk.Entry(row, textvariable=v, width=6, relief="solid", borderwidth=1, highlightthickness=0,
+                e = tk.Entry(row, textvariable=v, width=5, relief="solid", borderwidth=1, highlightthickness=0,
                              bg="white", justify="center")
-                e.pack(side="left", padx=(0, 12))
+                e.pack(side="left", padx=(0, 10))
                 Tooltip(e, tip)
                 v.trace_add("write", lambda *_a, k=key: self._on_field(k))
                 self.fields[key] = (v, kind, e)
@@ -234,6 +234,7 @@ class ArmyPanel(ttk.Frame):
             check(4, 0, "Lethal Hits", "add_lethal_hits")
             check(4, 2, "Devastating Wounds", "add_devastating_wounds")
             fields(5, [("Attacks", "extra_attacks", "dice", "Added to each model's Attacks: +1, -1, D3, +D3"),
+                       ("S", "extra_strength", "int", "Added to the weapons' Strength: +1, -1"),
                        ("AP", "extra_ap", "int", "+1 improves AP (AP-1 becomes AP-2), -1 worsens it"),
                        ("Damage", "extra_damage", "dice", "Added to each attack's Damage: +1, -1, D3")])
         else:
@@ -288,6 +289,7 @@ class ArmyPanel(ttk.Frame):
             m.add_sustained_hits = Dice.parse(sus)
             m.add_lethal_hits, m.add_devastating_wounds = v["add_lethal_hits"], v["add_devastating_wounds"]
             m.extra_attacks = self.field_value("extra_attacks")
+            m.extra_strength += self.field_value("extra_strength")
             m.extra_ap += self.field_value("extra_ap")
             m.extra_damage = self.field_value("extra_damage")
         else:

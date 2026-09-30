@@ -165,17 +165,28 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
         else:
             indirect = kw.indirect_fire and mods.not_visible
             skill = w.skill
-            if not w.melee and (mods.cover or indirect) and not kw.ignores_cover:
-                skill += 1                      # Benefit of Cover: worsen BS by 1
+            if not w.melee:
+                if (mods.cover or indirect) and not kw.ignores_cover:
+                    skill += 1                  # Benefit of Cover: worsen BS by 1
+                if mods.plunging_fire:
+                    skill -= 1                  # Plunging Fire: improve BS by 1
+                skill = max(2, skill)           # a characteristic can't be better than 2+
             need = skill - _clamp(mods.hit_mod + (1 if kw.heavy and mods.stationary else 0))
             crit_on = mods.crit_hit_on
             if kw.conversion and mods.beyond_12:
                 crit_on = min(crit_on, 4)
-            if indirect:
-                need = max(need, 6)
 
-            def hit_ok(r, need=need, crit_on=crit_on):
-                return (r >= crit_on) | ((r != 1) & (r >= need))
+            if indirect:
+                # Indirect Fire at a non-visible target: fixed, unmodifiable hit rolls, no re-rolls.
+                # Unspotted: unmodified 1-5 fail (only 6s hit). Spotted: 4+.
+                fixed = 4 if mods.spotted else 6
+
+                def hit_ok(r, fixed=fixed):
+                    return r >= fixed
+                crit_on = max(crit_on, fixed)
+            else:
+                def hit_ok(r, need=need, crit_on=crit_on):
+                    return (r >= crit_on) | ((r != 1) & (r >= need))
             r = _roll_d6(rng, idx.size, "none" if indirect else mods.reroll_hits, hit_ok)
             crit = r >= crit_on
             normal_hit = hit_ok(r) & ~crit
@@ -187,7 +198,7 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
 
         # ---------- wounds ----------
         wmod = _clamp(mods.wound_mod + (1 if kw.lance and mods.charged else 0))
-        need_w = wound_target(w.S, T) - wmod
+        need_w = wound_target(max(1, w.S + mods.extra_strength), T) - wmod
         crit_w = mods.crit_wound_on
         for cond, v in kw.anti:
             if target_matches(cond, tkw):

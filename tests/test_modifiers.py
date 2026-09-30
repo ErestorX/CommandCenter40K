@@ -92,3 +92,42 @@ class TagsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SituationTest(unittest.TestCase):
+    def hit_rate(self, weapon=None, **m):
+        return run(weapon or gun(), Modifiers(**m)).weapons[0].hits / 10
+
+    def test_plunging_fire_improves_bs(self):
+        self.assertAlmostEqual(self.hit_rate(plunging_fire=True), 4 / 6, delta=0.01)              # 4+ -> 3+
+        self.assertAlmostEqual(self.hit_rate(plunging_fire=True, cover=True), 3 / 6, delta=0.01)  # cancel out
+        self.assertAlmostEqual(self.hit_rate(gun(skill=2), plunging_fire=True), 5 / 6, delta=0.01)  # 2+ is the cap
+
+    def test_heavy_is_a_hit_roll_modifier(self):
+        heavy = gun(heavy=True)
+        self.assertAlmostEqual(self.hit_rate(heavy, stationary=True), 4 / 6, delta=0.01)
+        self.assertAlmostEqual(self.hit_rate(heavy, stationary=True, plunging_fire=True), 5 / 6, delta=0.01)
+        self.assertAlmostEqual(self.hit_rate(stationary=True), 3 / 6, delta=0.01)   # no [HEAVY]: no bonus
+
+    def test_indirect_fire_unspotted_only_sixes(self):
+        indirect = gun(skill=2, indirect_fire=True)
+        for m in ({}, {"hit_mod": 1}, {"crit_hit_on": 5}, {"reroll_hits": "fails"}, {"plunging_fire": True}):
+            with self.subTest(**m):
+                self.assertAlmostEqual(self.hit_rate(indirect, not_visible=True, **m), 1 / 6, delta=0.01)
+        self.assertAlmostEqual(self.hit_rate(indirect), 5 / 6, delta=0.01)          # visible: normal BS2+
+
+    def test_indirect_fire_spotted_fixed_four_plus(self):
+        indirect = gun(skill=2, indirect_fire=True)
+        for m in ({}, {"hit_mod": -1}, {"hit_mod": 1}, {"cover": True}):
+            with self.subTest(**m):
+                self.assertAlmostEqual(self.hit_rate(indirect, not_visible=True, spotted=True, **m), 3 / 6,
+                                       delta=0.01)
+
+    def test_strength_modifier(self):
+        def wound_rate(**m):
+            w = run(gun(skill=2, S=4), Modifiers(**m)).weapons[0]
+            return w.wounds / w.hits
+        self.assertAlmostEqual(wound_rate(extra_strength=1), 4 / 6, delta=0.01)    # S5 v T4
+        self.assertAlmostEqual(wound_rate(extra_strength=4), 5 / 6, delta=0.01)    # S8 v T4
+        self.assertAlmostEqual(wound_rate(extra_strength=-1), 2 / 6, delta=0.01)   # S3 v T4 -> 5+
+        self.assertAlmostEqual(wound_rate(extra_strength=-2), 1 / 6, delta=0.01)   # S2 v T4 (half) -> 6+
