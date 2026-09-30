@@ -8,9 +8,10 @@ venv/
 .idea/
 
 # Downloaded game data (regenerate with: python -m crunch fetch). Rules and stats are (c) Games Workshop.
-wahapedia_data/
-data/
+/wahapedia_data/
+/data/
 
 # Local run artefacts
 run_log.txt
+test_log.txt
 *.log

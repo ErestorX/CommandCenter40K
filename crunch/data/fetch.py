@@ -1,40 +1,14 @@
-#!/usr/bin/env python3
 """
-fetch_wahapedia.py - download Wahapedia's CSV export and build a structured data tree.
+Download Wahapedia's CSV export and build a structured data tree.
+
+    python -m crunch fetch                  # -> <project>/wahapedia_data/wh40k11ed/
+    python -m crunch fetch --force          # re-download even if unchanged
+    python -m crunch fetch --from-dir DIR   # build from CSVs saved by hand
+    python -m crunch fetch --rebuild-json   # only rebuild json/ from raw/
+
+Output: <root>/<edition>/{raw/, archive/<update>/, json/, manifest.json, README.txt}
 
 Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are (c) Games Workshop.
-
-No third-party packages needed (Python 3.9+). Works on Windows, macOS and Linux.
-
-Usage
------
-    python fetch_wahapedia.py                      # -> ./wahapedia_data/wh40k11ed/
-    python fetch_wahapedia.py --out D:\\40k\\data    # choose where the tree goes
-    python fetch_wahapedia.py --force              # re-download even if unchanged
-    python fetch_wahapedia.py --from-dir .\\csvs    # build from CSVs you saved by hand
-
-Output tree
------------
-    wahapedia_data/
-      wh40k11ed/
-        README.txt                  attribution + what's where
-        manifest.json               last Wahapedia update, per-table row counts, checksums
-        raw/                        the untouched CSVs (point mathhammer.py --data here)
-        archive/<update-stamp>/     previous raw CSVs, kept whenever Wahapedia updates
-        json/
-          index.json                every faction and datasheet with its file path
-          core/abilities.json       core/shared abilities (no faction)
-          factions/<ID>_<name>/
-            faction.json            faction info, army rules, list of detachments
-            stratagems.json         all of the faction's stratagems
-            enhancements.json
-            detachments/<name>.json detachment rule + its enhancements + its stratagems
-            datasheets/<name>.json  one unit: models, wargear, abilities, keywords,
-                                    options, costs, leader links, stratagem/enhancement ids
-
-Every HTML "description" field also gets a plain-text twin ("description_text").
-Tables Wahapedia doesn't publish (or renames) are skipped with a warning, and any
-column is carried through as-is, so the script keeps working when the export changes.
 """
 from __future__ import annotations
 
@@ -54,8 +28,10 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-BASE_URL = "https://wahapedia.ru/{edition}/"
-DEFAULT_EDITION = "wh40k11ed"
+from crunch import config
+
+BASE_URL = config.WAHAPEDIA_BASE_URL
+DEFAULT_EDITION = config.EDITION
 
 # Tables in Wahapedia's 40k export spec. Missing ones are skipped, not fatal.
 TABLES = [
@@ -82,8 +58,8 @@ TABLES = [
 ]
 REQUIRED = {"Datasheets", "Factions"}
 
-USER_AGENT = "Mozilla/5.0 (fetch_wahapedia.py; personal mathhammer tool)"
-ATTRIBUTION = "Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are (c) Games Workshop."
+USER_AGENT = "Mozilla/5.0 (crunch fetch; personal mathhammer tool)"
+ATTRIBUTION = config.ATTRIBUTION
 
 
 # -----------------------------------------------------------------------------
@@ -358,8 +334,8 @@ Please keep the attribution line with any copy or use of this data.
 
 
 def main(argv=None) -> None:
-    ap = argparse.ArgumentParser(description="Download Wahapedia's export into a structured tree.")
-    ap.add_argument("--out", default="wahapedia_data", help="root output folder (default: ./wahapedia_data)")
+    ap = argparse.ArgumentParser(prog="python -m crunch fetch", description="Download Wahapedia's export into a structured tree.")
+    ap.add_argument("--out", default=str(config.DATA_ROOT), help="root output folder (default: <project>/wahapedia_data)")
     ap.add_argument("--edition", default=DEFAULT_EDITION, help="Wahapedia edition path (default: wh40k11ed)")
     ap.add_argument("--force", action="store_true", help="download and rebuild even if unchanged")
     ap.add_argument("--from-dir", type=Path, help="build from CSVs already on disk instead of downloading")

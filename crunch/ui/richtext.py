@@ -1,87 +1,15 @@
-"""
-rules_view.py - read-only rules text for the UI: army rules, detachments, stratagems,
-enhancements and unit abilities, rendered from Wahapedia's HTML into a tkinter Text window.
-
-Powered by Wahapedia (https://wahapedia.ru). Rules text is (c) Games Workshop.
-"""
+"""Read-only rich text for the UI: Wahapedia HTML rendered into a tkinter Text window,
+plus card grids (used for stratagems). Reusable by any tool that needs to show rules text."""
 from __future__ import annotations
 
-import re
 import tkinter as tk
 import tkinter.font as tkfont
-from collections import defaultdict
 from html.parser import HTMLParser
 from tkinter import ttk
 
-from mathhammer import Wahapedia, norm, read_table
+import re
 
-# =============================================================================
-# data
-# =============================================================================
-class RulesBook:
-    """Lazily loads the rules tables that the simulator itself doesn't need."""
-
-    def __init__(self, wd: Wahapedia):
-        self.wd = wd
-        self._t: dict[str, list[dict]] = {}
-
-    def table(self, name: str) -> list[dict]:
-        if name not in self._t:
-            self._t[name] = read_table(self.wd.data_dir, name)
-        return self._t[name]
-
-    @property
-    def abilities_by_id(self) -> dict[str, dict]:
-        if "_ab" not in self._t:
-            self._t["_ab"] = {a["id"]: a for a in self.table("Abilities")}
-        return self._t["_ab"]
-
-    # ---- army level --------------------------------------------------------
-    def army_rules(self, faction_id: str | None) -> list[dict]:
-        return [a for a in self.table("Abilities") if faction_id and a.get("faction_id") == faction_id]
-
-    def detachments(self, faction_id: str | None, names: list[str]) -> list[dict]:
-        rows = [d for d in self.table("Detachments") if d.get("faction_id") == faction_id]
-        wanted = [norm(n) for n in names]
-        return [d for d in rows if norm(d["name"]) in wanted]
-
-    def detachment_content(self, det: dict) -> dict[str, list[dict]]:
-        did, name = det.get("id", ""), norm(det.get("name", ""))
-        match = lambda r: (did and r.get("detachment_id") == did) or norm(r.get("detachment", "")) == name
-        return {
-            "rules": [r for r in self.table("Detachment_abilities") if match(r)],
-            "enhancements": [r for r in self.table("Enhancements") if match(r)],
-            "stratagems": [r for r in self.table("Stratagems") if match(r)],
-        }
-
-    def core_stratagems(self) -> list[dict]:
-        return [s for s in self.table("Stratagems")
-                if not s.get("faction_id") and s.get("type", "").lower().startswith("core")]
-
-    # ---- unit level --------------------------------------------------------
-    def unit_abilities(self, datasheet_id: str) -> dict[str, list[tuple[str, str]]]:
-        """{'Core': [(name, html)], 'Faction': [...], 'Datasheet': [...], 'Wargear': [...], ...}"""
-        if "_dsa" not in self._t:
-            g = defaultdict(list)
-            for r in self.table("Datasheets_abilities"):
-                g[r.get("datasheet_id", "")].append(r)
-            self._t["_dsa"] = g
-        out: dict[str, list[tuple[str, str]]] = defaultdict(list)
-        for r in sorted(self._t["_dsa"].get(datasheet_id, []), key=lambda r: int(r.get("line") or 0)):
-            ref = self.abilities_by_id.get(r.get("ability_id", ""), {})
-            name = r.get("name") or ref.get("name", "")
-            if r.get("parameter"):
-                name = f"{name} {r['parameter']}"
-            kind = r.get("type") or "Other"
-            if kind not in ("Core", "Faction", "Datasheet", "Wargear"):
-                kind = "Other"
-            desc = r.get("description") or ("" if kind in ("Core", "Faction") else ref.get("description", ""))
-            out[kind].append((name, desc))
-        return out
-
-    def datasheet_row(self, datasheet_id: str) -> dict:
-        return self.wd.datasheets.get(datasheet_id, {})
-
+from crunch.util import clean_glyphs
 
 # =============================================================================
 # HTML -> tagged text
@@ -162,9 +90,7 @@ class _Render(HTMLParser):
         self.out.append((text, tags))
 
 
-def clean(s: str) -> str:
-    """Characters some Windows/Tk fonts can't draw -> plain equivalents."""
-    return (s or "").replace("\u2011", "-").replace("\u00ad", "").replace("\u2009", " ").replace("\u202f", " ")
+clean = clean_glyphs
 
 
 def render_html(html_text: str) -> list[tuple[str, tuple[str, ...]]]:
@@ -215,8 +141,10 @@ def _display_lines(t: tk.Text) -> int:
     return max(1, int(n or 1))
 
 
-class RulesWindow(tk.Toplevel):
-    """Scrollable, read-only rich text."""
+class RichTextWindow(tk.Toplevel):
+    """Scrollable, read-only rich text with headings, rendered HTML and card grids.
+
+    Build content with h1/h2/h3/meta/html/cards, then call done()."""
 
     def __init__(self, master, title: str, width=760, height=820):
         super().__init__(master)
@@ -389,104 +317,4 @@ class RulesWindow(tk.Toplevel):
                     ct.tag_add("found", hit, start)
 
 
-# =============================================================================
-# content builders
-# =============================================================================
-def _strat_meta(s: dict) -> str:
-    bits = [f"{s.get('cp_cost', '?')} CP", s.get("type", "")]
-    if s.get("turn"):
-        bits.append(s["turn"])
-    if s.get("phase"):
-        bits.append(s["phase"])
-    return "  ·  ".join(b for b in bits if b)
-
-
-def show_army_rules(master, book: RulesBook, army) -> RulesWindow:
-    w = RulesWindow(master, f"{army.faction} — army & detachment rules", width=1120, height=860)
-    w.h1(army.faction)
-    w.meta(f"{army.path.stem}  ·  {army.points} pts" + (f"  ·  {army.detachment}" if army.detachment else ""))
-
-    rules = book.army_rules(army.faction_id)
-    w.h2("Army rules")
-    if not rules:
-        w.meta("No army rule found for this faction.")
-    for r in rules:
-        w.h3(r["name"])
-        w.html(r.get("description", ""))
-
-    dets = book.detachments(army.faction_id, army.detachment_names)
-    if not dets:
-        w.h2("Detachment")
-        w.meta(f"Could not match “{army.detachment or 'no detachment'}” to a Wahapedia detachment.")
-    taken = {norm(n) for u in army.units for n, _ in u.unit_gear}
-    for m_u in army.units:
-        for m in m_u.models:
-            taken |= {norm(n) for n, _ in m.gear}
-    for d in dets:
-        c = book.detachment_content(d)
-        w.h2(f"Detachment: {d['name']}")
-        extra = [x for x in (d.get("type"), f"{d['dp']} DP" if d.get("dp") else "", d.get("force_disposition")) if x]
-        if extra:
-            w.meta("  ·  ".join(extra))
-        for r in c["rules"]:
-            w.h3(r["name"])
-            w.html(r.get("description", ""))
-        if c["enhancements"]:
-            w.h3("Enhancements")
-            for e in c["enhancements"]:
-                mine = "  ← in this list" if norm(e["name"]) in taken else ""
-                w.h3(f"• {e['name']}", f"{e.get('cost', '?')} pts{mine}")
-                w.html(e.get("description", ""))
-        if c["stratagems"]:
-            w.h3("Stratagems")
-            w.cards(c["stratagems"])
-
-    core = book.core_stratagems()
-    if core:
-        w.h2("Core stratagems")
-        w.cards(core)
-    w.gap()
-    w.meta("Powered by Wahapedia · rules © Games Workshop")
-    w.done()
-    return w
-
-
-def show_unit_abilities(master, book: RulesBook, units: list) -> RulesWindow:
-    """units: ListUnit objects (bodyguard first, then attached characters)."""
-    names = " + ".join(u.label for u in units)
-    w = RulesWindow(master, f"{names} — abilities", width=700)
-    w.h1(names)
-    for u in units:
-        ds = u.datasheet
-        if not ds:
-            continue
-        row = book.datasheet_row(ds.id)
-        w.h2(u.label + ("  (Support)" if u.is_support else "  (Leader)" if u is not units[0] and u.is_character else ""))
-        for p in ds.models:
-            inv = f"  {p.inv}++" if p.inv else ""
-            w.meta(f"{p.name}:  M {p.M}   T {p.T}   Sv {p.Sv}+{inv}   W {p.W}")
-        inv_descr = next((m.get("inv_sv_descr") for m in book.wd._models.get(ds.id, []) if m.get("inv_sv_descr")), "")
-        if inv_descr:
-            w.html(inv_descr)
-        ab = book.unit_abilities(ds.id)
-        for kind in ("Core", "Faction"):
-            if ab.get(kind):
-                w.text.insert("end", f"{kind}: ", ("bold",))
-                w.text.insert("end", ", ".join(n for n, _ in ab[kind]) + "\n")
-        for kind, title in (("Datasheet", "Abilities"), ("Wargear", "Wargear abilities"), ("Other", "Other")):
-            for name, desc in ab.get(kind, []):
-                w.h3(name, title if kind != "Datasheet" else "")
-                if desc:
-                    w.html(desc)
-        if row.get("leader_head") or row.get("leader_footer"):
-            w.h3("Attachment")
-            w.html(row.get("leader_head", "") + "<br>" + row.get("leader_footer", ""))
-        if row.get("damaged_w"):
-            w.h3(f"Damaged: {row['damaged_w']} wounds remaining")
-            w.html(row.get("damaged_description", ""))
-        w.text.insert("end", "Keywords: ", ("bold",))
-        w.text.insert("end", ", ".join(sorted(k.upper() for k in ds.keywords)) + "\n", ("kw",))
-    w.gap()
-    w.meta("Powered by Wahapedia · rules © Games Workshop")
-    w.done()
-    return w
+RulesWindow = RichTextWindow   # backwards-compatible name
