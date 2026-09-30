@@ -1,8 +1,9 @@
-"""Sweep: every selected attacker x every selected defender x each phase x each attacker scenario
-x each defender scenario. Pure Python/numpy (no UI) so it can run in worker processes.
+"""Sweep: every selected attacker x every selected defender x each phase x each attacker test
+x each defender test. A test is a package of modifiers applied together. Pure Python/numpy (no UI)
+so it can run in worker processes.
 
-Scenarios of the same attacker/defender/phase share a random seed ("common random numbers"),
-so differences between scenarios aren't drowned in dice noise.
+Tests of the same attacker/defender/phase share a random seed ("common random numbers"),
+so differences between tests aren't drowned in dice noise.
 """
 from __future__ import annotations
 
@@ -12,7 +13,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
 from typing import Callable
 
-from crunch.analysis.variants import (ATTACKER_VARIANTS, DEFENDER_VARIANTS, PHASE_LABEL, combined)
+from crunch.analysis.variants import (ATTACKER_VARIANTS, DEFENDER_VARIANTS, PHASE_LABEL, combined, for_phase,
+                                      package_label)
 from crunch.core.engine import simulate
 from crunch.core.models import Target, WeaponLoad
 
@@ -22,7 +24,7 @@ class AttackerSpec:
     name: str                                  # "Kabalite Warriors + Archon"
     points: int
     loads: dict[str, list[WeaponLoad]]         # phase -> weapons firing in that phase
-    variants: dict[str, list[str]]             # phase -> variant keys (only tested phases present)
+    tests: dict[str, list[tuple[str, ...]]]    # phase -> modifier packages run in that phase
 
 
 @dataclass
@@ -30,7 +32,7 @@ class DefenderSpec:
     name: str
     points: int
     target: Target
-    variants: list[str]
+    tests: list[tuple[str, ...]]               # modifier packages
 
 
 @dataclass
@@ -39,8 +41,8 @@ class TestCase:
     attacker: str
     defender: str
     phase: str
-    att_variant: str
-    def_variant: str
+    att_mods: tuple[str, ...]
+    def_mods: tuple[str, ...]
     att_points: int
     def_points: int
     loads: list[WeaponLoad]
@@ -55,8 +57,8 @@ class TestRecord:
     attacker: str
     defender: str
     phase: str                 # "Shooting" / "Fight"
-    att_test: str              # attacker scenario label
-    def_test: str              # defender scenario label
+    att_test: str              # attacker test label ("+1 to hit, Re-roll 1s to wound")
+    def_test: str              # defender test label
     att_points: int
     def_points: int
     models: int
@@ -82,19 +84,16 @@ def build_cases(attackers: list[AttackerSpec], defenders: list[DefenderSpec]) ->
     cases: list[TestCase] = []
     for a in attackers:
         for d in defenders:
-            for phase, keys in a.variants.items():
+            for phase, packages in a.tests.items():
                 loads = a.loads.get(phase) or []
                 if not loads:
                     continue                 # nothing fires in this phase
                 seed = zlib.crc32(f"{a.name}|{d.name}|{phase}".encode())
-                for ak in keys:
-                    av = ATTACKER_VARIANTS.get(ak)
-                    if not av or phase not in av.phases:
-                        continue
-                    for dk in d.variants:
-                        dv = DEFENDER_VARIANTS.get(dk)
-                        if not dv or phase not in dv.phases:
-                            continue
+                # modifiers that don't apply in this phase are dropped, which can make two tests identical
+                att = dict.fromkeys(for_phase(p, ATTACKER_VARIANTS, phase) for p in packages)
+                dfn = dict.fromkeys(for_phase(p, DEFENDER_VARIANTS, phase) for p in d.tests)
+                for ak in att:
+                    for dk in dfn:
                         cases.append(TestCase(len(cases), a.name, d.name, phase, ak, dk,
                                               a.points, d.points, loads, d.target, seed))
     return cases
@@ -102,12 +101,12 @@ def build_cases(attackers: list[AttackerSpec], defenders: list[DefenderSpec]) ->
 
 def run_case(case: TestCase, trials: int) -> TestRecord:
     """Run one test. Top-level so worker processes can import it."""
-    av, dv = ATTACKER_VARIANTS[case.att_variant], DEFENDER_VARIANTS[case.def_variant]
     base = dict(id=case.id, attacker=case.attacker, defender=case.defender, phase=PHASE_LABEL[case.phase],
-                att_test=av.label, def_test=dv.label, att_points=case.att_points, def_points=case.def_points,
+                att_test=package_label(case.att_mods, ATTACKER_VARIANTS),
+                def_test=package_label(case.def_mods, DEFENDER_VARIANTS), att_points=case.att_points, def_points=case.def_points,
                 models=case.target.models, wounds=sum(g.count * g.profile.W for g in case.target.groups))
     try:
-        r = simulate(case.loads, case.target, combined(av, dv), trials=trials, seed=case.seed)
+        r = simulate(case.loads, case.target, combined(case.att_mods, case.def_mods), trials=trials, seed=case.seed)
     except Exception as e:  # noqa: BLE001 - one bad test must not stop the sweep
         return TestRecord(**base, dmg_mean=0, dmg_sd=0, dmg_p5=0, dmg_p95=0, slain_mean=0, slain_p5=0,
                           slain_p95=0, p_wipe=0, frac_wounds=0, pts_removed=0, pts_per_100=0, error=str(e))

@@ -1,16 +1,17 @@
 """Per-unit test plans for the sweep, saved to user_data/test_plans.json.
 
-A plan says whether a unit takes part, which Leader/Support it uses, which weapons fire, which
-phases an attacker is tested in, and which individual scenarios (variants) are tried.
+A plan says whether a unit takes part, which Leader/Support it uses, which weapons fire, and its
+tests: packages of modifiers applied together (plus, for an attacker, the phases each is run in).
+Unticking a unit deletes its tests; ticking it again starts from a single "no modifiers" test.
 """
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 from crunch import config
-from crunch.analysis.variants import BASELINE, MELEE, PHASES, RANGED
+from crunch.analysis.variants import MELEE, PHASES
 from crunch.core.models import WeaponLoad
 from crunch.data.wahapedia import Wahapedia
 from crunch.lists import ArmyList, ListUnit, target_for, weapon_loads
@@ -21,24 +22,47 @@ NONE = "None"
 
 
 @dataclass
+class TestPackage:
+    mods: list[str] = field(default_factory=list)       # variant keys, applied together
+    phases: list[str] = field(default_factory=list)     # attacker: phases it runs in; defender: unused
+
+    def same_as(self, other: "TestPackage") -> bool:
+        return set(self.mods) == set(other.mods) and set(self.phases) == set(other.phases)
+
+
+def baseline_package(role: str) -> TestPackage:
+    return TestPackage([], list(PHASES) if role == ATTACKER else [])
+
+
+@dataclass
 class UnitPlan:
     included: bool = False
     leader: str = DEFAULT
     support: str = DEFAULT
-    # attacker: phase -> tested?; variants per phase. defender: variants under the key "any".
-    phases: dict[str, bool] = field(default_factory=lambda: {RANGED: True, MELEE: True})
-    variants: dict[str, list[str]] = field(default_factory=dict)
+    tests: list[TestPackage] = field(default_factory=list)
     weapons: dict[str, bool] = field(default_factory=dict)   # "source|weapon name" -> on/off override
 
-    def variant_keys(self, phase: str) -> list[str]:
-        return self.variants.setdefault(phase, [BASELINE])
+    def set_included(self, on: bool, role: str) -> None:
+        """Ticking starts with a "no modifiers" test; unticking deletes every test."""
+        self.included = on
+        if not on:
+            self.tests.clear()
+        elif not self.tests:
+            self.tests.append(baseline_package(role))
 
-    def toggle_variant(self, phase: str, key: str) -> None:
-        keys = self.variant_keys(phase)
-        if key in keys:
-            keys.remove(key)
-        else:
-            keys.append(key)
+    def add_test(self, pkg: TestPackage) -> bool:
+        """False if the same test is already there."""
+        if any(t.same_as(pkg) for t in self.tests):
+            return False
+        self.tests.append(pkg)
+        return True
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "UnitPlan":
+        known = {f.name for f in fields(cls)}
+        d = {k: v for k, v in d.items() if k in known}      # drops fields of older versions
+        d["tests"] = [TestPackage(**t) for t in d.get("tests", [])]
+        return cls(**d)
 
 
 class PlanStore:
@@ -56,11 +80,7 @@ class PlanStore:
     def get(self, army: ArmyList, role: str, unit: ListUnit) -> UnitPlan:
         k = self.key(army, role, unit)
         if k not in self._plans:
-            p = UnitPlan()
-            if role == DEFENDER:
-                p.phases = {}
-                p.variants = {"any": [BASELINE]}
-            self._plans[k] = p
+            self._plans[k] = UnitPlan()
         return self._plans[k]
 
     def _load(self):
@@ -70,9 +90,12 @@ class PlanStore:
             return
         for k, d in raw.items():
             try:
-                self._plans[k] = UnitPlan(**d)
-            except TypeError:
-                continue            # written by an older/newer version: ignore that entry
+                p = UnitPlan.from_dict(d)
+            except (TypeError, AttributeError):
+                continue            # unreadable entry: ignore it
+            if p.included and not p.tests:       # saved by the one-scenario-at-a-time version
+                p.set_included(True, k.split("|")[1])
+            self._plans[k] = p
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -145,5 +168,5 @@ def defender_target(unit: ListUnit, attached: list[ListUnit]):
 
 def test_count(role: str, plan: UnitPlan) -> int:
     if role == DEFENDER:
-        return len(plan.variant_keys("any"))
-    return sum(len(plan.variant_keys(ph)) for ph in PHASES if plan.phases.get(ph))
+        return len(plan.tests)
+    return sum(len(t.phases) for t in plan.tests)

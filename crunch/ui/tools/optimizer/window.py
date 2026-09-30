@@ -1,5 +1,5 @@
 """Optimizer: pit every selected attacking unit against every selected defending unit, over each
-unit's own list of test scenarios, then explore the results."""
+unit's own list of tests (packages of modifiers), then explore the results."""
 from __future__ import annotations
 
 import threading
@@ -56,13 +56,13 @@ class OptimizerWindow(ToolWindow):
         top.pack(fill="x")
         ttk.Button(top, text="← Lists", command=self.back).pack(side="left")
         ttk.Label(f, text="Optimizer", style="H2.TLabel").pack(anchor="w", pady=(10, 0))
-        ttk.Label(f, text="Every ticked attacker is tested against every ticked defender, for each phase and "
-                          "each scenario ticked on both sides (scenarios are tried one at a time, never "
-                          "combined).", style="Muted.TLabel", wraplength=420, justify="left").pack(anchor="w")
+        ttk.Label(f, text="Every ticked attacker is tested against every ticked defender: each attacker test "
+                          "(in each of its phases) against each defender test. A test applies all of its "
+                          "modifiers together.", style="Muted.TLabel", wraplength=420, justify="left").pack(anchor="w")
 
         self.summary = ttk.Label(f, text="", style="Panel.TLabel", justify="left", wraplength=420)
         self.summary.pack(anchor="w", pady=(10, 4))
-        fr, self.plan_tree = make_tree(f, [("side", "Side"), ("unit", "Unit"), ("tests", "Scenarios")],
+        fr, self.plan_tree = make_tree(f, [("side", "Side"), ("unit", "Unit"), ("tests", "Tests")],
                                        [70, -220, 70], height=10)
         fr.pack(fill="both", expand=True)
 
@@ -105,9 +105,9 @@ class OptimizerWindow(ToolWindow):
         t = self.plan_tree
         t.delete(*t.get_children())
         for a in atts:
-            t.insert("", "end", values=("Attacker", a.name, sum(len(v) for v in a.variants.values())))
+            t.insert("", "end", values=("Attacker", a.name, sum(len(v) for v in a.tests.values())))
         for d in defs:
-            t.insert("", "end", values=("Defender", d.name, len(d.variants)))
+            t.insert("", "end", values=("Defender", d.name, len(d.tests)))
         if not self._running:
             self.run_btn.state(["!disabled"] if n else ["disabled"])
         self._n_cases = n
@@ -118,16 +118,16 @@ class OptimizerWindow(ToolWindow):
         for u in self.left.selected_units():
             p = self.left.plan(u)
             attached = resolve_attached(self.left.army, u, p, wd)
-            phases = [ph for ph in PHASES if p.phases.get(ph)]
+            tests = {ph: [tuple(t.mods) for t in p.tests if ph in t.phases] for ph in PHASES}
+            tests = {ph: pkgs for ph, pkgs in tests.items() if pkgs}
             atts.append(AttackerSpec(display_name(u, attached), unit_points(u, attached),
-                                     {ph: active_loads(u, attached, p, ph) for ph in phases},
-                                     {ph: list(p.variant_keys(ph)) for ph in phases}))
+                                     {ph: active_loads(u, attached, p, ph) for ph in tests}, tests))
         defs: list[DefenderSpec] = []
         for u in self.right.selected_units():
             p = self.right.plan(u)
             attached = resolve_attached(self.right.army, u, p, wd)
             defs.append(DefenderSpec(display_name(u, attached), unit_points(u, attached),
-                                     defender_target(u, attached), list(p.variant_keys("any"))))
+                                     defender_target(u, attached), [tuple(t.mods) for t in p.tests]))
         return atts, defs
 
     # ------------------------------------------------------------------ running
@@ -210,7 +210,7 @@ class OptimizerWindow(ToolWindow):
         super().back()
 
 
-@register_tool("optimizer", "Optimizer", "Test many attackers against many defenders over lists of scenarios, "
+@register_tool("optimizer", "Optimizer", "Test many attackers against many defenders, each with its own packages of modifiers, "
                "then rank and compare the results.", order=20)
 def open_optimizer(app: "App", selection: Selection) -> OptimizerWindow:
     return OptimizerWindow(app, selection)

@@ -1,44 +1,69 @@
-"""Optimizer: scenario catalogue, test planning, sweep execution and result aggregation."""
+"""Optimizer: modifier catalogue, test packages, sweep execution and result aggregation."""
+import json
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from crunch.analysis.plan import DEFENDER, ATTACKER, PlanStore
+from crunch.analysis.plan import DEFENDER, ATTACKER, PlanStore, TestPackage, test_count
 from crunch.analysis.results import ResultSet
 from crunch.analysis.sweep import AttackerSpec, DefenderSpec, TestRecord, build_cases, run_sweep
-from crunch.analysis.variants import ATTACKER_VARIANTS, DEFENDER_VARIANTS, MELEE, RANGED, combined
+from crunch.analysis.variants import (ATTACKER_VARIANTS, DEFENDER_VARIANTS, MELEE, RANGED, combined, for_phase,
+                                      package_label, toggle)
 from crunch.core import Dice, ModelProfile, Target, TargetGroup, Weapon, WeaponKeywords, WeaponLoad
 
 BOLT = Weapon("Bolt rifle", "Ranged", '24"', Dice(0, 0, 2), 3, 4, 1, Dice(0, 0, 1), WeaponKeywords())
 KNIFE = Weapon("Knife", "Melee", "Melee", Dice(0, 0, 3), 3, 4, 0, Dice(0, 0, 1), WeaponKeywords())
 BOY = ModelProfile("Boy", '6"', 5, 5, None, 1)
+NONE = ()
 
 
 def boyz(n=10):
     return Target("Boyz", [TargetGroup(BOY, n)], {"infantry"})
 
 
-def attacker(variants):
-    return AttackerSpec("Intercessors", 90, {RANGED: [WeaponLoad(BOLT, 5)], MELEE: [WeaponLoad(KNIFE, 5)]},
-                        variants)
+def attacker(tests):
+    return AttackerSpec("Intercessors", 90, {RANGED: [WeaponLoad(BOLT, 5)], MELEE: [WeaponLoad(KNIFE, 5)]}, tests)
 
 
-class VariantTest(unittest.TestCase):
+def defender(tests):
+    return DefenderSpec("Boyz", 80, boyz(), tests)
+
+
+class PackageTest(unittest.TestCase):
     def test_numeric_modifiers_add_up_across_sides(self):
-        m = combined(ATTACKER_VARIANTS["hit+1"], DEFENDER_VARIANTS["hit-1"])
+        m = combined(["hit+1"], ["hit-1"])
         self.assertEqual(m.hit_mod, 0)
-        m = combined(ATTACKER_VARIANTS["ap+1"], DEFENDER_VARIANTS["ap-1"])
+        m = combined(["ap+1"], ["ap-1"])
         self.assertEqual((m.extra_ap, m.ap_mod), (1, -1))
 
-    def test_variants_do_not_leak_between_tests(self):
-        combined(ATTACKER_VARIANTS["hit+1"], DEFENDER_VARIANTS["baseline"])
-        self.assertEqual(combined(ATTACKER_VARIANTS["baseline"], DEFENDER_VARIANTS["baseline"]).hit_mod, 0)
+    def test_package_applies_every_modifier(self):
+        m = combined(["hit+1", "rr_wound_all", "lethal"], ["cover", "fnp5"])
+        self.assertEqual((m.hit_mod, m.reroll_wounds, m.add_lethal_hits), (1, "fails", True))
+        self.assertEqual((m.cover, m.feel_no_pain), (True, 5))
+
+    def test_packages_do_not_leak_between_tests(self):
+        combined(["hit+1"], [])
+        self.assertEqual(combined([], []).hit_mod, 0)
 
     def test_strength_vs_toughness_variants(self):
-        m = combined(ATTACKER_VARIANTS["wound+1_weaker_eq"], DEFENDER_VARIANTS["wound-1_stronger"])
+        m = combined(["wound+1_weaker_eq"], ["wound-1_stronger"])
         self.assertEqual((m.wound_plus_if_weaker, m.wound_minus_if_stronger), ("le", "gt"))
         self.assertEqual(m.wound_mod, 0)
+
+    def test_toggle_replaces_alternatives_in_the_same_slot(self):
+        keys = toggle([], "rr_hit_1", ATTACKER_VARIANTS)
+        keys = toggle(keys, "hit+1", ATTACKER_VARIANTS)
+        keys = toggle(keys, "rr_hit_all", ATTACKER_VARIANTS)      # replaces re-roll 1s
+        self.assertEqual(keys, ["hit+1", "rr_hit_all"])
+        self.assertEqual(toggle(keys, "hit+1", ATTACKER_VARIANTS), ["rr_hit_all"])
+
+    def test_phase_filter_and_label(self):
+        pkg = ["charged", "hit+1", "stationary"]
+        self.assertEqual(for_phase(pkg, ATTACKER_VARIANTS, RANGED), ("hit+1", "stationary"))
+        self.assertEqual(for_phase(pkg, ATTACKER_VARIANTS, MELEE), ("hit+1", "charged"))
+        self.assertEqual(package_label(pkg, ATTACKER_VARIANTS), "+1 to hit, Remained stationary, Charged")
+        self.assertEqual(package_label([], DEFENDER_VARIANTS), "No modifiers")
 
     def test_keys_are_unique_and_labelled(self):
         for cat in (ATTACKER_VARIANTS, DEFENDER_VARIANTS):
@@ -48,36 +73,41 @@ class VariantTest(unittest.TestCase):
 
 
 class BuildCasesTest(unittest.TestCase):
-    def test_users_example_makes_eight_tests(self):
-        # attacker: shooting {no mods, cover}, fight {no mods, re-roll 1s to hit}; defender: {no mods, -1 AP}
-        a = attacker({RANGED: ["baseline", "cover"], MELEE: ["baseline", "rr_hit_1"]})
-        d = DefenderSpec("Boyz", 80, boyz(), ["baseline", "ap-1"])
-        cases = build_cases([a], [d])
+    def test_every_attacker_test_against_every_defender_test(self):
+        # shooting {none, cover}, fight {none, re-roll 1s to hit}; defender {none, -1 AP} -> 4 x 2
+        a = attacker({RANGED: [NONE, ("cover",)], MELEE: [NONE, ("rr_hit_1",)]})
+        cases = build_cases([a], [defender([NONE, ("ap-1",)])])
         self.assertEqual(len(cases), 8)
-        self.assertEqual(len({(c.phase, c.att_variant, c.def_variant) for c in cases}), 8)
+        self.assertEqual(len({(c.phase, c.att_mods, c.def_mods) for c in cases}), 8)
 
-    def test_phase_specific_variants_are_skipped(self):
-        a = attacker({RANGED: ["baseline", "charged"], MELEE: ["baseline", "stationary"]})
-        d = DefenderSpec("Boyz", 80, boyz(), ["baseline", "cover"])   # cover: shooting only
-        cases = build_cases([a], [d])
-        # shooting: 1 attacker x 2 defender; fight: 1 attacker x 1 defender
-        self.assertEqual(len(cases), 3)
+    def test_a_package_is_one_test(self):
+        a = attacker({RANGED: [("hit+1", "rr_hit_1", "lethal")]})
+        cases = build_cases([a], [defender([("cover", "fnp6")])])
+        self.assertEqual(len(cases), 1)
+        self.assertEqual((cases[0].att_mods, cases[0].def_mods), (("hit+1", "rr_hit_1", "lethal"), ("cover", "fnp6")))
+
+    def test_modifiers_of_other_phases_are_dropped_and_duplicates_skipped(self):
+        a = attacker({MELEE: [NONE, ("stationary",), ("charged", "stationary")]})
+        cases = build_cases([a], [defender([NONE, ("cover",)])])
+        # fight: stationary does nothing (same as none), cover does nothing (same as none)
+        self.assertEqual({c.att_mods for c in cases}, {(), ("charged",)})
+        self.assertEqual({c.def_mods for c in cases}, {()})
+        self.assertEqual(len(cases), 2)
 
     def test_phase_without_weapons_is_skipped(self):
-        a = AttackerSpec("Gunline", 100, {RANGED: [WeaponLoad(BOLT, 5)], MELEE: []},
-                         {RANGED: ["baseline"], MELEE: ["baseline"]})
-        self.assertEqual(len(build_cases([a], [DefenderSpec("Boyz", 80, boyz(), ["baseline"])])), 1)
+        a = AttackerSpec("Gunline", 100, {RANGED: [WeaponLoad(BOLT, 5)], MELEE: []}, {RANGED: [NONE], MELEE: [NONE]})
+        self.assertEqual(len(build_cases([a], [defender([NONE])])), 1)
 
-    def test_scenarios_share_a_seed(self):
-        a = attacker({RANGED: ["baseline", "hit+1"]})
-        cases = build_cases([a], [DefenderSpec("Boyz", 80, boyz(), ["baseline"])])
+    def test_tests_share_a_seed(self):
+        a = attacker({RANGED: [NONE, ("hit+1",), ("hit+1", "lethal")]})
+        cases = build_cases([a], [defender([NONE])])
         self.assertEqual(len({c.seed for c in cases}), 1)
 
 
 class RunSweepTest(unittest.TestCase):
     def test_records_and_ordering(self):
-        a = attacker({RANGED: ["baseline", "hit+1"]})
-        cases = build_cases([a], [DefenderSpec("Boyz", 80, boyz(), ["baseline", "cover"])])
+        a = attacker({RANGED: [NONE, ("hit+1",)]})
+        cases = build_cases([a], [defender([NONE, ("cover",)])])
         recs = run_sweep(cases, trials=4_000, workers=1)
         self.assertEqual([r.id for r in recs], [c.id for c in cases])
         self.assertFalse(any(r.error for r in recs))
@@ -91,16 +121,24 @@ class RunSweepTest(unittest.TestCase):
         r = recs[0]
         self.assertAlmostEqual(r.pts_removed, 80 * r.slain_mean / 10)
 
+    def test_combined_package_beats_its_parts(self):
+        a = attacker({RANGED: [("hit+1",), ("rr_wound_all",), ("hit+1", "rr_wound_all")]})
+        recs = run_sweep(build_cases([a], [defender([NONE])]), trials=4_000, workers=1)
+        by = {r.att_test: r.dmg_mean for r in recs}
+        both = by["+1 to hit, Re-roll failed wounds"]
+        self.assertGreater(both, by["+1 to hit"])
+        self.assertGreater(both, by["Re-roll failed wounds"])
+
     def test_process_pool_matches_sequential(self):
-        a = attacker({RANGED: ["baseline"], MELEE: ["baseline"]})
-        cases = build_cases([a], [DefenderSpec("Boyz", 80, boyz(), ["baseline", "ap-1"])])
+        a = attacker({RANGED: [NONE], MELEE: [NONE]})
+        cases = build_cases([a], [defender([NONE, ("ap-1",)])])
         seq = run_sweep(cases, trials=1_000, workers=1)
         par = run_sweep(cases, trials=1_000, workers=2)
         self.assertEqual([r.dmg_mean for r in seq], [r.dmg_mean for r in par])
 
     def test_cancel(self):
-        a = attacker({RANGED: ["baseline", "hit+1"]})
-        cases = build_cases([a], [DefenderSpec("Boyz", 80, boyz(), ["baseline"])])
+        a = attacker({RANGED: [NONE, ("hit+1",)]})
+        cases = build_cases([a], [defender([NONE])])
         self.assertLess(len(run_sweep(cases, trials=500, workers=1, cancelled=lambda: True)), len(cases))
 
 
@@ -150,23 +188,50 @@ class ResultSetTest(unittest.TestCase):
 
 
 class PlanStoreTest(unittest.TestCase):
+    army = SimpleNamespace(path=Path("lists/Mine.txt"))
+    unit = SimpleNamespace(label="Intercessors #2")
+
+    def test_ticking_adds_a_baseline_and_unticking_deletes_tests(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = PlanStore(Path(tmp) / "plans.json").get(self.army, ATTACKER, self.unit)
+            p.set_included(True, ATTACKER)
+            self.assertEqual([(t.mods, t.phases) for t in p.tests], [([], [RANGED, MELEE])])
+            self.assertTrue(p.add_test(TestPackage(["hit+1", "lethal"], [RANGED])))
+            self.assertFalse(p.add_test(TestPackage(["lethal", "hit+1"], [RANGED])))    # same test
+            self.assertEqual(test_count(ATTACKER, p), 3)                                # 2 + 1 phases
+            p.set_included(False, ATTACKER)
+            self.assertEqual(p.tests, [])
+            p.set_included(True, ATTACKER)
+            self.assertEqual(len(p.tests), 1)
+
     def test_round_trip(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "plans.json"
-            army = SimpleNamespace(path=Path("lists/Mine.txt"))
-            unit = SimpleNamespace(label="Intercessors #2")
             s = PlanStore(path)
-            p = s.get(army, ATTACKER, unit)
-            p.included = True
-            p.toggle_variant(MELEE, "rr_hit_1")
-            s.get(army, DEFENDER, unit).toggle_variant("any", "ap-1")
+            p = s.get(self.army, ATTACKER, self.unit)
+            p.set_included(True, ATTACKER)
+            p.add_test(TestPackage(["rr_hit_1", "charged"], [MELEE]))
+            d = s.get(self.army, DEFENDER, self.unit)
+            d.set_included(True, DEFENDER)
+            d.add_test(TestPackage(["ap-1", "fnp6"]))
             s.save()
             s2 = PlanStore(path)
-            p2 = s2.get(army, ATTACKER, unit)
+            p2 = s2.get(self.army, ATTACKER, self.unit)
             self.assertTrue(p2.included)
-            self.assertEqual(p2.variant_keys(MELEE), ["baseline", "rr_hit_1"])
-            self.assertEqual(s2.get(army, DEFENDER, unit).variant_keys("any"), ["baseline", "ap-1"])
-            self.assertFalse(s2.get(army, DEFENDER, SimpleNamespace(label="Other")).included)
+            self.assertEqual([(t.mods, t.phases) for t in p2.tests], [([], [RANGED, MELEE]), (["rr_hit_1", "charged"],
+                                                                                            [MELEE])])
+            self.assertEqual([t.mods for t in s2.get(self.army, DEFENDER, self.unit).tests], [[], ["ap-1", "fnp6"]])
+            self.assertFalse(s2.get(self.army, DEFENDER, SimpleNamespace(label="Other")).included)
+
+    def test_plans_from_the_previous_version_load(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "plans.json"
+            old = {"included": True, "leader": "None", "support": "(list default)", "weapons": {"x|Gun": False},
+                   "phases": {"ranged": True, "melee": True}, "variants": {"ranged": ["baseline", "cover"]}}
+            path.write_text(json.dumps({"Mine.txt|attacker|Intercessors #2": old}), encoding="utf-8")
+            p = PlanStore(path).get(self.army, ATTACKER, self.unit)
+            self.assertEqual((p.included, p.leader, p.weapons), (True, "None", {"x|Gun": False}))
+            self.assertEqual([t.mods for t in p.tests], [[]])          # starts again from "no modifiers"
 
     def test_corrupt_file_is_ignored(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -57,7 +57,7 @@ crunch/
     model.py              ArmyList / ListUnit (format-independent)
     linking.py            list -> datasheets, weapon loads, targets
   analysis/               Optimizer back end (no UI)
-    variants.py           catalogue of attacker / defender test scenarios
+    variants.py           catalogue of attacker / defender modifiers, test packages
     plan.py               per-unit test plans, saved to user_data/test_plans.json
     sweep.py              build every test, run them in parallel worker processes
     results.py            filtering, hiding and aggregation (best / average / worst)
@@ -85,11 +85,16 @@ a future web front end) without tkinter.
 
 ## Optimizer
 
-Tick attacking and defending units, then for each unit tick the scenarios to test
-(Tests tab). Attackers have separate Shooting and Fight columns; defenders have one.
-Scenarios are tried **one at a time**, never combined: an attacker with
-Shooting {No modifiers, Target in cover} and Fight {No modifiers, Re-roll 1s to hit}
-against a defender with {No modifiers, -1 AP} makes 4 x 2 = 8 tests.
+Tick attacking and defending units, then build each unit's tests (Tests tab): tick
+some modifiers and press **Add test**. All ticked modifiers are applied **together**,
+as one test; add as many tests as you like. An attacker test also says which phases
+it runs in (Shooting, Fight or both); a modifier that means nothing in a phase (cover
+in the Fight phase) is dropped there. Ticking a unit gives it a "No modifiers" test;
+unticking it deletes all its tests.
+
+Every attacker test (in each of its phases) is run against every defender test: an
+attacker with {No modifiers: both phases} and {+1 to hit, Re-roll failed wounds: Shooting}
+against a defender with {No modifiers} and {Cover, Feel No Pain 6+} makes 3 x 2 = 6 tests.
 Plans are saved per list file, side and unit.
 
 Results open in their own window:

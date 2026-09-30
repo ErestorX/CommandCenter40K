@@ -1,14 +1,15 @@
 """One side of the Optimizer: an army list with include toggles, the selected unit's details, and
-its test plan (which scenarios are tried)."""
+its tests (packages of modifiers applied together)."""
 from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
 from typing import TYPE_CHECKING
 
-from crunch.analysis.plan import (ATTACKER, DEFAULT, NONE, UnitPlan, all_loads, default_on, resolve_attached,
-                                  test_count, weapon_key)
-from crunch.analysis.variants import ATTACKER_VARIANTS, DEFENDER_VARIANTS, MELEE, PHASES, RANGED
+from crunch.analysis.plan import (ATTACKER, DEFAULT, NONE, TestPackage, UnitPlan, all_loads, default_on,
+                                  resolve_attached, test_count, weapon_key)
+from crunch.analysis.variants import (ATTACKER_VARIANTS, DEFENDER_VARIANTS, PHASE_LABEL, PHASES, package_label,
+                                      toggle)
 from crunch.lists import ArmyList, ListUnit, target_for
 from crunch.ui.theme import C
 from crunch.ui.views.rules import show_army_rules, show_unit_abilities
@@ -17,7 +18,7 @@ from crunch.ui.widgets import EyeButton, make_tree
 if TYPE_CHECKING:
     from crunch.ui.tools.optimizer.window import OptimizerWindow
 
-ON, OFF, NA = "✓", "·", ""
+ON, OFF = "✓", "·"
 
 
 class UnitPlanPanel(ttk.Frame):
@@ -77,8 +78,10 @@ class UnitPlanPanel(ttk.Frame):
     def _include_all(self, on: bool):
         for u in self.army.units:
             if u.datasheet:
-                self.plan(u).included = on
+                self.plan(u).set_included(on, self.role)
                 self._refresh_row(u)
+        if self.unit:
+            self._refresh_tests()
         self.win.plans_changed()
 
     def _on_units_click(self, e):
@@ -89,8 +92,10 @@ class UnitPlanPanel(ttk.Frame):
         if not u.datasheet:
             return
         p = self.plan(u)
-        p.included = not p.included
+        p.set_included(not p.included, self.role)
         self._refresh_row(u)
+        if u is self.unit:
+            self._refresh_tests()
         self.win.plans_changed()
 
     def selected_units(self) -> list[ListUnit]:
@@ -215,70 +220,98 @@ class UnitPlanPanel(ttk.Frame):
     def _build_tests_tab(self, attacker: bool):
         tab = ttk.Frame(self.nb, style="Flat.TFrame", padding=6)
         self.nb.add(tab, text="Tests")
-        hint = ("Each ticked scenario is one extra test, on its own (never combined). Top row: test this phase?"
-                if attacker else "Each ticked scenario is one extra test for this unit, on its own.")
-        ttk.Label(tab, text=hint, style="Muted.TLabel", wraplength=380, justify="left").pack(anchor="w")
-        cols = [("t", "Scenario"), (RANGED, "Shooting"), (MELEE, "Fight")] if attacker else \
-            [("t", "Scenario"), ("any", "Test"), ("note", "")]
-        widths = [-190, 70, 70] if attacker else [-190, 50, 90]
-        f, self.tests_tree = make_tree(tab, cols, widths, height=12)
+        self.catalogue = ATTACKER_VARIANTS if attacker else DEFENDER_VARIANTS
+        self.draft: list[str] = []            # modifiers ticked for the next test (kept across units)
+        ttk.Label(tab, text="Tick modifiers, then Add test: they are applied together, as one test. "
+                            "Unticking the unit deletes its tests.",
+                  style="Muted.TLabel", wraplength=380, justify="left").pack(anchor="w")
+        f, self.mods_tree = make_tree(tab, [("on", "✓"), ("mod", "Modifier"), ("note", "")], [30, -190, 90],
+                                      height=9)
         f.pack(fill="both", expand=True, pady=(4, 0))
-        self.tests_tree.tag_configure("group", foreground=C["muted"])
-        self.tests_tree.tag_configure("phase", background="#efe9dd")
-        self.tests_tree.bind("<ButtonRelease-1>", self._toggle_test)
-        self._test_rows: dict[str, str] = {}      # tree iid -> variant key (or "phase")
+        self.mods_tree.tag_configure("group", foreground=C["muted"])
+        self.mods_tree.bind("<ButtonRelease-1>", self._toggle_mod)
+        group = None
+        for v in self.catalogue.values():
+            if v.group != group:
+                group = v.group
+                self.mods_tree.insert("", "end", iid=f"g:{group}", tags=("group",), values=("", group.upper(), ""))
+            note = "" if set(v.phases) == set(PHASES) else f"{PHASE_LABEL[v.phases[0]].lower()} only"
+            self.mods_tree.insert("", "end", iid=f"v:{v.key}", values=(OFF, v.label, note))
+
+        bar = ttk.Frame(tab, style="Flat.TFrame")
+        bar.pack(fill="x", pady=(4, 2))
+        self.phase_vars: dict[str, tk.BooleanVar] = {}
+        if attacker:
+            for ph in PHASES:
+                v = tk.BooleanVar(value=True)
+                ttk.Checkbutton(bar, text=PHASE_LABEL[ph], variable=v, style="Panel.TCheckbutton").pack(
+                    side="left", padx=(0, 8))
+                self.phase_vars[ph] = v
+        ttk.Button(bar, text="Add test", style="Accent.TButton", command=self._add_test).pack(side="right")
+        ttk.Button(bar, text="Clear", width=6, command=self._clear_draft).pack(side="right", padx=4)
+        self.draft_label = ttk.Label(tab, text="", style="Muted.TLabel", wraplength=380, justify="left")
+        self.draft_label.pack(anchor="w")
+
+        ttk.Label(tab, text="Tests for this unit (click ✕ to delete)", style="Muted.TLabel").pack(
+            anchor="w", pady=(6, 0))
+        cols = ([("ph", "Phase")] if attacker else []) + [("mods", "Modifiers"), ("x", "")]
+        widths = ([70] if attacker else []) + [-240, 28]
+        f, self.tests_tree = make_tree(tab, cols, widths, height=5)
+        f.pack(fill="both", expand=True, pady=(2, 0))
+        self.tests_tree.bind("<ButtonRelease-1>", self._on_tests_click)
+        self._refresh_draft()
+
+    def _toggle_mod(self, e):
+        row = self.mods_tree.identify_row(e.y)
+        if not row.startswith("v:"):
+            return
+        self.draft = toggle(self.draft, row[2:], self.catalogue)
+        self._refresh_draft()
+
+    def _clear_draft(self):
+        self.draft = []
+        self._refresh_draft()
+
+    def _refresh_draft(self, message: str = ""):
+        for k in self.catalogue:
+            self.mods_tree.set(f"v:{k}", "on", ON if k in self.draft else OFF)
+        self.draft_label.configure(text=message or f"Next test: {package_label(self.draft, self.catalogue)}")
+
+    def _add_test(self):
+        if not self.unit or not self.unit.datasheet:
+            return
+        phases = [ph for ph, v in self.phase_vars.items() if v.get()]
+        if self.role == ATTACKER and not phases:
+            self._refresh_draft("Tick Shooting and/or Fight first.")
+            return
+        p = self.plan(self.unit)
+        if not p.included:
+            p.set_included(True, self.role)
+        if not p.add_test(TestPackage(list(self.draft), phases)):
+            self._refresh_draft("This unit already has that test.")
+            return
+        self._tests_changed()
+
+    def _phases_text(self, t: TestPackage) -> str:
+        return "Both" if set(t.phases) == set(PHASES) else PHASE_LABEL[t.phases[0]]
 
     def _refresh_tests(self):
         t = self.tests_tree
         t.delete(*t.get_children())
-        p = self.plan(self.unit)
-        if self.role == ATTACKER:
-            t.insert("", "end", iid="phase", tags=("phase",),
-                     values=("Test this phase", *(ON if p.phases.get(ph) else OFF for ph in PHASES)))
-            catalogue = ATTACKER_VARIANTS
-        else:
-            catalogue = DEFENDER_VARIANTS
-        group = None
-        for v in catalogue.values():
-            if v.group != group:
-                group = v.group
-                if group != "Baseline":
-                    t.insert("", "end", iid=f"g:{group}", tags=("group",), values=(group.upper(), "", ""))
-            if self.role == ATTACKER:
-                cells = []
-                for ph in PHASES:
-                    if ph not in v.phases:
-                        cells.append(NA)
-                    elif not p.phases.get(ph):
-                        cells.append("–")
-                    else:
-                        cells.append(ON if v.key in p.variant_keys(ph) else OFF)
-                t.insert("", "end", iid=f"v:{v.key}", values=(v.label, *cells))
-            else:
-                note = "shooting only" if v.phases == (RANGED,) else ""
-                t.insert("", "end", iid=f"v:{v.key}",
-                         values=(v.label, ON if v.key in p.variant_keys("any") else OFF, note))
+        for i, pkg in enumerate(self.plan(self.unit).tests):
+            label = package_label(pkg.mods, self.catalogue)
+            values = ((self._phases_text(pkg),) if self.role == ATTACKER else ()) + (label, "✕")
+            t.insert("", "end", iid=str(i), values=values)
 
-    def _toggle_test(self, e):
+    def _on_tests_click(self, e):
         row, col = self.tests_tree.identify_row(e.y), self.tests_tree.identify_column(e.x)
-        if not row or not self.unit or row.startswith("g:"):
+        if not row or not self.unit or col != f"#{len(self.tests_tree['columns'])}":
             return
-        p = self.plan(self.unit)
-        if self.role == ATTACKER:
-            phase = {"#2": RANGED, "#3": MELEE}.get(col)
-            if not phase:
-                return
-            if row == "phase":
-                p.phases[phase] = not p.phases.get(phase)
-            else:
-                key = row[2:]
-                if phase in ATTACKER_VARIANTS[key].phases and p.phases.get(phase):
-                    p.toggle_variant(phase, key)
-        else:
-            if col not in ("#1", "#2"):
-                return
-            if row.startswith("v:"):
-                p.toggle_variant("any", row[2:])
+        del self.plan(self.unit).tests[int(row)]
+        self._tests_changed()
+
+    def _tests_changed(self):
         self._refresh_tests()
         self._refresh_row(self.unit)
+        self._refresh_draft()
         self.win.plans_changed()
