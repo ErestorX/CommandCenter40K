@@ -1,6 +1,7 @@
 """Optimizer: modifier catalogue, test packages, sweep execution and result aggregation."""
 import json
 import tempfile
+from dataclasses import replace
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -156,35 +157,67 @@ class ResultSetTest(unittest.TestCase):
             rec(3, "A", "X", "Fight", "No modifiers", "Cover", 6),
             rec(4, "B", "X", "Shooting", "No modifiers", "No modifiers", 3),
             rec(5, "B", "X", "Shooting", "No modifiers", "Cover", 3),
+            rec(6, "A", "X", "Shooting", "+1 to hit", "No modifiers", 5),
+            rec(7, "A", "X", "Shooting", "+1 to hit", "Cover", 3),
         ])
 
-    def test_best_scenario_with_average_defender(self):
+    def test_one_phase_best_test_with_average_defender(self):
+        agg = self.rs.pair("A", "X", "dmg_mean", "best", "mean", phase="Shooting")
+        self.assertEqual(agg.value, 4)                          # +1 to hit: (5 + 3) / 2
+        self.assertEqual(agg.record.att_test, "+1 to hit")      # identifies the winning test
+
+    def test_total_adds_each_phase_best_test(self):
         agg = self.rs.pair("A", "X", "dmg_mean", "best", "mean")
-        self.assertEqual(agg.value, 6)
-        self.assertEqual(agg.record.phase, "Fight")        # identifies the winning scenario
+        self.assertEqual(agg.value, 4 + 6)
+        self.assertEqual({ph: p.record.att_test for ph, p in agg.parts.items()},
+                         {"Shooting": "+1 to hit", "Fight": "No modifiers"})
+        self.assertIsNone(agg.record)
+        self.assertFalse(agg.exact)
+        self.assertEqual(len(agg.records), 6)
+
+    def test_total_of_a_single_phase_is_that_phase(self):
+        agg = self.rs.pair("B", "X", "dmg_mean", "best", "mean")
+        self.assertEqual((agg.value, agg.record.phase, agg.parts), (3, "Shooting", {}))
+
+    def test_total_is_capped_at_the_whole_unit(self):
+        rs = ResultSet([rec(0, "A", "X", "Shooting", "t", "d", 7), rec(1, "A", "X", "Fight", "t", "d", 6)])
+        self.assertEqual(rs.pair("A", "X", "dmg_mean", "best", "mean").value, 10)       # 10 wounds
+        self.assertEqual(rs.pair("A", "X", "slain_mean", "best", "mean").value, 5)      # 3.5 + 3, 5 models
+        self.assertEqual(rs.pair("A", "X", "frac_wounds", "best", "mean").value, 1)
+
+    def test_wipe_chance_is_either_phase(self):
+        rs = ResultSet([replace(rec(0, "A", "X", "Shooting", "t", "d", 1), p_wipe=0.5),
+                        replace(rec(1, "A", "X", "Fight", "t", "d", 1), p_wipe=0.2)])
+        self.assertAlmostEqual(rs.pair("A", "X", "p_wipe", "best", "mean").value, 1 - 0.5 * 0.8)
 
     def test_defender_best_option(self):
         sc = self.rs.scenarios("A", "X", "dmg_mean", "min")
-        self.assertEqual([(ph, a.value) for ph, _, a in sc], [("Fight", 6), ("Shooting", 2)])
+        self.assertEqual([(ph, a.value) for ph, _, a in sc], [("Fight", 6), ("Shooting", 3), ("Shooting", 2)])
+        sc = self.rs.scenarios("A", "X", "dmg_mean", "min", phase="Fight")
+        self.assertEqual([(ph, a.value) for ph, _, a in sc], [("Fight", 6)])
 
-    def test_mean_of_scenarios_is_not_exact(self):
-        agg = self.rs.pair("A", "X", "dmg_mean", "mean", "mean")
-        self.assertAlmostEqual(agg.value, (3 + 6) / 2)
+    def test_mean_of_tests_is_not_exact(self):
+        agg = self.rs.pair("A", "X", "dmg_mean", "mean", "mean", phase="Shooting")
+        self.assertAlmostEqual(agg.value, (3 + 4) / 2)
         self.assertFalse(agg.exact)
         self.assertIsNone(agg.record)
 
-    def test_hiding_promotes_next_scenario(self):
-        self.rs.hidden |= {2, 3}
+    def test_hiding_promotes_next_test(self):
+        self.rs.hidden |= {6, 7}
+        self.assertEqual(self.rs.pair("A", "X", "dmg_mean", "best", "mean").value, 3 + 6)
+        self.rs.hidden |= {2, 3}                                # no Fight left: the total is the Shooting value
         agg = self.rs.pair("A", "X", "dmg_mean", "best", "mean")
         self.assertEqual((agg.record.phase, agg.value), ("Shooting", 3))
 
     def test_filters_and_matrix(self):
+        atts, defs, cells = self.rs.matrix("dmg_mean", "best", "max", phase="Fight")
+        self.assertEqual([c[0].value if c[0] else None for c in cells], [6, None])
         self.rs.excluded["phase"].add("Fight")
         atts, defs, cells = self.rs.matrix("dmg_mean", "best", "max")
         self.assertEqual((atts, defs), (["A", "B"], ["X"]))
-        self.assertEqual([c[0].value for c in cells], [4, 3])
+        self.assertEqual([c[0].value for c in cells], [5, 3])
         self.rs.excluded["attacker"].add("B")
-        self.assertEqual(len(self.rs.visible()), 2)
+        self.assertEqual(len(self.rs.visible()), 4)
 
 
 class PlanStoreTest(unittest.TestCase):

@@ -60,7 +60,7 @@ crunch/
     variants.py           catalogue of attacker / defender modifiers, test packages
     plan.py               per-unit test plans, saved to user_data/test_plans.json
     sweep.py              build every test, run them in parallel worker processes
-    results.py            filtering, hiding and aggregation (best / average / worst)
+    results.py            filtering, hiding and aggregation (best / average / worst, phase totals)
   ui/
     app.py                Tk root, launcher, opens tools
     registry.py           @register_tool + auto-discovery
@@ -97,7 +97,11 @@ attacker with {No modifiers: both phases} and {+1 to hit, Re-roll failed wounds:
 against a defender with {No modifiers} and {Cover, Feel No Pain 6+} makes 3 x 2 = 6 tests.
 Plans are saved per list file, side and unit.
 
-Results open in their own window:
+Results open in their own window. The **Phase** selector shows the Shooting phase,
+the Fight phase, or their **total**: for each pairing, each phase's value (from its
+own best / average / worst attacker test) is added up, capped at the whole defending
+unit; the chance to destroy the unit becomes "destroyed in either phase". Phases are
+simulated separately, so a total doesn't account for Shooting casualties before the Fight.
 
 - **Matrix** - attackers x defenders heatmap; click a cell for every test behind it,
   right-click to hide the pairing.

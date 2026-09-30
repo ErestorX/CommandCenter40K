@@ -198,6 +198,7 @@ class BarItem:
     color: str = SLOTS[0]
     sublabel: str = ""
     tip: list[str] = field(default_factory=list)
+    segments: list[tuple[float, str]] = field(default_factory=list)   # stacked (share, colour); shares sum to 1
 
 
 class BarChart(ttk.Frame):
@@ -276,7 +277,14 @@ class BarChart(ttk.Frame):
                 cv.create_text(label_w, y + 22, text=it.sublabel, anchor="e", width=label_w - 8,
                                fill=INK_2, font=(fam, 8))
             bx = x0 + max(1.0, it.value * scale)
-            cv.create_rectangle(x0, y + 8, bx, y + self.ROW - 8, fill=it.color, outline="")
+            if it.segments:
+                sx = x0
+                for share, color in it.segments:
+                    ex = sx + (bx - x0) * share
+                    cv.create_rectangle(sx, y + 8, ex, y + self.ROW - 8, fill=color, outline="")
+                    sx = ex
+            else:
+                cv.create_rectangle(x0, y + 8, bx, y + self.ROW - 8, fill=it.color, outline="")
             if it.lo is not None and it.hi is not None and it.hi > it.lo:
                 lo, hi = x0 + it.lo * scale, x0 + it.hi * scale
                 cy = y + self.ROW / 2

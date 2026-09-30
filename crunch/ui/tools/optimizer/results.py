@@ -1,12 +1,13 @@
 """Results explorer for the Optimizer: matrix, rankings and a table, with filters and hideable
-data points. Every view reads the same ResultSet, so hiding or filtering applies everywhere."""
+data points. Every view reads the same ResultSet, so hiding or filtering applies everywhere.
+The matrix and rankings show one phase, or the total of both (Shooting + Fight)."""
 from __future__ import annotations
 
 import tkinter as tk
 from tkinter import filedialog, ttk
 from typing import TYPE_CHECKING
 
-from crunch.analysis.results import ATT_MODES, DEF_MODES, DIMS, METRICS, Agg, ResultSet
+from crunch.analysis.results import ATT_MODES, DEF_MODES, DIMS, METRICS, PHASE_VIEWS, TOTAL, Agg, ResultSet
 from crunch.analysis.sweep import TestRecord, to_csv
 from crunch.ui.charts import INK_3, SLOTS, BarChart, BarItem, Heatmap
 from crunch.ui.theme import C
@@ -38,11 +39,13 @@ class ResultsWindow(tk.Toplevel):
         # ---- top bar -------------------------------------------------------------------------
         top = ttk.Frame(self, padding=(10, 8))
         top.pack(fill="x")
+        self.phase_view = tk.StringVar(value=PHASE_VIEWS[TOTAL])
         self.metric = tk.StringVar(value=METRICS["dmg_mean"].label)
         self.att_mode = tk.StringVar(value=ATT_MODES["best"])
         self.def_mode = tk.StringVar(value=DEF_MODES["mean"])
-        for label, var, values, w in (("Metric", self.metric, [m.label for m in METRICS.values()], 26),
-                                      ("Attacker scenarios", self.att_mode, list(ATT_MODES.values()), 26),
+        for label, var, values, w in (("Phase", self.phase_view, list(PHASE_VIEWS.values()), 22),
+                                      ("Metric", self.metric, [m.label for m in METRICS.values()], 26),
+                                      ("Attacker tests", self.att_mode, list(ATT_MODES.values()), 24),
                                       ("Defender tests", self.def_mode, list(DEF_MODES.values()), 24)):
             ttk.Label(top, text=label).pack(side="left", padx=(0, 4))
             cb = ttk.Combobox(top, textvariable=var, values=values, state="readonly", width=w)
@@ -87,6 +90,10 @@ class ResultsWindow(tk.Toplevel):
     @property
     def metric_key(self) -> str:
         return next(k for k, m in METRICS.items() if m.label == self.metric.get())
+
+    @property
+    def phase(self) -> str:
+        return _inv(PHASE_VIEWS)[self.phase_view.get()]
 
     @property
     def am(self) -> str:
@@ -174,11 +181,11 @@ class ResultsWindow(tk.Toplevel):
 
     def _refresh_matrix(self):
         m = METRICS[self.metric_key]
-        atts, defs, cells = self.rs.matrix(self.metric_key, self.am, self.dm)
+        atts, defs, cells = self.rs.matrix(self.metric_key, self.am, self.dm, self.phase)
         values = [[c.value if c else None for c in row] for row in cells]
         tips = [[self._cell_tip(a, d, c, m) for d, c in zip(defs, row)] for a, row in zip(atts, cells)]
         self._matrix_cache = (atts, defs, cells)
-        self.matrix_title.configure(text=f"{m.label} — {self.att_mode.get().lower()}, "
+        self.matrix_title.configure(text=f"{self.phase_view.get()}: {m.label} — {self.att_mode.get().lower()}, "
                                          f"{self.def_mode.get().lower()}")
         self.heat.set_data(atts, defs, values, tips, fmt=m.fmt, caption=m.label)
         self._refresh_detail()
@@ -187,14 +194,22 @@ class ResultsWindow(tk.Toplevel):
     def _scenario_text(r: TestRecord) -> str:
         return f"{r.phase} · {r.att_test} (vs {r.def_test})"
 
+    @staticmethod
+    def _source(agg: Agg) -> str:
+        """Which test a phase value comes from."""
+        if not agg.record:
+            return "average of attacker tests"
+        r = agg.record
+        return r.att_test + (f" (vs {r.def_test})" if agg.exact else " (over defender tests)")
+
     def _cell_tip(self, a, d, agg: Agg | None, m) -> list[str]:
         if not agg:
             return [f"{a}  →  {d}", "no visible tests"]
-        lines = [f"{a}  →  {d}", f"{m.label}: {m.fmt(agg.value)}"]
-        if agg.record:
-            r = agg.record
-            lines.append(f"from: {r.phase} · {r.att_test}" + (f" (vs {r.def_test})" if agg.exact else
-                                                                " (averaged over defender tests)"))
+        lines = [f"{a}  →  {d}", f"{m.label}: {m.fmt(agg.value)}" + (" (Shooting + Fight)" if agg.parts else "")]
+        for ph, p in agg.parts.items():
+            lines.append(f"  {ph}: {m.fmt(p.value)} · {self._source(p)}")
+        if not agg.parts:
+            lines.append(f"{agg.record.phase if agg.record else self.phase}: {self._source(agg)}")
         lines.append(f"{len(agg.records)} test(s) · click for details")
         return lines
 
@@ -214,7 +229,8 @@ class ResultsWindow(tk.Toplevel):
             return
         a, d = self.pair_selected
         m = METRICS[self.metric_key]
-        recs = [r for r in self.rs.visible() if r.attacker == a and r.defender == d]
+        recs = [r for r in self.rs.visible() if r.attacker == a and r.defender == d
+                and self.phase in (TOTAL, r.phase)]
         recs.sort(key=lambda r: -getattr(r, m.key))
         self.detail_title.configure(text=f"{a}  →  {d}: every visible test (click a bar to hide it)")
         self.detail.set_data([self._bar(r, m, f"{r.phase} · {r.att_test}", f"vs {r.def_test}") for r in recs],
@@ -241,6 +257,24 @@ class ResultsWindow(tk.Toplevel):
             bi.tip[3:5] = [f"tests: " + ", ".join(sorted({r.def_test for r in agg.records}))]
         return bi
 
+    def _total_bar(self, agg: Agg, m, label: str, a: str, d: str) -> BarItem:
+        """Bar for a pair's Shooting + Fight total, stacked by phase."""
+        whole = sum(p.value for p in agg.parts.values()) or 1.0
+        prefix = {"best": "best: ", "worst": "worst: "}.get(self.am, "")
+        sub = prefix + " + ".join(f"{ph} {m.fmt(p.value)}" for ph, p in agg.parts.items())
+        capped = m.cap is not None and agg.value < whole - 1e-9
+        tip = [f"{a}  →  {d}", f"{m.label}: {m.fmt(agg.value)} (Shooting + Fight"
+                               + (", capped at the whole unit)" if capped else ")")]
+        tip += [f"{ph}: {m.fmt(p.value)} · {self._source(p)}" for ph, p in agg.parts.items()]
+        if all(p.record for p in agg.parts.values()):
+            key = ("tests", a, d, tuple((ph, p.record.att_test) for ph, p in agg.parts.items()))
+            tip.append("click to hide these tests: the next best take their place")
+        else:
+            key = ("pair", a, d)
+            tip.append("click to hide this pairing")
+        return BarItem(key, label, agg.value, color=MIXED, sublabel=sub, tip=tip,
+                       segments=[(p.value / whole, PHASE_COLOR[ph]) for ph, p in agg.parts.items()])
+
     # ------------------------------------------------------------------ ranking tabs
     def _build_rank_tab(self, mode: str):
         tab = ttk.Frame(self.nb, style="Panel.TFrame", padding=8)
@@ -253,10 +287,11 @@ class ResultsWindow(tk.Toplevel):
         cb.pack(side="left", padx=6)
         cb.bind("<<ComboboxSelected>>", lambda e: self.refresh())
         expand = tk.BooleanVar(value=False)
-        ttk.Checkbutton(bar, text="Every scenario (not just each unit's best)", variable=expand,
+        ttk.Checkbutton(bar, text="Every test (not just each unit's best)", variable=expand,
                         style="Panel.TCheckbutton", command=self.refresh).pack(side="left", padx=12)
-        hint = ttk.Label(tab, text="Click a bar to hide it: the unit's next scenario takes its place. "
-                                   "Whiskers: 90% of games (best/worst modes).", style="Muted.TLabel")
+        hint = ttk.Label(tab, text="Click a bar to hide it: the unit's next best test takes its place. "
+                                   "Totals are stacked Shooting + Fight. Whiskers: 90% of games (one test only).",
+                         style="Muted.TLabel")
         hint.pack(anchor="w", pady=(4, 2))
         chart = BarChart(tab, on_click=lambda key, m=mode: self._rank_hide(m, key))
         chart.pack(fill="both", expand=True)
@@ -280,17 +315,21 @@ class ResultsWindow(tk.Toplevel):
             if not recs:
                 continue
             if expand.get():
-                for ph, test, agg in self.rs.scenarios(a, d, m.key, self.dm, recs):
+                for ph, test, agg in self.rs.scenarios(a, d, m.key, self.dm, recs, self.phase):
                     items.append(self._agg_bar(agg, m, o, f"{ph} · {test}", ("records", tuple(agg.records))))
             else:
-                agg = self.rs.pair(a, d, m.key, self.am, self.dm, recs)
-                if agg.record:
+                agg = self.rs.pair(a, d, m.key, self.am, self.dm, recs, self.phase)
+                if not agg:
+                    continue
+                if agg.parts:
+                    bi = self._total_bar(agg, m, o, a, d)
+                elif agg.record:
                     rep = agg.record
                     prefix = {"best": "best: ", "worst": "worst: "}.get(self.am, "")
                     bi = self._agg_bar(agg, m, o, f"{prefix}{rep.phase} · {rep.att_test}",
                                        ("best", a, d, rep.phase, rep.att_test))
                 else:
-                    bi = BarItem(("pair", a, d), o, agg.value, color=MIXED, sublabel="average of scenarios",
+                    bi = BarItem(("pair", a, d), o, agg.value, color=MIXED, sublabel="average of tests",
                                  tip=[f"{a}  →  {d}", f"{m.label}: {m.fmt(agg.value)} (average)", "click to hide"])
                 items.append(bi)
         items.sort(key=lambda it: -it.value)
@@ -303,9 +342,12 @@ class ResultsWindow(tk.Toplevel):
             self.hide([key])
         elif key[0] == "records":
             self.hide(list(key[1]))
-        elif key[0] == "best":                  # hide that scenario of the pair (all defender tests)
+        elif key[0] == "best":                  # hide that test of the pair (all defender tests)
             _, a, d, ph, test = key
             self.hide([r for r in vis if r.attacker == a and r.defender == d and r.phase == ph and r.att_test == test])
+        elif key[0] == "tests":                 # a total: hide the test behind each phase
+            _, a, d, tests = key
+            self.hide([r for r in vis if r.attacker == a and r.defender == d and (r.phase, r.att_test) in tests])
         elif key[0] == "pair":
             _, a, d = key
             self.hide([r for r in vis if r.attacker == a and r.defender == d])
