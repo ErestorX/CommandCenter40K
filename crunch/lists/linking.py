@@ -70,32 +70,73 @@ def weapon_loads(u: ListUnit, source: str = "") -> list[WeaponLoad]:
 
 
 def target_for(bodyguard: ListUnit, attached: list[ListUnit] | None = None) -> Target:
-    """Defending unit as allocation groups: bodyguard profiles, then attached characters."""
+    """Defending unit as allocation groups: one group per model line of the list (so sergeants and
+    special-weapon models stay distinct, each with its datasheet profile), then attached characters.
+
+    Default allocation order (the defender can change it): rank-and-file first, then single
+    special-weapon models, the unit's first-listed model (usually the sergeant) last, characters at the end."""
     attached = [a for a in (attached or []) if a]
     groups: list[TargetGroup] = []
 
-    def add(u: ListUnit, character: bool):
+    def add(u: ListUnit, character: bool) -> list[TargetGroup]:
         ds = u.datasheet
         if not ds:
-            return
+            return []
         if not u.models:
-            groups.append(TargetGroup(ds.models[0], 1, character, u.label))
-            return
+            return [TargetGroup(ds.models[0], 1, character, u.label)]
         merged: dict[str, TargetGroup] = {}
-        for m in u.models:
-            p = ds.profile(m.name)
-            if p.name in merged:
-                merged[p.name].count += m.count
+        for m, label in zip(u.models, model_labels(u)):
+            if label in merged:
+                merged[label].count += m.count
             else:
-                merged[p.name] = TargetGroup(p, m.count, character, p.name.title() if p.name.isupper() else p.name)
-        groups.extend(merged.values())
+                merged[label] = TargetGroup(ds.profile(m.name), m.count, character, label)
+        return list(merged.values())
 
-    add(bodyguard, bodyguard.is_character and not attached)
+    body = add(bodyguard, bodyguard.is_character and not attached)
+    groups.extend(_bodyguard_order(body))
     kws = set(bodyguard.datasheet.keywords) if bodyguard.datasheet else set()
     name = bodyguard.label
     for a in attached:
         if a.datasheet:
-            add(a, True)
+            groups.extend(add(a, True))
             kws |= a.datasheet.keywords
             name += f" + {a.label}"
     return Target(name, groups, kws)
+
+
+def model_labels(u: ListUnit) -> list[str]:
+    """Display label for each model line. Lines sharing a name are told apart by the gear only they
+    carry: "Sanguinary Guard (Sanguinary Banner)", "Incursor (Haywire Mine)"."""
+    by_name: dict[str, list] = {}
+    for m in u.models:
+        by_name.setdefault(norm(m.name), []).append(m)
+    labels = []
+    for m in u.models:
+        same = by_name[norm(m.name)]
+        if len(same) == 1:
+            labels.append(m.name)
+            continue
+        common = set.intersection(*({norm(g) for g, _ in x.gear} for x in same))
+        extra = [g for g, _ in m.gear if norm(g) not in common]
+        labels.append(f"{m.name} ({', '.join(extra)})" if extra else m.name)
+    return labels
+
+
+SERGEANT_WORDS = ("sergeant", "sybarite", "hekatrix", "klaivex", "nightfiend", "solarite", "heliarch",
+                  "acothyst", "superior", "exarch", "alpha", "nob", "boss", "champion", "leader", "prime")
+
+
+def _bodyguard_order(groups: list[TargetGroup]) -> list[TargetGroup]:
+    """Largest groups first, then single special models; the sergeant (by name, or the first-listed
+    single model) goes last."""
+    if len(groups) < 2:
+        return groups
+    named = [g for g in groups if g.count == 1 and any(w in g.label.lower() for w in SERGEANT_WORDS)]
+    if named:
+        sergeant = named[0]
+    elif groups[0].count == 1 and any(g.count > 1 for g in groups[1:]):
+        sergeant = groups[0]
+    else:
+        sergeant = None
+    rest = sorted((g for g in groups if g is not sergeant), key=lambda g: -g.count)   # stable
+    return rest + ([sergeant] if sergeant else [])

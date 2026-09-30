@@ -66,11 +66,10 @@ def parse(text: str, path: Path, wd: Wahapedia) -> ArmyList:
     head = PTS_RE.sub("", title).strip(" -")
     parts = [p.strip() for p in head.split(" - ") if p.strip()]
     faction_id, faction = None, parts[0] if parts else ""
-    for p in parts:                                  # "Xenos - Drukhari - Emo Elves"
+    for p in parts:                   # "Xenos - Drukhari - Emo Elves", "Imperium - Adeptus Astartes - Blood Angels - X"
         fid = wd.faction_id(p)
-        if fid:
-            faction_id, faction = fid, p
-            break
+        if fid and faction_id in (None, fid):
+            faction_id, faction = fid, p          # keep the most specific part of the same faction
     pts = re.search(r"\[(\d+)\s*pts", title)
 
     units: list[ListUnit] = []
@@ -95,7 +94,7 @@ def parse(text: str, path: Path, wd: Wahapedia) -> ArmyList:
             if current is None:
                 continue
             low = body.lower()
-            if re.match(r"(leaders?|support|supported by|attached)\s*:", low):
+            if re.match(r"(leaders?|led by|support|supported by|attached)\s*:", low):
                 current.attached_names += [n.strip() for n in body.split(":", 1)[1].split(",") if n.strip()]
             elif re.match(r"(leading|supporting|attached to)\s*:", low):
                 current.leading_name = body.split(":", 1)[1].strip()

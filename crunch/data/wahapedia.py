@@ -21,6 +21,22 @@ def read_table(data_dir: Path, name: str) -> list[dict]:
     return [{k: (v or "").strip() for k, v in r.items() if k} for r in rows]
 
 
+# List builders name some factions differently from Wahapedia (chapters, super-faction names).
+# Keys are norm()-ed names, values Wahapedia faction ids.
+FACTION_ALIASES = {
+    **{k: "SM" for k in ("adeptusastartes", "spacemarine", "bloodangels", "darkangels", "spacewolves",
+                         "blacktemplars", "deathwatch", "ultramarines", "imperialfists", "ironhands",
+                         "ravenguard", "salamanders", "whitescars")},
+    "hereticastartes": "CSM", "chaosspacemarines": "CSM",
+    "asuryani": "AE", "craftworlds": "AE", "harlequins": "AE", "ynnari": "AE",
+    "tauempire": "TAU", "tau": "TAU",
+    "leaguesofvotann": "LoV", "votann": "LoV",
+    "imperialagents": "AoI", "agentsoftheimperium": "AoI",
+    "sistersofbattle": "AS", "adeptasororitas": "AS",
+    "genestealercults": "GC", "genestealercult": "GC",
+}
+
+
 class Wahapedia:
     """Loads the raw CSVs once and builds Unit objects on demand."""
 
@@ -53,7 +69,8 @@ class Wahapedia:
         for fid, fname in self.factions.items():
             if norm(fname) == n or norm(fid) == n:
                 return fid
-        return None
+        alias = FACTION_ALIASES.get(n)
+        return alias if alias in self.factions else None
 
     def find(self, name: str, faction_id: str | None = None) -> str | None:
         """Datasheet id by name, preferring the given faction."""

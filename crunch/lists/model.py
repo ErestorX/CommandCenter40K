@@ -65,15 +65,41 @@ class ArmyList:
                 if u is not bodyguard and u.is_character and u.datasheet and u.is_support == support
                 and wd.can_lead(u.datasheet.id, bodyguard.datasheet.id)]
 
+    def refers_to(self, ref: str, unit: ListUnit) -> bool:
+        """Does a list reference like "Blood Angels Captain[2]" (or plain "Archon") mean `unit`?"""
+        m = re.match(r"^(.*?)\s*\[(\d+)\]\s*$", ref or "")
+        base, idx = (m.group(1), int(m.group(2))) if m else (ref or "", None)
+        if norm(base) != norm(unit.name):
+            return False
+        if idx is None:
+            return True
+        same = [u for u in self.units if norm(u.name) == norm(unit.name)]
+        return unit in same and same.index(unit) + 1 == idx
+
     def default_attached(self, bodyguard: ListUnit, wd: Wahapedia, support: bool = False) -> ListUnit | None:
-        """The Leader (or Support character) the list attaches to this unit, if any."""
+        """The Leader (or Support character) the list attaches to this unit, if any.
+
+        Uses the bodyguard's "Led by / Leader / Supported by" lines, or failing that a character's
+        "Leading / Supporting" line pointing at this unit."""
         options = self.attach_options(bodyguard, wd, support)
-        for name in bodyguard.attached_names:
-            exact = [u for u in options if norm(u.name) == norm(name)]
-            best = [u for u in exact if norm(u.leading_name) in ("", norm(bodyguard.name))]
-            if best or exact:
-                return (best or exact)[0]
+        for ref in bodyguard.attached_names:
+            named = [u for u in options if self.refers_to(ref, u)]
+            best = [u for u in named if not u.leading_name or self.refers_to(u.leading_name, bodyguard)]
+            if best or named:
+                return (best or named)[0]
+        for u in options:        # only a character line that can mean this unit and no other
+            if (u.leading_name and self.refers_to(u.leading_name, bodyguard)
+                    and self._unambiguous(u.leading_name)
+                    and not any(self.refers_to(r, u) for o in self.units if o is not bodyguard
+                                for r in o.attached_names)):
+                return u
         return None
+
+    def _unambiguous(self, ref: str) -> bool:
+        """True if the reference has an index or names a unit that appears only once."""
+        if re.search(r"\[\d+\]\s*$", ref or ""):
+            return True
+        return sum(norm(u.name) == norm(ref) for u in self.units) == 1
 
     @property
     def detachment_names(self) -> list[str]:

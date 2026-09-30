@@ -1,0 +1,25 @@
+Imperium - Adeptus Astartes - Ultramarines - Test - [400 pts]
+
+# ++ Army Roster ++ [400 pts, 3 Detachment Points]
+## Configuration
+Detachment [3 Detachment Points]: Gladius Task Force [3 Detachment Points]
+
+## Character [230 pts]
+Captain [80 pts]: Master-crafted bolter, Power weapon
+  • Leading: Intercessor Squad[2]
+Captain [80 pts]: Warlord, Master-crafted bolter, Power weapon
+Apothecary [70 pts]: Absolvor bolt pistol
+  • Supporting: Intercessor Squad[1]
+
+## Battleline [160 pts]
+Intercessor Squad [80 pts]:
+• 1x Intercessor Sergeant: Bolt rifle, Close combat weapon
+• 4x Intercessors: Bolt rifle, Close combat weapon
+  • Supported by: Apothecary
+Intercessor Squad [80 pts]:
+• 3x Intercessor: Bolt rifle, Close combat weapon
+• 1x Intercessor: Bolt rifle, Close combat weapon, Auspex
+• 1x Intercessor Sergeant: Bolt rifle, Close combat weapon
+  • Led by: Captain[1]
+
+Created with newrecruit.eu v36.28
