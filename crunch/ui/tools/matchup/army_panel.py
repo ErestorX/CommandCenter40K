@@ -112,13 +112,13 @@ class ArmyPanel(ttk.Frame):
         self.alloc_tree.bind("<B1-Motion>", self._drag_move)
         self.alloc_tree.bind("<ButtonRelease-1>", self._drag_end)
         row = ttk.Frame(box, style="Flat.TFrame")
-        row.pack(fill="x", pady=(4, 0))
+        row.pack(side="bottom", fill="x", pady=(4, 0), before=f)     # the table shrinks, not this row
+        ttk.Button(row, text="Reset order", command=self._reset_order).pack(side="right")  # packed first: keeps its width
         ttk.Label(row, text="Precision attacks go to", style="Panel.TLabel").pack(side="left")
         self.prec_var = tk.StringVar(value="—")
-        self.prec_box = ttk.Combobox(row, textvariable=self.prec_var, state="readonly", width=22)
+        self.prec_box = ttk.Combobox(row, textvariable=self.prec_var, state="readonly", width=18)
         self.prec_box.pack(side="left", padx=6)
         self.prec_box.bind("<<ComboboxSelected>>", lambda e: self.win.schedule())
-        ttk.Button(row, text="Reset order", command=self._reset_order).pack(side="right")
 
     def _reset_order(self):
         self._fill_allocation(target_for(self.unit, self.attached), reset=True)
