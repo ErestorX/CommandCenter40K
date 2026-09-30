@@ -1,0 +1,5 @@
+datasheet_id|line|name|M|T|Sv|inv_sv|inv_sv_descr|W|Ld|OC|base_size|base_size_descr|
+001|1|Intercessor|6"|4|3+|-||2|6+|2|32mm||
+002|1|Boy|6"|5|5+|-||1|7+|2|32mm||
+003|1|Captain|6"|4|3+|4||5|6+|1|40mm||
+004|1|Apothecary|6"|4|3+|-||4|6+|1|40mm||

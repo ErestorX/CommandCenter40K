@@ -1,0 +1,5 @@
+id|name|faction_id|source_id|legend|role|loadout|transport|virtual|is_support|leader_head|leader_footer|damaged_w|damaged_description|link|
+001|Intercessor Squad|SM|x||Battleline|||false|false|||||x|
+002|Ork Boyz|ORK|x||Battleline|||false|false|||||x|
+003|Captain|SM|x||Character|||false|false|||||x|
+004|Apothecary|SM|x||Character|||false|true|||||x|

@@ -1,0 +1,23 @@
+Imperium - Space Marines - Test Company - [300 pts]
+
+# ++ Army Roster ++ [300 pts]
+## Configuration
+Battle Size: Incursion (1000 Point limit)
+Detachment: Gladius Task Force
+
+## Character [150 pts]
+Captain [80 pts]: Master-crafted bolter, Power weapon, Warlord
+  • Leading: Intercessor Squad
+Apothecary [70 pts]: Absolvor bolt pistol
+  • Supporting: Intercessor Squad
+
+## Battleline [150 pts]
+Intercessor Squad [80 pts]:
+• 1x Intercessor Sergeant: Bolt rifle, Close combat weapon
+• 4x Intercessor: Bolt rifle, Close combat weapon
+  • Leader: Captain
+  • Support: Apothecary
+Intercessor Squad [70 pts]:
+• 5x Intercessor: Bolt rifle, Close combat weapon
+
+Created with newrecruit.eu v36.28
