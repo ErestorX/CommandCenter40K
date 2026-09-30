@@ -1,4 +1,4 @@
-"""Results explorer for the Optimizer: matrix, rankings and a table, with filters and hideable
+"""Results explorer for the Optimizer: army plan, matrix, rankings and a table, with filters and hideable
 data points. Every view reads the same ResultSet, so hiding or filtering applies everywhere.
 The matrix and rankings show one phase, or the total of both (Shooting + Fight)."""
 from __future__ import annotations
@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import filedialog, ttk
 from typing import TYPE_CHECKING
 
+from crunch.analysis.assign import plan_army
 from crunch.analysis.results import ATT_MODES, DEF_MODES, DIMS, METRICS, PHASE_VIEWS, TOTAL, Agg, ResultSet
 from crunch.analysis.sweep import TestRecord, to_csv
 from crunch.ui.charts import INK_3, SLOTS, BarChart, BarItem, Heatmap
@@ -77,6 +78,7 @@ class ResultsWindow(tk.Toplevel):
 
         self.nb = ttk.Notebook(body)
         body.add(self.nb, weight=5)
+        self._build_plan_tab()
         self._build_matrix_tab()
         self._build_rank_tab("into")
         self._build_rank_tab("from")
@@ -157,6 +159,110 @@ class ResultsWindow(tk.Toplevel):
                                             initialfile="optimizer_results.csv")
         if path:
             to_csv(self.rs.visible(), path)
+
+    # ------------------------------------------------------------------ army plan tab
+    def _build_plan_tab(self):
+        tab = ttk.Frame(self.nb, style="Panel.TFrame", padding=8)
+        self.nb.add(tab, text="Army plan")
+        self.plan_title = ttk.Label(tab, text="", style="H2.TLabel")
+        self.plan_title.pack(anchor="w")
+        ttk.Label(tab, text="Each attacker gets a 1st target (its priority) and a 2nd target (worth half), so that "
+                            "every defender is targeted at least once. Attackers sent at the same unit share it: "
+                            "what goes beyond its wounds counts for nothing. Uses the Phase, attacker tests and "
+                            "defender tests chosen above, and skips hidden or filtered-out tests.",
+                  style="Muted.TLabel", wraplength=1050, justify="left").pack(anchor="w", pady=(0, 6))
+        bar = ttk.Frame(tab, style="Flat.TFrame")
+        bar.pack(fill="x", pady=(0, 4))
+        ttk.Label(bar, text="Guide by:  points removed per 100 pts", style="Panel.TLabel").pack(side="left")
+        self.plan_weight = tk.DoubleVar(value=50)
+        ttk.Scale(bar, from_=0, to=100, orient="horizontal", length=260, variable=self.plan_weight,
+                  command=lambda v: self._schedule_plan()).pack(side="left", padx=8)
+        ttk.Label(bar, text="share of the unit's wounds", style="Panel.TLabel").pack(side="left")
+        self.weight_lbl = ttk.Label(bar, text="", style="Muted.TLabel")
+        self.weight_lbl.pack(side="left", padx=12)
+        self.plan_summary = ttk.Label(tab, text="", style="Panel.TLabel")
+        self.plan_summary.pack(anchor="w", pady=(0, 4))
+
+        pw = ttk.PanedWindow(tab, orient="vertical")
+        pw.pack(fill="both", expand=True)
+        top = ttk.Frame(pw, style="Flat.TFrame")
+        ttk.Label(top, text="By attacker", style="Muted.TLabel").pack(anchor="w")
+        f, self.plan_atts = make_tree(top, [("att", "Attacker"), ("t1", "1st target"), ("w1", "Wounds"),
+                                            ("p1", "Pts/100"), ("t2", "2nd target"), ("w2", "Wounds"),
+                                            ("p2", "Pts/100")], [-230, -230, 64, 64, -230, 64, 64], height=8)
+        f.pack(fill="both", expand=True)
+        pw.add(top, weight=1)
+        bottom = ttk.Frame(pw, style="Flat.TFrame")
+        ttk.Label(bottom, text="By defender (wounds: expected share of the unit's wounds removed by the "
+                               "attackers sent at it)", style="Muted.TLabel").pack(anchor="w", pady=(6, 0))
+        f, self.plan_defs = make_tree(bottom, [("def", "Defender"), ("pts", "Pts"), ("by1", "1st target of"),
+                                               ("w1", "Wounds"), ("by2", "2nd target of"), ("w2", "Wounds")],
+                                      [-230, 50, -260, 64, -260, 64], height=8)
+        f.pack(fill="both", expand=True)
+        self.plan_defs.tag_configure("uncovered", foreground=C["muted"])
+        self.plan_defs.tag_configure("overkill", foreground="#9a5b00")
+        pw.add(bottom, weight=1)
+        self._plan_job = None
+
+    def _schedule_plan(self):
+        self.weight_lbl.configure(text=self._weight_text())
+        if self._plan_job:
+            self.after_cancel(self._plan_job)
+        self._plan_job = self.after(250, self._refresh_plan)
+
+    def _weight_text(self) -> str:
+        w = round(self.plan_weight.get())
+        return f"{w}% wounds · {100 - w}% points"
+
+    def _refresh_plan(self):
+        self._plan_job = None
+        self.weight_lbl.configure(text=self._weight_text())
+        vis = self.rs.visible()
+        atts = list(dict.fromkeys(r.attacker for r in vis))
+        defs = list(dict.fromkeys(r.defender for r in vis))
+        def_pts = {r.defender: r.def_points for r in vis}
+        frac, ppp = {}, {}
+        for (a, d), recs in self.rs.by_pair(vis).items():
+            f = self.rs.pair(a, d, "frac_wounds", self.am, self.dm, recs, self.phase)
+            p = self.rs.pair(a, d, "pts_per_100", self.am, self.dm, recs, self.phase)
+            if f and p:
+                frac[a, d], ppp[a, d] = f.value, p.value
+        plan = plan_army(atts, defs, frac, ppp, self.plan_weight.get() / 100)
+        self.plan_title.configure(text=f"Army plan: {self.phase_view.get()}, {self.att_mode.get().lower()}, "
+                                       f"{self.def_mode.get().lower()}")
+        n_def = len(defs)
+        if not atts or not defs:
+            summary = "Nothing to plan: all tests are filtered out or hidden."
+        elif plan.uncovered:
+            summary = (f"{len(plan.uncovered)} of {n_def} defenders left out: {len(atts)} attackers x 2 targets "
+                       f"can't reach them all ({', '.join(plan.uncovered)}).")
+        else:
+            summary = f"All {n_def} defenders are targeted by the {len(atts)} attackers."
+        self.plan_summary.configure(text=summary)
+
+        pct = lambda v: f"{v:.0%}"
+        t = self.plan_atts
+        t.delete(*t.get_children())
+        first: dict[str, list[str]] = {d: [] for d in defs}
+        second: dict[str, list[str]] = {d: [] for d in defs}
+        for s in plan.assignments:
+            row = [s.attacker]
+            for d, into in ((s.primary, first), (s.secondary, second)):
+                if d is None:
+                    row += ["–", "", ""]
+                else:
+                    row += [d, pct(frac[s.attacker, d]), f"{ppp[s.attacker, d]:.1f}"]
+                    into[d].append(s.attacker)
+            t.insert("", "end", values=row)
+        t = self.plan_defs
+        t.delete(*t.get_children())
+        for d in sorted(defs, key=lambda d: -def_pts[d]):
+            w1 = sum(frac[a, d] for a in first[d])
+            w2 = sum(frac[a, d] for a in second[d])
+            tag = "uncovered" if not first[d] and not second[d] else ("overkill" if w1 > 1 else "")
+            t.insert("", "end", tags=(tag,) if tag else (), values=(
+                d, def_pts[d], ", ".join(first[d]) or "–", pct(w1) if first[d] else "",
+                ", ".join(second[d]) or "–", pct(w2) if second[d] else ""))
 
     # ------------------------------------------------------------------ matrix tab
     def _build_matrix_tab(self):
@@ -405,10 +511,12 @@ class ResultsWindow(tk.Toplevel):
         self.unhide_btn.state(["!disabled"] if n_hidden else ["disabled"])
         tab = self.nb.index("current") if self.nb.tabs() else 0
         if tab == 0:
-            self._refresh_matrix()
+            self._refresh_plan()
         elif tab == 1:
-            self._refresh_rank("into")
+            self._refresh_matrix()
         elif tab == 2:
+            self._refresh_rank("into")
+        elif tab == 3:
             self._refresh_rank("from")
         else:
             self._refresh_table()
