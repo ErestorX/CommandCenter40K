@@ -3,11 +3,12 @@ import json
 import shutil
 import tempfile
 import unittest
+from collections import Counter
 from pathlib import Path
 from unittest import mock
 
-from crunch.data.layouts import (LAYOUT_FILES, MEASUREMENTS_FILE, TERRAIN_FILE, board_edge, centroid, parse_layouts,
-                                 rebuild_layouts, update_layouts)
+from crunch.data.layouts import (LAYOUT_FILES, MEASUREMENTS_FILE, TERRAIN_FILE, board_edge, centroid, js_const,
+                                 parse_layouts, rebuild_layouts, update_layouts)
 
 FIX = Path(__file__).parent / "fixtures" / "rapidingress"
 FILES = {n: (FIX / n).read_bytes() for n in LAYOUT_FILES}
@@ -66,10 +67,21 @@ class ParseTest(unittest.TestCase):
 
     def test_terrain_areas_and_features(self):
         a = self.by_id["TH-TH-A"]["terrain"][0]
-        self.assertEqual((a["area"], a["piece_type"], a["obscuring"]), ("TH-TH-A-T01", "large_rect_7x11.5", True))
-        self.assertTrue(a["points"] and a["los_points"])
+        fp = a["footprints"][0]
+        self.assertEqual((a["area"], fp["piece_type"], fp["obscuring"]), ("TH-TH-A-T01", "large_rect_7x11.5", True))
+        self.assertTrue(fp["points"] and fp["los_points"])
         self.assertTrue(a["features"])
         self.assertEqual(set(a["features"][0]), {"category", "elevation", "codes", "points"})
+
+    def test_every_footprint_piece_is_kept(self):
+        # T03 of TH-TH-A is made of two footprint pieces (the one carrying objective 2, and another)
+        t03 = next(a for a in self.by_id["TH-TH-A"]["terrain"] if a["area"] == "TH-TH-A-T03")
+        self.assertEqual(len(t03["footprints"]), 2)
+        self.assertEqual(t03["objective"], 2)
+        for src in js_const(FILES[TERRAIN_FILE].decode(), "ELEVEN_E_LAYOUTS"):
+            want = Counter(p["areaId"] for p in src["terrain"] if not p.get("feature"))
+            got = Counter({a["area"]: len(a["footprints"]) for a in self.by_id[src["id"]]["terrain"]})
+            self.assertEqual(+got, want, src["id"])
 
     def test_measurements(self):
         m = self.by_id["TH-TH-A"]["measurements"]

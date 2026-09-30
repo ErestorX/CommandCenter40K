@@ -96,14 +96,15 @@ def parse_layouts(terrain_js: str, measurements_js: str) -> dict:
 
         areas: dict[str, dict] = {}
         for p in src.get("terrain", []):
-            area = areas.setdefault(p["areaId"], {"area": p["areaId"], "features": []})
+            area = areas.setdefault(p["areaId"], {"area": p["areaId"], "footprints": [], "features": []})
             if p.get("feature"):
                 area["features"].append({"category": p.get("category", ""), "elevation": p.get("elevation"),
                                          "codes": p.get("codes", []), "points": _pts(p["points"])})
-            else:                                   # the area's footprint
-                area.update({"piece_type": p.get("pieceType", ""), "obscuring": p.get("obscuring", False),
-                             "points": _pts(p["points"]),
-                             "los_points": _pts(p.get("losPoints", []))})
+            else:                                   # a footprint: an area can be made of several pieces
+                area["footprints"].append({"piece_type": p.get("pieceType", ""),
+                                           "obscuring": p.get("obscuring", False),
+                                           "points": _pts(p["points"]),
+                                           "los_points": _pts(p.get("losPoints", []))})
                 if p.get("objective"):
                     area["objective"] = p["objective"]["number"]
 
@@ -169,7 +170,8 @@ def update_layouts(edition_dir: Path, base_url: str, fetch: Callable[[str], byte
         log("Layouts already up to date.")
         return None
 
-    if raw_dir.exists() and old.get("content_sha256") and digest != old.get("content_sha256"):
+    source_changed = any((raw_dir / n).exists() and (raw_dir / n).read_bytes() != b for n, b in blobs.items())
+    if source_changed:                   # archive earlier source files (not when only the parsing changed)
         arch = missions_dir / "archive" / (old.get("fetched_at") or "unknown")[:10] / "layouts"
         if not arch.exists():
             shutil.copytree(raw_dir, arch)
