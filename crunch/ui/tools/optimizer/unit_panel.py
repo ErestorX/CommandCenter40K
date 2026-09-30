@@ -1,4 +1,4 @@
-"""One side of the Unit finder: an army list with include toggles, the selected unit's details, and
+"""One side of the Optimizer: an army list with include toggles, the selected unit's details, and
 its test plan (which scenarios are tried)."""
 from __future__ import annotations
 
@@ -15,13 +15,13 @@ from crunch.ui.views.rules import show_army_rules, show_unit_abilities
 from crunch.ui.widgets import EyeButton, make_tree
 
 if TYPE_CHECKING:
-    from crunch.ui.tools.finder.window import FinderWindow
+    from crunch.ui.tools.optimizer.window import OptimizerWindow
 
 ON, OFF, NA = "✓", "·", ""
 
 
 class UnitPlanPanel(ttk.Frame):
-    def __init__(self, master, win: "FinderWindow", army: ArmyList, role: str):
+    def __init__(self, master, win: "OptimizerWindow", army: ArmyList, role: str):
         super().__init__(master, style="Panel.TFrame", padding=10)
         self.win, self.army, self.role = win, army, role
         self.wd = win.ctx.wd

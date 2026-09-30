@@ -1,4 +1,4 @@
-"""Middle third of the matchup window: phase/situation controls and the simulation results."""
+"""Middle third of the Finder window: phase/situation controls and the simulation results."""
 from __future__ import annotations
 
 import tkinter as tk
@@ -13,11 +13,11 @@ from crunch.ui.theme import C
 from crunch.ui.widgets import make_tree, pct
 
 if TYPE_CHECKING:
-    from crunch.ui.tools.matchup.window import MatchupWindow
+    from crunch.ui.tools.finder.window import FinderWindow
 
 
 class ResultsPanel(ttk.Frame):
-    def __init__(self, master, win: "MatchupWindow"):
+    def __init__(self, master, win: "FinderWindow"):
         super().__init__(master, style="Panel.TFrame", padding=10)
         self.win = win
         fonts = win.app.fonts

@@ -1,4 +1,4 @@
-"""Results explorer for the Unit finder: matrix, rankings and a table, with filters and hideable
+"""Results explorer for the Optimizer: matrix, rankings and a table, with filters and hideable
 data points. Every view reads the same ResultSet, so hiding or filtering applies everywhere."""
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ def _inv(d: dict[str, str]) -> dict[str, str]:
 class ResultsWindow(tk.Toplevel):
     def __init__(self, master, records: list[TestRecord], selection: "Selection"):
         super().__init__(master)
-        self.title(f"Game Crunch — Unit finder results ({len(records):,} tests)")
+        self.title(f"Game Crunch — Optimizer results ({len(records):,} tests)")
         self.configure(bg=C["bg"])
         self.geometry("1500x900")
         self.minsize(1100, 700)
@@ -147,7 +147,7 @@ class ResultsWindow(tk.Toplevel):
 
     def export(self):
         path = filedialog.asksaveasfilename(parent=self, defaultextension=".csv", filetypes=[("CSV", "*.csv")],
-                                            initialfile="unit_finder_results.csv")
+                                            initialfile="optimizer_results.csv")
         if path:
             to_csv(self.rs.visible(), path)
 

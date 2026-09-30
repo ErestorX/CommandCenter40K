@@ -56,7 +56,7 @@ crunch/
     newrecruit.py         NewRecruit text export
     model.py              ArmyList / ListUnit (format-independent)
     linking.py            list -> datasheets, weapon loads, targets
-  analysis/               unit finder back end (no UI)
+  analysis/               Optimizer back end (no UI)
     variants.py           catalogue of attacker / defender test scenarios
     plan.py               per-unit test plans, saved to user_data/test_plans.json
     sweep.py              build every test, run them in parallel worker processes
@@ -71,8 +71,8 @@ crunch/
     richtext.py           Wahapedia HTML -> text window, stratagem cards
     views/rules.py        army-rules and unit-abilities windows (reusable)
     tools/
-      matchup/            the matchup tool (army panels | results)
-      finder/             the unit finder (test plans | run | results window)
+      finder/             the Finder: one unit against another (army panels | results)
+      optimizer/          the Optimizer (test plans | run | results window)
 tests/                    unit tests + small fixtures
 lists/                    your army lists
 user_data/                saved test plans (git-ignored)
@@ -83,7 +83,7 @@ Dependencies only point downwards: `ui → lists → data → core`. Nothing in 
 imports from `data`, `lists` or `ui`, so the engine can be reused (CLI, tests,
 a future web front end) without tkinter.
 
-## Unit finder
+## Optimizer
 
 Tick attacking and defending units, then for each unit tick the scenarios to test
 (Tests tab). Attackers have separate Shooting and Fight columns; defenders have one.
@@ -129,7 +129,7 @@ def open_gameplan(app, selection):
 ```
 
 That's all: the launcher discovers it and shows a **Game plan →** button next to
-**Matchup →**. Reuse `crunch.ui.widgets`, `crunch.ui.theme` and `crunch.ui.views`
+**Finder →**. Reuse `crunch.ui.widgets`, `crunch.ui.theme` and `crunch.ui.views`
 for a consistent look.
 
 ## Adding a list format

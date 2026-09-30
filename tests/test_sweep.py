@@ -1,4 +1,4 @@
-"""Unit finder: scenario catalogue, test planning, sweep execution and result aggregation."""
+"""Optimizer: scenario catalogue, test planning, sweep execution and result aggregation."""
 import tempfile
 import unittest
 from pathlib import Path

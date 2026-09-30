@@ -1,4 +1,4 @@
-"""One side of the matchup window: an army, its selected unit, attached characters, and
+"""One side of the Finder window: an army, its selected unit, attached characters, and
 role-specific options (weapons + attacker modifiers, or allocation order + defender modifiers)."""
 from __future__ import annotations
 
@@ -13,13 +13,13 @@ from crunch.ui.views.rules import show_army_rules, show_unit_abilities
 from crunch.ui.widgets import EyeButton, Tooltip, make_tree
 
 if TYPE_CHECKING:
-    from crunch.ui.tools.matchup.window import MatchupWindow
+    from crunch.ui.tools.finder.window import FinderWindow
 
 
 class ArmyPanel(ttk.Frame):
-    """One third of the matchup window: an army, a unit, its attached characters, and role-specific options."""
+    """One third of the Finder window: an army, a unit, its attached characters, and role-specific options."""
 
-    def __init__(self, master, win: "MatchupWindow", army: ArmyList, role: str, state: dict | None = None):
+    def __init__(self, master, win: "FinderWindow", army: ArmyList, role: str, state: dict | None = None):
         super().__init__(master, style="Panel.TFrame", padding=10)
         self.win, self.army, self.role = win, army, role
         self.wd = win.ctx.wd

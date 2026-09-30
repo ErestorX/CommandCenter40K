@@ -12,7 +12,8 @@ class RegistryTest(unittest.TestCase):
     def test_tools_are_discovered(self):
         from crunch.ui.registry import discover
         keys = [t.key for t in discover()]
-        self.assertIn("matchup", keys)
+        self.assertIn("finder", keys)
+        self.assertIn("optimizer", keys)
 
 
 if __name__ == "__main__":
