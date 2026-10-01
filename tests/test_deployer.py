@@ -11,7 +11,7 @@ from crunch.data.layouts import parse_layouts
 from crunch.deploy import parse_base, unit_footprint
 from crunch.deploy.movement import parse_move, rings
 from crunch.deploy.objectives import contact_length, distance_to_region, objective_regions, terrain_pieces, touching
-from crunch.deploy.sight import GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, ray_lengths, visibility
+from crunch.deploy.sight import GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, piece_crossings, ray_lengths, visibility
 from crunch.deploy.placement import (clamp, ellipse_polygon, extent, nearest_on_outline, offset_ellipse, overlaps,
                                      random_spot)
 from crunch.deploy.roster import roster
@@ -231,6 +231,28 @@ class SightTest(unittest.TestCase):
 
     def test_from_inside_a_ruin_it_sees_out_and_into_another(self):
         self.assertAlmostEqual(self.length(12, 18, allowed=2), 48)         # out at x=20, no other ruin
+
+    def test_a_two_piece_area_counts_as_one(self):
+        # an L: two footprints of one area sharing the border x = 36; a ray crosses it without stopping
+        lay = {"terrain": [{"area": "L", "features": [], "footprints": [
+            {"los_points": square(30, 30, 6, 4)}, {"los_points": square(36, 30, 2, 8)}]}]}
+        import numpy as np
+        ob = Obstacles.from_layout(lay)
+        length = float(ray_lengths(np.array([[20.0, 32.0]]), np.array([[1.0, 0.0]]), np.array([1]), 48, ob)[0])
+        self.assertAlmostEqual(length, 18)                                 # in at x=30, out at x=38
+
+    def test_a_seam_between_two_pieces_is_not_an_edge(self):
+        # the footprints of a piece rarely meet exactly: a 0.1" gap between them is still inside it
+        lay = {"terrain": [{"area": "L", "features": [], "footprints": [
+            {"los_points": square(30, 30, 6, 4)}, {"los_points": square(36.1, 30, 2, 8)}]}]}
+        import numpy as np
+        ob = Obstacles.from_layout(lay)
+        O, D = np.array([[20.0, 32.0]]), np.array([[1.0, 0.0]])
+        self.assertEqual([round(t, 6) for t in piece_crossings(O, D, ob)[0]], [10, 18.1])   # in, out
+        self.assertAlmostEqual(float(ray_lengths(O, D, np.array([1]), 48, ob)[0]), 18.1)
+        # a real gap (1") between two separate areas: two pieces, the ray stops at the first one's far edge
+        lay["terrain"].append({"area": "M", "features": [], "footprints": [{"los_points": square(39.1, 30, 2, 4)}]})
+        self.assertAlmostEqual(float(ray_lengths(O, D, np.array([1]), 48, Obstacles.from_layout(lay))[0]), 18.1)
 
     def test_visibility_fans_are_polygons_from_the_base(self):
         fans = visibility(ellipse_polygon(5, 30, 2, 2, n=36), 12, Obstacles.from_layout(self.LAYOUT))
