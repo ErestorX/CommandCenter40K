@@ -49,6 +49,7 @@ SIGHT_FILL, SIGHT_STIPPLE = "#6e6a63", "gray12"   # very light grey: an eighth o
 RANGE_INK = "#55524c"
 TARGET_FILL, TARGET_STIPPLE = "#2e9e44", "gray25"   # faint green: the sight reaching its planned target(s)
 PLAN_INK = C["att"]
+OVERLAY_DELAY = 30                # ms between overlay redraws while dragging
 OVERLAYS = ("move", "advance", "charge", "objectives", "plan", "plan2", "planall", "sight", "hidden", "ground")
 
 
@@ -109,6 +110,7 @@ class LayoutMap(ttk.Frame):
         self.regions: list[dict] = []                               # objectives as terrain, per layout
         self.obstacles: Obstacles | None = None                    # what blocks line of sight, per layout
         self.plan_links: list[tuple[str, str, str]] = []           # (attacker key, target key, rank)
+        self._overlay_job = None
         self.cv.bind("<Configure>", lambda e: self.draw())
         # bound on the canvas, finding the token under the pointer: selecting redraws the token, and
         # Tk's "current" item stays empty until the pointer moves again
@@ -118,7 +120,7 @@ class LayoutMap(ttk.Frame):
         self.cv.bind("<Triple-Button-1>", lambda e: None)
         self.cv.bind("<Quadruple-Button-1>", self._rotate)
         self.cv.bind("<B1-Motion>", self._motion)
-        self.cv.bind("<ButtonRelease-1>", lambda e: setattr(self, "_drag", None))
+        self.cv.bind("<ButtonRelease-1>", self._release)
         self.cv.bind("<Button-3>", lambda e: self._select(None))
         self.cv.bind("<Button-2>", lambda e: self._select(None))       # right button on macOS
         self.cv.tag_bind("token", "<Enter>", self._hover)
@@ -217,6 +219,23 @@ class LayoutMap(ttk.Frame):
         k = self._geom[2]
         self.cv.move(f"key:{key}", (nx - t.x) * k, -(ny - t.y) * k)
         t.x, t.y = nx, ny
+        self._schedule_overlays()
+
+    def _release(self, e=None):
+        """End of a drag: draw the overlays for where the unit ended up, now."""
+        self._drag = None
+        if self._overlay_job is not None:
+            self.after_cancel(self._overlay_job)
+            self._redraw_overlays()
+
+    def _schedule_overlays(self):
+        """While dragging, redraw the overlays at most every OVERLAY_DELAY ms: the unit itself moves
+        at once, mouse events don't queue up behind line of sight computations."""
+        if self._overlay_job is None:
+            self._overlay_job = self.after(OVERLAY_DELAY, self._redraw_overlays)
+
+    def _redraw_overlays(self):
+        self._overlay_job = None
         self._draw_overlays()
         self._draw_plan_links()
 

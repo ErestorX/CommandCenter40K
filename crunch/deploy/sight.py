@@ -28,8 +28,8 @@ from crunch.deploy.placement import BOARD_H, BOARD_W, inside
 BOARD_EDGES = [((0, 0), (BOARD_W, 0)), ((BOARD_W, 0), (BOARD_W, BOARD_H)), ((BOARD_W, BOARD_H), (0, BOARD_H)),
                ((0, BOARD_H), (0, 0))]
 
-ORIGINS = 24          # points sampled around the base
-DIRECTIONS = 180      # rays per point, every 2 degrees (only those facing outward are cast)
+ORIGINS = 12          # points sampled around the base
+DIRECTIONS = 120      # rays per point, every 3 degrees (only those facing outward are cast)
 EPS = 1e-6
 GAP_CLOSE = 0.3       # inches: a gap this narrow between two footprints of a piece is a seam, not ground
 HIDDEN_RANGE = 15.0         # inches
@@ -43,6 +43,17 @@ class Obstacles:
     edge_poly: np.ndarray                       # footprint each edge belongs to
     footprints: list[list[tuple[float, float]]]
     poly_piece: list[int]                       # piece of terrain each footprint belongs to
+    edge_multi: np.ndarray = None               # edge of a piece made of several footprints (bool)
+    poly_multi: list[bool] = None               # footprint of such a piece
+
+    def __post_init__(self):
+        sizes: dict[int, int] = {}
+        for pc in self.poly_piece:
+            sizes[pc] = sizes.get(pc, 0) + 1
+        self.poly_multi = [sizes[pc] > 1 for pc in self.poly_piece]
+        self.edge_multi = np.array([self.poly_multi[k] for k in self.edge_poly], bool)
+        self.edge_of = np.zeros((len(self.edge_poly), len(self.footprints)), int)   # edge -> footprint, 0/1
+        self.edge_of[np.arange(len(self.edge_poly)), self.edge_poly] = 1
 
     @classmethod
     def from_layout(cls, layout: dict) -> "Obstacles":
@@ -85,14 +96,16 @@ def _hits(origins: np.ndarray, dirs: np.ndarray, segs: tuple[np.ndarray, np.ndar
     return np.where(ok, t, np.inf)
 
 
-def piece_crossings(O: np.ndarray, D: np.ndarray, obstacles: Obstacles) -> list[list[float]]:
+def piece_crossings(O: np.ndarray, D: np.ndarray, obstacles: Obstacles,
+                    hits: np.ndarray | None = None) -> list[list[float]]:
     """For each ray, the distances at which it enters or leaves a piece of terrain, in order.
 
     A piece is all its footprints together: crossing from one of its footprints into another isn't
     crossing its edge. Footprints of a piece rarely meet exactly, so a stretch outside them shorter
     than GAP_CLOSE (a seam between them) still counts as inside. A ray starting inside a piece has
     no crossing where it starts: its first one is where it leaves."""
-    hits = _hits(O, D, obstacles.edges)
+    if hits is None:
+        hits = _hits(O, D, obstacles.edges)
     uniq, inv = np.unique(O, axis=0, return_inverse=True)
     start_inside = [{k for k, fp in enumerate(obstacles.footprints) if inside(tuple(u), fp)} for u in uniq]
     out = []
@@ -150,15 +163,48 @@ def ray_lengths(O: np.ndarray, D: np.ndarray, allowed: np.ndarray, max_range: fl
     dense = _hits(O, D, obstacles.dense)
     if dense.shape[1]:
         length = np.minimum(length, dense.min(axis=1))
-    if len(obstacles.edges[0]):
-        for r, cross in enumerate(piece_crossings(O, D, obstacles)):
-            a = int(allowed[r])
-            if len(cross) > a:
-                length[r] = min(length[r], cross[a])
-            if hidden is not None and len(cross) >= a:
-                # entering: the 1st edge crossed from outside, the 2nd from inside a ruin (the 1st leaves it)
-                length[r] = min(length[r], max(cross[a - 1], hidden))
+    if not len(obstacles.edges[0]):
+        return length
+    cross = _crossings(O, D, obstacles)                       # R x C, sorted, inf-padded
+    rows = np.arange(len(O))
+    allowed = np.asarray(allowed, int)
+    pad = np.full((len(O), 1), np.inf)
+    cross = np.concatenate([cross, pad], axis=1)              # so cross[r, allowed] always exists
+    length = np.minimum(length, cross[rows, np.minimum(allowed, cross.shape[1] - 1)])
+    if hidden is not None:
+        # entering: the 1st edge crossed from outside, the 2nd from inside a ruin (the 1st leaves it)
+        enter = cross[rows, np.minimum(allowed - 1, cross.shape[1] - 1)]
+        length = np.minimum(length, np.where(np.isfinite(enter), np.maximum(enter, hidden), np.inf))
     return length
+
+
+def _crossings(O: np.ndarray, D: np.ndarray, obstacles: Obstacles) -> np.ndarray:
+    """piece_crossings for every ray, as a sorted, inf-padded matrix. Rays meeting only pieces made of
+    one footprint, each crossed at most twice (most of them), need no seam handling: their edge hits
+    are their crossings, sorted in one go. The others (a piece of several footprints, or a footprint
+    left and re-entered, where a notch may be a seam) go through piece_crossings."""
+    hits = _hits(O, D, obstacles.edges)
+    uniq, inv = np.unique(O, axis=0, return_inverse=True)
+    starts_multi = np.array([any(m and inside(tuple(u), fp) for m, fp in zip(obstacles.poly_multi,
+                                                                               obstacles.footprints))
+                             for u in uniq], bool)[inv.ravel()]
+    finite = np.isfinite(hits)
+    per_footprint = finite.astype(int) @ obstacles.edge_of                      # R x footprints
+    slow = (finite & obstacles.edge_multi[None, :]).any(axis=1) | starts_multi | (per_footprint > 2).any(axis=1)
+    cross = np.sort(hits, axis=1)
+    idx = np.nonzero(slow)[0]
+    if len(idx):
+        rows = piece_crossings(O[idx], D[idx], obstacles, hits[idx])
+        width = max(cross.shape[1], max(len(c) for c in rows))
+        if width > cross.shape[1]:
+            cross = np.concatenate([cross, np.full((len(O), width - cross.shape[1]), np.inf)], axis=1)
+        for r, c in zip(idx, rows):
+            cross[r] = np.inf
+            cross[r, :len(c)] = c
+    finite = np.isfinite(cross)
+    keep = finite.any(axis=0)                                  # drop all-inf columns
+    keep[:1] = True
+    return cross[:, keep]
 
 
 @dataclass
