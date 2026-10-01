@@ -111,17 +111,10 @@ class DeployerWindow(ToolWindow):
 
     def refresh(self):
         book = self.ctx.missions
-        armies = {"attacker": self.selection.attacker, "defender": self.selection.defender}
         fd = {role: self.side.disposition(role) for role in ROLES}
         both = all(fd.values())
-        name = {role: armies[role].faction or armies[role].path.stem for role in ROLES}
-        if both and fd["attacker"] == fd["defender"]:     # mirror: both players play the same mission
-            cards = [("both", f"{name['attacker']} & {name['defender']}",
-                      book.primary_mission(fd["attacker"], fd["defender"]))]
-        else:
-            cards = [(role, name[role], book.primary_mission(fd[role], fd[other]) if both else None)
-                     for role, other in (("attacker", "defender"), ("defender", "attacker"))]
-        self.side.show_missions(cards)
+        for role, other in (("attacker", "defender"), ("defender", "attacker")):
+            self.side.show_mission(role, book.primary_mission(fd[role], fd[other]) if both else None)
 
         if not book.available:
             msg = "No mission data yet: run  python -m crunch fetch"
