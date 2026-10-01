@@ -62,6 +62,10 @@ crunch/
     newrecruit.py         NewRecruit text export
     model.py              ArmyList / ListUnit (format-independent)
     linking.py            list -> datasheets, weapon loads, targets
+  deploy/                 Deployer back end (no UI)
+    bases.py              base sizes (inches; estimated when the data has none), unit footprints
+    roster.py             an army as it stands on the table: unit + attached characters, footprint
+    placement.py          random spot in a deployment zone, keeping footprints on the board
   analysis/               Optimizer back end (no UI)
     variants.py           catalogue of attacker / defender modifiers, test packages
     plan.py               per-unit test plans, saved to user_data/test_plans.json
@@ -131,6 +135,16 @@ primary mission each player plays, a compact view of both armies (Leaders and Su
 characters merged into their unit), and the three battlefield layouts of the pairing:
 deployment zones, terrain, objectives and, optionally, the table-setup measurements.
 Needs the mission data from `python -m crunch fetch`.
+
+Tick a unit (✓) to put it on every map, each at its own random spot in its side's
+deployment zone; drag it anywhere on its board, it stops at the edges. A single model
+is its base (Wahapedia's base size); a unit is one ellipse holding every base with 1"
+between neighbours (Leaders and Support characters included). Models without an
+official base size (vehicles: "Use model") get an oval estimated from their Wounds,
+drawn dashed. Units are half see-through so terrain shows underneath, and new ones are
+placed clear of those already on the board when there is room. Hover a unit for its
+models and size; click to select it (one selection for the window, highlighted in the
+roster), double click to turn it 30° clockwise, right click to release the selection.
 
 ## Adding a new window (tool)
 

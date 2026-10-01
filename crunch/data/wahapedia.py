@@ -92,7 +92,7 @@ class Wahapedia:
                 name=m.get("name") or ds["name"], M=m.get("M", ""),
                 T=_int(m.get("T"), 4), Sv=_int(m.get("Sv"), 7),
                 inv=_int(m.get("inv_sv")) if _int(m.get("inv_sv")) else None,
-                W=_int(m.get("W"), 1),
+                W=_int(m.get("W"), 1), base=m.get("base_size", ""),
             )
             for m in self._models.get(did, [])
         ] or [ModelProfile(ds["name"], "", 4, 7, None, 1)]

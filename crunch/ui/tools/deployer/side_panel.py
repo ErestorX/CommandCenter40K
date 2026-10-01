@@ -1,12 +1,13 @@
 """Left third of the Deployer: each army's Force Disposition, the two primary missions, and a
-compact view of both army lists."""
+compact view of both army lists, whose units can be ticked to put them on the maps."""
 from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
 from typing import TYPE_CHECKING
 
-from crunch.lists import ArmyList, ListUnit
+from crunch.deploy.roster import RosterRow, roster
+from crunch.lists import ArmyList
 from crunch.ui.theme import C, font_family
 from crunch.ui.widgets import make_tree
 
@@ -14,29 +15,7 @@ if TYPE_CHECKING:
     from crunch.ui.tools.deployer.window import DeployerWindow
 
 ROLES = ("attacker", "defender")
-
-
-def army_rows(army: ArmyList, wd) -> list[tuple[str, int, int]]:
-    """(name, models, points) per unit on the table: Leaders and Support characters are merged
-    into the unit they join; characters on their own keep their own row."""
-    joined: dict[int, list[ListUnit]] = {}
-    used: set[int] = set()
-    for u in army.units:
-        if u.is_character:
-            continue
-        for support in (False, True):
-            c = army.default_attached(u, wd, support=support)
-            if c and c.uid not in used:
-                joined.setdefault(u.uid, []).append(c)
-                used.add(c.uid)
-    rows = []
-    for u in army.units:
-        if u.uid in used:
-            continue
-        group = [u] + joined.get(u.uid, [])
-        name = " + ".join(x.label or x.name for x in group) + ("" if u.datasheet else "  (no datasheet)")
-        rows.append((name, sum(x.model_count for x in group), sum(x.points for x in group)))
-    return rows
+ON = "✓"
 
 
 class SidePanel(ttk.Frame):
@@ -77,7 +56,8 @@ class SidePanel(ttk.Frame):
         ttk.Label(mf, text="Primary missions", style="Muted.TLabel").pack(anchor="w")
         self.text = self._make_text(mf)
         pw.add(mf, weight=3)
-        self.army_trees = []
+        self.trees: dict[str, ttk.Treeview] = {}
+        self.rows: dict[str, dict[str, RosterRow]] = {}
         for role, army in zip(ROLES, armies):
             pw.add(self._army_view(pw, role, army), weight=2)
 
@@ -152,18 +132,40 @@ class SidePanel(ttk.Frame):
     # ---------------------------------------------------------------- armies
     def _army_view(self, parent, role: str, army: ArmyList) -> ttk.Frame:
         f = ttk.Frame(parent, style="Flat.TFrame")
-        rows = army_rows(army, self.win.ctx.wd)
+        rows = roster(army, self.win.ctx.wd)
+        self.rows[role] = {r.key: r for r in rows}
         head = ttk.Frame(f, style="Flat.TFrame")
         head.pack(fill="x", pady=(6, 0))
         ttk.Label(head, text=role.upper(), style="Att.TLabel" if role == "attacker" else "Def.TLabel").pack(
             side="left")
         ttk.Label(head, text=f"  {army.faction}  ·  {army.points} pts", style="Panel.TLabel").pack(side="left")
         dets = ", ".join(army.detachment_names)
-        ttk.Label(f, text=f"{dets}  ·  {len(rows)} units on the table, {sum(r[1] for r in rows)} models",
+        ttk.Label(f, text=f"{dets}  ·  {len(rows)} units on the table, {sum(r.models for r in rows)} models"
+                          "  ·  click ✓ to put a unit on the maps",
                   style="Muted.TLabel", wraplength=420, justify="left").pack(anchor="w")
-        tf, tree = make_tree(f, [("unit", "Unit"), ("m", "Models"), ("pts", "Pts")], [-250, 56, 50], height=5)
+        tf, tree = make_tree(f, [("on", "✓"), ("unit", "Unit"), ("m", "Models"), ("pts", "Pts")],
+                             [28, -240, 56, 50], height=5)
         tf.pack(fill="both", expand=True, pady=(2, 0))
-        for name, models, pts in rows:
-            tree.insert("", "end", values=(name, models, pts))
-        self.army_trees.append(tree)
+        for r in rows:
+            tree.insert("", "end", iid=r.key, values=("", r.name, r.models, r.points))
+        tree.bind("<ButtonRelease-1>", lambda e, role=role: self._on_click(role, e))
+        self.trees[role] = tree
         return f
+
+    def show_selected(self, role_key: list[str] | None):
+        """Highlight the roster row of the selected unit (None: no highlight)."""
+        for role, tree in self.trees.items():
+            if role_key and role_key[0] == role and tree.exists(role_key[1]):
+                tree.selection_set(role_key[1])
+                tree.see(role_key[1])
+            else:
+                tree.selection_remove(*tree.selection())
+
+    def _on_click(self, role: str, e):
+        tree = self.trees[role]
+        key, col = tree.identify_row(e.y), tree.identify_column(e.x)
+        if not key or col != "#1":
+            return
+        on = tree.set(key, "on") != ON
+        tree.set(key, "on", ON if on else "")
+        self.win.toggle_unit(role, self.rows[role][key], on)

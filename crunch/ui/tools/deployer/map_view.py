@@ -1,10 +1,19 @@
-"""A battlefield layout drawn on a canvas: deployment zones, terrain, objectives, measurements.
-Scales to the space it gets, keeping the board's 60" x 44" proportions."""
+"""A battlefield layout drawn on a canvas: deployment zones, terrain, objectives, measurements, and
+the units placed on it. Scales to the space it gets, keeping the board's 60" x 44" proportions.
+
+Units are tokens (a base, or the ellipse of a whole unit) that start at a random spot in their
+side's deployment zone and can be dragged anywhere on the board, stopping at its edges. They are
+half see-through (a stippled fill, Tk has no transparency) so terrain shows underneath. A click
+selects a token, a double click turns it 30 degrees clockwise, a right click releases the selection."""
 from __future__ import annotations
 
+import random
 import tkinter as tk
+from dataclasses import dataclass
 from tkinter import ttk
 
+from crunch.deploy import Footprint
+from crunch.deploy.placement import clamp, ellipse_polygon, extent, random_spot
 from crunch.ui.theme import C, font_family
 
 BOARD_W, BOARD_H = 60.0, 44.0
@@ -15,6 +24,26 @@ AREA_FILL, AREA_LINE = "#ddd6c8", "#9b9384"
 FEATURE_FILL = {"DENSE": "#5f584d", "LIGHT": "#a8a092"}
 OBJ_FILL = {"central": "#1d1c1a", "expansion": "#3c7d45"}
 MEASURE = "#6e6a63"
+TOKEN = {"attacker": ("#c9474b", "#6b1417"), "defender": ("#3d73b3", "#12304f")}   # fill, outline
+TOKEN_STIPPLE = "gray50"          # half the pixels filled: terrain stays visible underneath
+SELECTED = "#e0a800"
+ROTATE_STEP = 30                  # degrees clockwise per double click
+
+
+@dataclass
+class Token:
+    key: str
+    role: str
+    label: str
+    footprint: Footprint
+    x: float = 0.0              # centre, board inches
+    y: float = 0.0
+    angle: float = 0.0          # degrees clockwise, as seen from above
+
+    @property
+    def box(self) -> tuple[float, float]:
+        """Width and height the turned footprint takes on the board."""
+        return extent(self.footprint.w, self.footprint.h, self.angle)
 
 
 def objective_fill(o: dict) -> str:
@@ -35,20 +64,158 @@ class LayoutMap(ttk.Frame):
         self.layout: dict | None = None
         self.message = ""
         self.show_measurements = False
+        self.tokens: dict[str, Token] = {}
+        self._geom: tuple[float, float, float] | None = None       # origin x, origin y, pixels per inch
+        self._drag: tuple[str, float, float] | None = None         # token key, grab offset (inches)
+        self.rng = random.Random()
+        self.selected: str | None = None
+        self.on_select = None                                       # callback(map, key or None)
         self.cv.bind("<Configure>", lambda e: self.draw())
+        self.cv.tag_bind("token", "<ButtonPress-1>", self._press)
+        # clicks 2 and 4 of a quick run are each a double click: turn on those, not on click 3
+        self.cv.tag_bind("token", "<Double-Button-1>", self._rotate)
+        self.cv.tag_bind("token", "<Triple-Button-1>", lambda e: None)
+        self.cv.tag_bind("token", "<Quadruple-Button-1>", self._rotate)
+        self.cv.bind("<B1-Motion>", self._motion)
+        self.cv.bind("<ButtonRelease-1>", lambda e: setattr(self, "_drag", None))
+        self.cv.bind("<Button-3>", lambda e: self._select(None))
+        self.cv.bind("<Button-2>", lambda e: self._select(None))       # right button on macOS
+        self.cv.tag_bind("token", "<Enter>", self._hover)
+        self.cv.tag_bind("token", "<Leave>", lambda e: self._show_sub())
 
     def set_layout(self, layout: dict | None, message: str = "", show_measurements: bool | None = None):
+        changed = (layout or {}).get("id") != (self.layout or {}).get("id")
         self.layout, self.message = layout, message
         if show_measurements is not None:
             self.show_measurements = show_measurements
-        if layout:
-            self.title.configure(text=f"Layout {layout.get('variant', '')}")
-            self.sub.configure(text=f"{layout['id']}  ·  attacker deploys {layout.get('attacker_edge', '?')}, "
-                                    f"defender {layout.get('defender_edge', '?')}")
-        else:
-            self.title.configure(text="")
-            self.sub.configure(text="")
+        self.title.configure(text=f"Layout {layout.get('variant', '')}" if layout else "")
+        self._show_sub()
+        if changed:                                   # new board: every unit starts again in its zone
+            for t in self.tokens.values():
+                self._place(t)
         self.draw()
+
+    def _show_sub(self, text: str = ""):
+        lay = self.layout
+        default = (f"{lay['id']}  ·  attacker deploys {lay.get('attacker_edge', '?')}, "
+                   f"defender {lay.get('defender_edge', '?')}") if lay else ""
+        self.sub.configure(text=text or default)
+
+    # ---------------------------------------------------------------- units
+    def add_token(self, key: str, role: str, label: str, footprint: Footprint):
+        t = Token(key, role, label, footprint)
+        self._place(t)
+        self.tokens[key] = t
+        self._draw_tokens()
+
+    def remove_token(self, key: str):
+        if self.tokens.pop(key, None):
+            self.cv.delete(f"key:{key}")
+            if self.selected == key:
+                self._select(None)
+
+    def _place(self, t: Token):
+        zones = (self.layout or {}).get("deployment_zones", {}).get(t.role, [])
+        others = [(o.x, o.y, *o.box) for o in self.tokens.values() if o is not t]
+        t.x, t.y = random_spot(zones, *t.box, self.rng, avoid=others)
+
+    # ---------------------------------------------------------------- selection
+    def set_selected(self, key: str | None):
+        """Show `key` as selected (None: nothing), without telling anyone."""
+        if key != self.selected:
+            self.selected = key if key in self.tokens else None
+            self._draw_tokens()
+
+    def _select(self, key: str | None):
+        self.set_selected(key)
+        if self.on_select:
+            self.on_select(self, self.selected)
+
+    def _rotate(self, e):
+        key = self._key_at_current()
+        if key in self.tokens:
+            t = self.tokens[key]
+            t.angle = (t.angle + ROTATE_STEP) % 360
+            t.x, t.y = clamp(t.x, t.y, *t.box)             # turning can push it past an edge
+            self._draw_tokens()
+
+    def _key_at_current(self) -> str | None:
+        for tag in self.cv.gettags("current"):
+            if tag.startswith("key:"):
+                return tag[4:]
+        return None
+
+    def _press(self, e):
+        key = self._key_at_current()
+        if key and self._geom:
+            t = self.tokens[key]
+            bx, by = self._to_board(e.x, e.y)
+            self._drag = (key, bx - t.x, by - t.y)
+            self._select(key)
+            self.cv.tag_raise(f"key:{key}")
+
+    def _motion(self, e):
+        if not self._drag or not self._geom or self._drag[0] not in self.tokens:
+            return
+        key, dx, dy = self._drag
+        t = self.tokens[key]
+        bx, by = self._to_board(e.x, e.y)
+        nx, ny = clamp(bx - dx, by - dy, *t.box)
+        k = self._geom[2]
+        self.cv.move(f"key:{key}", (nx - t.x) * k, -(ny - t.y) * k)
+        t.x, t.y = nx, ny
+
+    def _hover(self, e):
+        key = self._key_at_current()
+        if key in self.tokens:
+            t = self.tokens[key]
+            fp = t.footprint
+            size = f'{fp.w:.1f}"' if abs(fp.w - fp.h) < 1e-6 else f'{fp.w:.1f}" x {fp.h:.1f}"'
+            self._show_sub(f"{t.label}  ·  {fp.description}  ·  {size}"
+                           + (f"  ·  turned {t.angle:.0f}°" if t.angle else "")
+                           + ("  ·  base size estimated" if fp.estimated else ""))
+
+    def _to_px(self, x: float, y: float) -> tuple[float, float]:
+        ox, oy, k = self._geom
+        return ox + x * k, oy + (BOARD_H - y) * k
+
+    def _to_board(self, px: float, py: float) -> tuple[float, float]:
+        ox, oy, k = self._geom
+        return (px - ox) / k, BOARD_H - (py - oy) / k
+
+    def _draw_tokens(self):
+        cv = self.cv
+        cv.delete("token")
+        if not self._geom or not self.layout:
+            return
+        k = self._geom[2]
+        fam = font_family()
+        order = sorted(self.tokens.values(), key=lambda t: t.key == self.selected)   # selected on top
+        for t in order:
+            x, y = self._to_px(t.x, t.y)
+            fill, line = TOKEN[t.role]
+            chosen = t.key == self.selected
+            tags = ("token", f"key:{t.key}")
+            outline = [c for p in ellipse_polygon(t.x, t.y, t.footprint.w, t.footprint.h, t.angle)
+                       for c in self._to_px(*p)]
+            if chosen:
+                cv.create_polygon(outline, fill="", outline=SELECTED, width=5, smooth=True, tags=tags)
+            cv.create_polygon(outline, fill=fill, stipple=TOKEN_STIPPLE, outline=line, width=1.5, smooth=True,
+                              dash=(4, 2) if t.footprint.estimated else "", tags=tags)
+            label = cv.create_text(x, y, text=t.label, fill=line, font=(fam, 8, "bold"), tags=tags)
+            bb = cv.bbox(label)
+            bw, bh = (d * k for d in t.box)
+            if bb and (bb[2] - bb[0] > bw - 4 or bb[3] - bb[1] > bh):           # too big: write it below
+                cv.coords(label, x, y + bh / 2 + 7)
+            bb = cv.bbox(label)
+            left, right = self._to_px(0, 0)[0], self._to_px(BOARD_W, 0)[0]
+            shift = max(0, left + 2 - bb[0]) - max(0, bb[2] - right + 2)       # keep the label on the board
+            if shift:
+                cv.move(label, shift, 0)
+                bb = cv.bbox(label)
+            halo = cv.create_rectangle(bb[0] - 2, bb[1], bb[2] + 2, bb[3], fill="white", outline="",
+                                       stipple="gray75", tags=tags)
+            cv.tag_lower(halo, label)
 
     # ---------------------------------------------------------------- drawing
     def draw(self):
@@ -57,6 +224,7 @@ class LayoutMap(ttk.Frame):
         W, H = cv.winfo_width(), cv.winfo_height()
         fam = font_family()
         if not self.layout:
+            self._geom = None
             if self.message:
                 cv.create_text(W / 2, H / 2, text=self.message, fill=C["muted"], font=(fam, 10), width=W - 20)
             return
@@ -66,6 +234,7 @@ class LayoutMap(ttk.Frame):
             return
         ox = (W - BOARD_W * k) / 2
         oy = (H - BOARD_H * k) / 2
+        self._geom = (ox, oy, k)
 
         def xy(p):                                     # board inches (y up) -> canvas pixels
             return ox + p[0] * k, oy + (BOARD_H - p[1]) * k
@@ -107,6 +276,7 @@ class LayoutMap(ttk.Frame):
             cv.create_text(x, y, text=str(o["number"]), fill="white", font=(fam, max(7, int(r * 0.9)), "bold"))
         cv.create_rectangle(ox, oy, ox + BOARD_W * k, oy + BOARD_H * k, outline=C["ink"])
         self._edge_labels(ox, oy, k, fam)
+        self._draw_tokens()
 
     def _edge_labels(self, ox, oy, k, fam):
         """ATTACKER / DEFENDER written inside the board along each side's deployment edge."""

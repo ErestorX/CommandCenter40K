@@ -1,6 +1,7 @@
 """The Deployer: mission and deployment support. For the two armies' Force Dispositions it shows the
 three battlefield layouts of the pairing (right two thirds), the primary mission each player plays
-and a compact view of both armies (left third)."""
+and a compact view of both armies (left third). Ticking a unit puts its base (or the ellipse of the
+whole unit) on each map, at a random spot of its side's deployment zone, to be dragged around."""
 from __future__ import annotations
 
 import tkinter as tk
@@ -35,8 +36,10 @@ class DeployerWindow(ToolWindow):
             maps.columnconfigure(i, weight=1, uniform="maps")
             maps.rowconfigure(i, weight=1, uniform="maps")
         self.maps = [LayoutMap(maps) for _ in range(3)]
+        self.selected: tuple[LayoutMap, str] | None = None     # the unit token later functions act on
         for i, m in enumerate(self.maps):
             m.grid(row=i // 2, column=i % 2, sticky="nsew", padx=3, pady=3)
+            m.on_select = self._on_select
         self._build_info(maps).grid(row=1, column=1, sticky="nsew", padx=3, pady=3)
         self.refresh()
 
@@ -53,6 +56,23 @@ class DeployerWindow(ToolWindow):
         ttk.Label(f, text="Layouts: Event Companion, via rapidingress.com", style="Muted.TLabel").pack(
             side="bottom", anchor="w")
         return f
+
+    def _on_select(self, source: LayoutMap, key: str | None):
+        """One selection for the whole window: selecting on one map clears the others."""
+        self.selected = (source, key) if key else None
+        for m in self.maps:
+            if m is not source:
+                m.set_selected(None)
+        self.side.show_selected(key.split(":", 1) if key else None)
+
+    def toggle_unit(self, role: str, row, on: bool):
+        """Put a roster row on every map (each at its own random spot in the side's zone), or take it off."""
+        key = f"{role}:{row.key}"
+        for m in self.maps:
+            if on:
+                m.add_token(key, role, row.name, row.footprint)
+            else:
+                m.remove_token(key)
 
     def _toggle_measurements(self):
         for m in self.maps:

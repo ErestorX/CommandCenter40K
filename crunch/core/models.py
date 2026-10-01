@@ -48,6 +48,7 @@ class ModelProfile:
     Sv: int
     inv: int | None
     W: int
+    base: str = ""       # base size as Wahapedia writes it: "32mm", "120 x 92mm", "Use model"
 
 
 @dataclass
