@@ -46,6 +46,11 @@ def setup_style(root: tk.Tk) -> None:
     style.configure("Treeview.Heading", font=root.fonts["small"])
     style.map("Treeview", background=[("selected", "#e9dcc3")], foreground=[("selected", C["ink"])])
     style.configure("Accent.TButton", font=root.fonts["h2"])
+    # badges: a value shown as a tinted tag, in its side's colours
+    badge = dict(font=root.fonts["role"], padding=(10, 3), relief="flat", borderwidth=0)
+    style.configure("AttBadge.TLabel", background="#f1d3d3", foreground=C["att"], **badge)
+    style.configure("DefBadge.TLabel", background="#d3dff0", foreground=C["def"], **badge)
+    style.configure("MutedBadge.TLabel", background=C["grid"], foreground=C["muted"], **badge)
 
 
 def font_family() -> str:

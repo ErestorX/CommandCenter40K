@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from crunch.analysis.army_plans import pair_key
 from crunch.ui.registry import Selection, register_tool
 from crunch.ui.tools.deployer.map_view import OVERLAYS, LayoutMap, legend
+from crunch.ui.tools.deployer.score_oracle import ScoreOracle
 from crunch.ui.tools.deployer.side_panel import ROLES, SidePanel
 from crunch.ui.toolwindow import ToolWindow
 
@@ -42,6 +43,7 @@ class DeployerWindow(ToolWindow):
         plans = self.ctx.army_plans                             # the Optimizer's army plan, kept live
         self.plan = plans.get(selection.attacker.path, selection.defender.path)
         self._unsubscribe = plans.subscribe(self._on_plan_saved)
+        self.oracle: ScoreOracle | None = None                 # the floating score window, when open
         for i, m in enumerate(self.maps):
             m.grid(row=i // 2, column=i % 2, sticky="nsew", padx=3, pady=3)
             m.on_select = self._on_select
@@ -154,8 +156,20 @@ class DeployerWindow(ToolWindow):
         else:
             self.plan_note.pack(anchor="w", pady=(4, 0))
 
+    # ---------------------------------------------------------------- Score Oracle
+    def open_score_oracle(self):
+        """The floating score window: one per Deployer, brought to the front if already open."""
+        if self.oracle is not None and self.oracle.winfo_exists():
+            self.oracle.deiconify()
+            self.oracle.lift()
+            self.oracle.focus_set()
+            return
+        self.oracle = ScoreOracle(self)
+
     def back(self):
         self._unsubscribe()
+        if self.oracle is not None and self.oracle.winfo_exists():
+            self.oracle.destroy()
         super().back()
 
     def _toggle_overlays(self):
@@ -175,12 +189,14 @@ class DeployerWindow(ToolWindow):
         both = all(fd.values())
         for role, other in (("attacker", "defender"), ("defender", "attacker")):
             self.side.show_mission(role, book.primary_mission(fd[role], fd[other]) if both else None)
+        if getattr(self, "oracle", None) is not None and self.oracle.winfo_exists():
+            self.oracle.refresh()
 
         if not book.available:
             msg = "No mission data yet: run  python -m crunch fetch"
             layouts = []
         elif not both:
-            msg = "Choose a Force Disposition for both armies."
+            msg = "Both lists need a Force Disposition (in their Configuration) to show the layouts."
             layouts = []
         else:
             layouts = book.layouts_for(fd["attacker"], fd["defender"])

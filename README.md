@@ -89,6 +89,7 @@ crunch/
       finder/             the Finder: one unit against another (army panels | results)
       optimizer/          the Optimizer (test plans | run | results window)
       deployer/           the Deployer: missions + army summaries | the pairing's three layouts
+                          score_oracle.py: the floating Score Oracle window (score sheet to come)
 tests/                    unit tests + small fixtures
 lists/                    your army lists
 user_data/                saved test plans (git-ignored)
@@ -139,7 +140,7 @@ simulated separately, so a total doesn't account for Shooting casualties before 
 
 ## Deployer
 
-Uses each list's `Force Disposition:` line (changeable in the window) to show the
+Uses each list's `Force Disposition:` line (shown as a badge, set in the list) to show the
 primary mission each player plays, a compact view of both armies (Leaders and Support
 characters merged into their unit), and the three battlefield layouts of the pairing:
 deployment zones, terrain, objectives and, optionally, the table-setup measurements.

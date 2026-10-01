@@ -28,6 +28,7 @@ class SidePanel(ttk.Frame):
         top = ttk.Frame(self, style="Flat.TFrame")
         top.pack(fill="x")
         ttk.Button(top, text="← Lists", command=win.back).pack(side="left")
+        ttk.Button(top, text="Score Oracle", command=win.open_score_oracle).pack(side="right")
         ttk.Label(self, text="Deployer", style="H2.TLabel").pack(anchor="w", pady=(10, 0))
 
         # ---- one column per player: disposition + primary mission | army 1 | army 2 ----------------
@@ -37,7 +38,7 @@ class SidePanel(ttk.Frame):
         for c in range(2):
             cols.columnconfigure(c, weight=1, uniform="players")
         cols.rowconfigure(0, weight=1)
-        self.fd_vars: dict[str, tk.StringVar] = {}
+        self.dispositions: dict[str, str] = {}            # role -> Force Disposition, as the lists set it
         self.texts: dict[str, tk.Text] = {}
         by_role = dict(zip(ROLES, armies))
         for c, role in enumerate(COLUMNS):
@@ -51,24 +52,24 @@ class SidePanel(ttk.Frame):
 
     # ---------------------------------------------------------------- dispositions
     def disposition(self, role: str) -> str:
-        return self.fd_vars[role].get()
+        return self.dispositions[role]
 
     def _player_column(self, parent, role: str, army: ArmyList) -> ttk.Frame:
-        """Title with the disposition menu opposite, then the army's name, then its primary mission."""
+        """Title with the army's Force Disposition opposite (as its list sets it), then the army's name,
+        then its primary mission."""
         book = self.win.ctx.missions
         f = ttk.Frame(parent, style="Flat.TFrame")
         head = ttk.Frame(f, style="Flat.TFrame")
         head.pack(fill="x")
         ttk.Label(head, text=role.upper(), style="Att.TLabel" if role == "attacker" else "Def.TLabel").pack(
             side="left")
-        v = tk.StringVar(value=book.disposition(army.force_disposition) or "")
-        cb = ttk.Combobox(head, textvariable=v, values=book.dispositions, state="readonly", width=16)
-        cb.pack(side="right")
-        cb.bind("<<ComboboxSelected>>", lambda e: self.win.refresh())
-        self.fd_vars[role] = v
+        fd = book.disposition(army.force_disposition) or ""
+        self.dispositions[role] = fd
+        badge = ("AttBadge.TLabel" if role == "attacker" else "DefBadge.TLabel") if fd else "MutedBadge.TLabel"
+        ttk.Label(head, text=fd.upper() if fd else "NO FORCE DISPOSITION", style=badge).pack(side="right")
         name = army.faction or army.path.stem
-        note = "" if book.disposition(army.force_disposition) else "  ·  no Force Disposition in the list: choose one"
-        ttk.Label(f, text=name + note, style="Muted.TLabel", wraplength=230, justify="left").pack(anchor="w")
+        note = "" if fd else "  ·  its list sets none (Configuration: \"Force Disposition: ...\")"
+        ttk.Label(f, text=name + note, style="Muted.TLabel", wraplength=230, justify="left").pack(anchor="w", pady=(2, 0))
         self.texts[role] = self._make_text(f)
         return f
 
@@ -101,7 +102,7 @@ class SidePanel(ttk.Frame):
         if card:
             self._write_card(t, card)
         else:
-            t.insert("end", "Choose both Force Dispositions to see this mission.\n", "legend")
+            t.insert("end", "Both lists need a Force Disposition to know this mission.\n", "legend")
         t.configure(state="disabled")
         t.yview_moveto(0)
 
