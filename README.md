@@ -68,6 +68,7 @@ crunch/
     placement.py          random spot in a deployment zone, keeping footprints on the board
     movement.py           move / advance / charge rings
     objectives.py         objectives as terrain: touching areas joined, distance to a unit
+    scoring.py            score sheet maths: VP per round, 45 caps, Battle Ready, WTC result
     sight.py              line of sight by ray casting (dense terrain, ruin edges, board edges)
   analysis/               Optimizer back end (no UI)
     variants.py           catalogue of attacker / defender modifiers, test packages
@@ -89,7 +90,7 @@ crunch/
       finder/             the Finder: one unit against another (army panels | results)
       optimizer/          the Optimizer (test plans | run | results window)
       deployer/           the Deployer: missions + army summaries | the pairing's three layouts
-                          score_oracle.py: the floating Score Oracle window (score sheet to come)
+                          score_oracle.py: the floating Score Oracle window, with the score sheet
 tests/                    unit tests + small fixtures
 lists/                    your army lists
 user_data/                saved test plans (git-ignored)

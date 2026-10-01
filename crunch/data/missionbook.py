@@ -39,6 +39,10 @@ class MissionBook:
         return self._load("primary_missions", [])
 
     @property
+    def secondary_missions(self) -> list[dict]:
+        return self._load("secondary_missions", [])
+
+    @property
     def dispositions(self) -> list[str]:
         """Force Disposition names, in the source's order."""
         names = self._load("layouts", {}).get("force_dispositions", {})
