@@ -43,6 +43,39 @@ def ellipse_polygon(x: float, y: float, w: float, h: float, angle: float = 0.0, 
     return out
 
 
+def offset_ellipse(x: float, y: float, w: float, h: float, angle: float, d: float, n: int = 72) -> list[Point]:
+    """The line `d` inches out from a turned ellipse's edge, all the way round (its parallel curve)."""
+    a, b = w / 2, h / 2
+    t = math.radians(angle)
+    c, s = math.cos(t), math.sin(t)
+    out = []
+    for i in range(n):
+        p = 2 * math.pi * i / n
+        u, v = a * math.cos(p), b * math.sin(p)
+        nu, nv = b * math.cos(p), a * math.sin(p)          # outward normal of the ellipse
+        k = math.hypot(nu, nv) or 1.0
+        u, v = u + d * nu / k, v + d * nv / k
+        out.append((x + u * c + v * s, y - u * s + v * c))
+    return out
+
+
+def nearest_on_outline(pt: Point, outline: list[Point]) -> tuple[float, Point]:
+    """Distance from `pt` to a closed outline and the outline's nearest point (0 and `pt` inside)."""
+    if inside(pt, outline):
+        return 0.0, pt
+    best, near = math.inf, outline[0]
+    px, py = pt
+    for (x0, y0), (x1, y1) in zip(outline, outline[1:] + outline[:1]):
+        dx, dy = x1 - x0, y1 - y0
+        L = dx * dx + dy * dy
+        f = 0.0 if L == 0 else max(0.0, min(1.0, ((px - x0) * dx + (py - y0) * dy) / L))
+        qx, qy = x0 + f * dx, y0 + f * dy
+        dist = math.hypot(px - qx, py - qy)
+        if dist < best:
+            best, near = dist, (qx, qy)
+    return best, near
+
+
 def clamp(x: float, y: float, w: float, h: float) -> Point:
     """Keep a w x h footprint centred at (x, y) on the board: it bumps into the edges."""
     return (min(max(x, w / 2), BOARD_W - w / 2) if w < BOARD_W else BOARD_W / 2,

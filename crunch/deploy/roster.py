@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from crunch.deploy.bases import Base, Footprint, parse_base, unit_footprint
+from crunch.deploy.movement import parse_move
 from crunch.lists import ArmyList, ListUnit
 
 
@@ -16,6 +17,7 @@ class RosterRow:
     models: int
     points: int
     footprint: Footprint
+    move: float = 0.0             # inches: the slowest model's Move (a unit moves at its slowest)
 
 
 def unit_bases(u: ListUnit) -> list[tuple[Base, int]]:
@@ -52,5 +54,18 @@ def roster(army: ArmyList, wd) -> list[RosterRow]:
         name = " + ".join(x.label or x.name for x in group) + ("" if u.datasheet else "  (no datasheet)")
         bases = [b for x in group for b in unit_bases(x)]
         rows.append(RosterRow(f"u{u.uid}", group, name, sum(x.model_count for x in group),
-                              sum(x.points for x in group), unit_footprint(bases)))
+                              sum(x.points for x in group), unit_footprint(bases), unit_move(group)))
     return rows
+
+
+def unit_move(units: list[ListUnit]) -> float:
+    """The slowest Move among the models fielded (0 if none can move)."""
+    moves = []
+    for u in units:
+        ds = u.datasheet
+        if not ds:
+            continue
+        profiles = [ds.profile(m.name) for m in u.models] if u.models else ds.models[:1]
+        moves += [parse_move(p.M) for p in profiles]
+    moving = [m for m in moves if m > 0]
+    return min(moving) if moving else 0.0

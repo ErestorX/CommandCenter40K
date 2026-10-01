@@ -1,5 +1,6 @@
 """Deployer back end: mission data access, the army roster, base sizes, footprints and placement."""
 import json
+import math
 import random
 import shutil
 import tempfile
@@ -8,7 +9,10 @@ from pathlib import Path
 
 from crunch.data.layouts import parse_layouts
 from crunch.deploy import parse_base, unit_footprint
-from crunch.deploy.placement import clamp, ellipse_polygon, extent, overlaps, random_spot
+from crunch.deploy.movement import parse_move, rings
+from crunch.deploy.objectives import contact_length, distance_to_region, objective_regions, terrain_pieces, touching
+from crunch.deploy.placement import (clamp, ellipse_polygon, extent, nearest_on_outline, offset_ellipse, overlaps,
+                                     random_spot)
 from crunch.deploy.roster import roster
 from crunch.data.missionbook import MissionBook
 from crunch.data.missions import parse_deck
@@ -112,6 +116,74 @@ class BasesTest(unittest.TestCase):
         self.assertTrue(unit_footprint([(parse_base("Use model", 10), 2)]).estimated)
 
 
+class MovementTest(unittest.TestCase):
+    def test_parse_move(self):
+        self.assertEqual([parse_move(t) for t in ('6"', '20+"', "-", "", '12"')], [6, 20, 0, 0, 12])
+
+    def test_rings(self):
+        self.assertEqual(rings(6, True, False, False), [('Move 6"', 6)])
+        self.assertEqual(rings(6, False, True, False), [('Advance 9.5"', 9.5)])
+        self.assertEqual(rings(6, False, False, True), [('Charge 7"', 7)])          # 2D6 alone, M not added
+        self.assertEqual(rings(6, True, False, True), [('Move 6"', 6), ('Move + charge 13"', 13)])
+        # advance and charge together: the charge ring becomes the full 10.5" + M
+        self.assertEqual(rings(6, True, True, True),
+                         [('Move 6"', 6), ('Advance 9.5"', 9.5), ('Advance + charge 16.5"', 16.5)])
+        self.assertEqual(rings(0, True, False, False), [])                     # can't move: no ring
+
+    def test_unit_moves_at_its_slowest_model(self):
+        wd = fixture_wd()
+        rows = roster(parse_list(FIXTURE_LIST, wd), wd)
+        self.assertEqual(rows[0].move, 6)
+
+
+def square(x, y, w, h):
+    return [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+
+
+class ObjectiveTerrainTest(unittest.TestCase):
+    def test_edge_contact_joins_corner_contact_does_not(self):
+        a = square(0, 0, 6, 4)
+        self.assertTrue(touching(a, square(6, 0, 6, 4)))                 # whole 4" side shared
+        self.assertTrue(touching(a, square(6.1, 1, 2, 2)))               # 2" of side, 0.1" gap
+        self.assertFalse(touching(a, square(6, 4, 3, 3)))                # corner to corner
+        self.assertFalse(touching(a, square(5.7, 3.7, 3, 3)))            # corners overlapping a little
+        self.assertFalse(touching(a, square(7, 0, 6, 4)))                # 1" apart
+        # the 4" side, plus the 0.15" tolerance reaching onto the edges at each end
+        self.assertAlmostEqual(contact_length(square(6, 0, 6, 4), a), 4 + 2 * 0.15, delta=0.05)
+        self.assertLess(contact_length(square(6, 4, 3, 3), a), 0.35)    # a corner: just the tolerance
+
+    def test_objective_covers_its_whole_terrain(self):
+        lay = {"terrain": [
+            {"area": "T1", "footprints": [{"los_points": square(10, 10, 6, 4)}], "objective": 1},
+            {"area": "T2", "footprints": [{"los_points": square(16, 10, 4, 4)}]},          # along T1's side
+            {"area": "T3", "footprints": [{"los_points": square(20, 14, 3, 3)}]},          # T2's corner only
+            {"area": "T4", "footprints": [{"los_points": square(40, 10, 4, 4)},            # two pieces of one
+                                          {"los_points": square(44, 10, 4, 4)}], "objective": 2}],
+            "objectives": [{"number": 1, "type": "central", "owner": None, "area": "T1", "position": [13, 12]},
+                           {"number": 2, "type": "expansion", "owner": None, "area": "T4", "position": [44, 12]}]}
+        self.assertEqual(sorted(sorted(p) for p in terrain_pieces(lay)), [["T1", "T2"], ["T3"], ["T4"]])
+        r1, r2 = objective_regions(lay)
+        self.assertEqual((sorted(r1["areas"]), len(r1["polygons"])), (["T1", "T2"], 2))
+        self.assertEqual((r2["areas"], len(r2["polygons"])), (["T4"], 2))
+
+    def test_distance_to_the_objective_terrain(self):
+        terrain = [square(10, 0, 4, 4), square(14, 0, 4, 4)]
+        unit = ellipse_polygon(2, 2, 2, 2, n=72)                          # 1" radius at (2, 2)
+        d, near, far = distance_to_region(unit, terrain)
+        self.assertAlmostEqual(d, 7, delta=0.01)                          # 10 - (2 + 1)
+        self.assertAlmostEqual(far[0], 10, delta=0.01)
+        self.assertEqual(distance_to_region(ellipse_polygon(12, 2, 2, 2), terrain)[0], 0)   # standing on it
+
+    def test_real_layouts(self):
+        lay = next(l for l in parse_layouts(
+            (FIXTURES / "rapidingress" / "terrain-data-11e.js").read_text(encoding="utf-8"),
+            (FIXTURES / "rapidingress" / "measurements-11e.js").read_text(encoding="utf-8"))["layouts"]
+            if l["id"] == "TH-TH-A")
+        regions = {r["number"]: r for r in objective_regions(lay)}
+        self.assertEqual(len(regions[2]["polygons"]), 2)                  # T03: two footprints, one objective
+        self.assertEqual(regions[5]["areas"], ["TH-TH-A-T11"])           # T04 only meets T11 at a corner
+
+
 class PlacementTest(unittest.TestCase):
     ZONE = [[0, 0], [12, 0], [12, 44], [0, 44]]              # a 12" deep strip along the left edge
 
@@ -150,6 +222,20 @@ class PlacementTest(unittest.TestCase):
         self.assertEqual(tuple(round(v, 6) for v in east), (3, 0))
         self.assertAlmostEqual(turned[0], 3 * 0.8660254, places=6)
         self.assertAlmostEqual(turned[1], -1.5, places=6)
+
+    def test_offset_of_a_round_base_is_a_bigger_circle(self):
+        for x, y in offset_ellipse(10, 10, 2, 2, 0, 6):
+            self.assertAlmostEqual(math.hypot(x - 10, y - 10), 7, places=6)     # 1" radius + 6"
+
+    def test_offset_keeps_the_distance_from_an_ellipse(self):
+        outline = ellipse_polygon(30, 22, 8, 4, 30, n=720)
+        for p in offset_ellipse(30, 22, 8, 4, 30, 5, n=24):
+            self.assertAlmostEqual(nearest_on_outline(p, outline)[0], 5, delta=0.01)
+
+    def test_nearest_point_on_a_footprint(self):
+        square = [(0, 0), (4, 0), (4, 4), (0, 4)]
+        self.assertEqual(nearest_on_outline((10, 2), square), (6.0, (4.0, 2.0)))
+        self.assertEqual(nearest_on_outline((2, 2), square), (0.0, (2, 2)))          # inside
 
     def test_clamp_bumps_into_the_edges(self):
         self.assertEqual(clamp(-5, 100, 4, 2), (2, 43))

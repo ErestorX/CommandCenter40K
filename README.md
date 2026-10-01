@@ -66,6 +66,8 @@ crunch/
     bases.py              base sizes (inches; estimated when the data has none), unit footprints
     roster.py             an army as it stands on the table: unit + attached characters, footprint
     placement.py          random spot in a deployment zone, keeping footprints on the board
+    movement.py           move / advance / charge rings
+    objectives.py         objectives as terrain: touching areas joined, distance to a unit
   analysis/               Optimizer back end (no UI)
     variants.py           catalogue of attacker / defender modifiers, test packages
     plan.py               per-unit test plans, saved to user_data/test_plans.json
@@ -145,6 +147,15 @@ drawn dashed. Units are half see-through so terrain shows underneath, and new on
 placed clear of those already on the board when there is room. Hover a unit for its
 models and size; click to select it (one selection for the window, highlighted in the
 roster), double click to turn it 30° clockwise, right click to release the selection.
+
+Options for the selected unit (under the legend), following it as it moves:
+movement range (M, the slowest model's), advance (M + 3.5", the average D6), charge
+(7", the average 2D6; M + 7" with movement ticked too; M + D6 + 2D6 = M + 10.5" with
+advance ticked too) - each a line
+at that distance from the unit's footprint edge - and the distance to each objective,
+as a dash-dot line from the footprint edge to the nearest point of the objective. An
+objective is the whole terrain its marker stands on; terrain areas touching along an
+edge (at least 1" of outline in contact, not just a corner) count as one piece.
 
 ## Adding a new window (tool)
 

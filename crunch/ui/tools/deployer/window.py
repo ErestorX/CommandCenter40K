@@ -9,7 +9,7 @@ from tkinter import ttk
 from typing import TYPE_CHECKING
 
 from crunch.ui.registry import Selection, register_tool
-from crunch.ui.tools.deployer.map_view import LayoutMap, legend
+from crunch.ui.tools.deployer.map_view import OVERLAYS, LayoutMap, legend
 from crunch.ui.tools.deployer.side_panel import ROLES, SidePanel
 from crunch.ui.toolwindow import ToolWindow
 
@@ -44,18 +44,43 @@ class DeployerWindow(ToolWindow):
         self.refresh()
 
     def _build_info(self, parent) -> ttk.Frame:
-        f = ttk.Frame(parent, style="Panel.TFrame", padding=10)
-        self.pairing = ttk.Label(f, text="", style="H2.TLabel", wraplength=420, justify="left")
+        """Bottom-right cell: the board (pairing, measurements, legend) above, the selected unit's
+        options below."""
+        cell = ttk.Frame(parent)
+        cell.columnconfigure(0, weight=1)
+        cell.rowconfigure(0, weight=1)
+
+        top = ttk.Frame(cell, style="Panel.TFrame", padding=10)
+        top.grid(row=0, column=0, sticky="nsew")
+        self.pairing = ttk.Label(top, text="", style="H2.TLabel", wraplength=420, justify="left")
         self.pairing.pack(anchor="w")
-        self.info = ttk.Label(f, text="", style="Muted.TLabel", wraplength=420, justify="left")
-        self.info.pack(anchor="w", pady=(2, 8))
+        self.info = ttk.Label(top, text="", style="Muted.TLabel", wraplength=420, justify="left")
+        self.info.pack(anchor="w", pady=(2, 6))
         self.measure = tk.BooleanVar(value=False)
-        ttk.Checkbutton(f, text="Show table-setup measurements", variable=self.measure, style="Panel.TCheckbutton",
-                        command=self._toggle_measurements).pack(anchor="w", pady=(0, 8))
-        legend(f).pack(anchor="w")
-        ttk.Label(f, text="Layouts: Event Companion, via rapidingress.com", style="Muted.TLabel").pack(
+        ttk.Checkbutton(top, text="Show table-setup measurements", variable=self.measure,
+                        style="Panel.TCheckbutton", command=self._toggle_measurements).pack(anchor="w", pady=(0, 6))
+        legend(top).pack(anchor="w")
+        ttk.Label(top, text="Layouts: Event Companion, via rapidingress.com", style="Muted.TLabel").pack(
             side="bottom", anchor="w")
-        return f
+
+        bottom = ttk.Frame(cell, style="Panel.TFrame", padding=10)
+        bottom.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        ttk.Label(bottom, text="Selected unit", style="Muted.TLabel").pack(anchor="w")
+        self.overlay_vars = {name: tk.BooleanVar(value=False) for name in OVERLAYS}
+
+        def option_row(lead: str, options: list[tuple[str, str]]):
+            row = ttk.Frame(bottom, style="Flat.TFrame")
+            row.pack(anchor="w", pady=(2, 0))
+            if lead:
+                ttk.Label(row, text=lead, style="Panel.TLabel").pack(side="left", padx=(0, 8))
+            for name, text in options:                     # "Movement ☐": the label, then its box
+                ttk.Label(row, text=text, style="Panel.TLabel").pack(side="left")
+                ttk.Checkbutton(row, variable=self.overlay_vars[name], style="Panel.TCheckbutton",
+                                command=self._toggle_overlays).pack(side="left", padx=(2, 12))
+
+        option_row("Show", [("move", "Movement"), ("advance", "Advance"), ("charge", "Charge")])
+        option_row("", [("objectives", "Distances to the objectives")])
+        return cell
 
     def _on_select(self, source: LayoutMap, key: str | None):
         """One selection for the whole window: selecting on one map clears the others."""
@@ -70,9 +95,14 @@ class DeployerWindow(ToolWindow):
         key = f"{role}:{row.key}"
         for m in self.maps:
             if on:
-                m.add_token(key, role, row.name, row.footprint)
+                m.add_token(key, role, row.name, row.footprint, row.move)
             else:
                 m.remove_token(key)
+
+    def _toggle_overlays(self):
+        flags = {name: v.get() for name, v in self.overlay_vars.items()}
+        for m in self.maps:
+            m.set_overlays(**flags)
 
     def _toggle_measurements(self):
         for m in self.maps:
