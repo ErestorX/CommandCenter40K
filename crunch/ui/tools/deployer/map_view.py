@@ -9,7 +9,11 @@ selects a token, a double click turns it 30 degrees clockwise, a right click rel
 For the selected unit the map can also draw its movement rings (move, advance, charge: lines at that
 distance from its footprint edge), the shortest line from it to each objective, an objective being
 the whole terrain its marker stands on (crunch.deploy.objectives), and its line of sight: what it can
-see up to its longest weapon range (crunch.deploy.sight), with a circle per weapon range."""
+see up to its longest weapon range (crunch.deploy.sight), with a circle per weapon range.
+
+The map can also draw arrows to planned targets (the Optimizer's army plan): set_plan_links() gives
+the pairs; the "plan" overlay shows the selected unit's 1st target (or, for a selected defender, the
+attackers aiming at it), "plan2" adds 2nd targets, "planall" shows every attacker's."""
 from __future__ import annotations
 
 import random
@@ -42,7 +46,8 @@ DISTANCE_INK = "#1d1c1a"
 DISTANCE_DASH = (8, 3, 2, 3)      # dash-dot: visible without hiding the terrain
 SIGHT_FILL, SIGHT_STIPPLE = "#6e6a63", "gray12"   # very light grey: an eighth of the pixels
 RANGE_INK = "#55524c"
-OVERLAYS = ("move", "advance", "charge", "objectives", "sight", "hidden", "ground")
+PLAN_INK = C["att"]
+OVERLAYS = ("move", "advance", "charge", "objectives", "plan", "plan2", "planall", "sight", "hidden", "ground")
 
 
 @dataclass
@@ -101,6 +106,7 @@ class LayoutMap(ttk.Frame):
         self.overlays: dict[str, bool] = {name: False for name in OVERLAYS}
         self.regions: list[dict] = []                               # objectives as terrain, per layout
         self.obstacles: Obstacles | None = None                    # what blocks line of sight, per layout
+        self.plan_links: list[tuple[str, str, str]] = []           # (attacker key, target key, rank)
         self.cv.bind("<Configure>", lambda e: self.draw())
         # bound on the canvas, finding the token under the pointer: selecting redraws the token, and
         # Tk's "current" item stays empty until the pointer moves again
@@ -210,6 +216,7 @@ class LayoutMap(ttk.Frame):
         self.cv.move(f"key:{key}", (nx - t.x) * k, -(ny - t.y) * k)
         t.x, t.y = nx, ny
         self._draw_overlays()
+        self._draw_plan_links()
 
     def _hover(self, e):
         key = self._key_at_current()
@@ -233,6 +240,43 @@ class LayoutMap(ttk.Frame):
     def set_overlays(self, **flags: bool):
         self.overlays.update(flags)
         self._draw_overlays()
+        self._draw_plan_links()
+
+    # ---------------------------------------------------------------- planned targets
+    def set_plan_links(self, links: list[tuple[str, str, str]]):
+        """(attacker token key, target token key, "primary" | "secondary") for every planned target."""
+        self.plan_links = list(links)
+        self._draw_plan_links()
+
+    def _draw_plan_links(self):
+        """Arrows from attackers to their planned targets placed on this board, edge to edge: solid to
+        the 1st target, dashed to the 2nd (with "plan2"); the selected unit's only, unless "planall".
+        Under the units, over the terrain."""
+        cv = self.cv
+        cv.delete("planlink")
+        if not self.overlays["plan"] or not self._geom or not self.layout:
+            return
+        fam = font_family()
+        tags = ("planlink",)
+        for a_key, d_key, rank in self.plan_links:
+            if rank == "secondary" and not self.overlays["plan2"]:
+                continue
+            if not self.overlays["planall"] and self.selected not in (a_key, d_key):
+                continue
+            a, d = self.tokens.get(a_key), self.tokens.get(d_key)
+            if not a or not d:
+                continue
+            outline_a = ellipse_polygon(a.x, a.y, a.footprint.w, a.footprint.h, a.angle, n=36)
+            outline_d = ellipse_polygon(d.x, d.y, d.footprint.w, d.footprint.h, d.angle, n=36)
+            dist, p, q = distance_to_region(outline_a, [outline_d])
+            if dist <= 0:                                   # touching: centre to centre
+                p, q = (a.x, a.y), (d.x, d.y)
+            first = rank == "primary"
+            cv.create_line(*self._to_px(*p), *self._to_px(*q), fill=PLAN_INK, width=2.5 if first else 1.5,
+                           dash="" if first else (6, 4), arrow="last", arrowshape=(10, 12, 4), tags=tags)
+            mid = self._to_px((p[0] + q[0]) / 2, (p[1] + q[1]) / 2)
+            self._halo_text(*mid, "1st" if first else "2nd", PLAN_INK, fam, tags)
+        cv.tag_raise("token")
 
     def _draw_overlays(self):
         """Movement rings and objective distances of the selected unit, under the tokens."""
@@ -321,6 +365,7 @@ class LayoutMap(ttk.Frame):
             halo = cv.create_rectangle(bb[0] - 2, bb[1], bb[2] + 2, bb[3], fill="white", outline="",
                                        stipple="gray75", tags=tags)
             cv.tag_lower(halo, label)
+        self._draw_plan_links()
 
     def _place_label(self, label, x, y, bw, bh, edge: str):
         """Put a unit's label outside its base, on the side of its player's board edge (attacker at the
@@ -433,7 +478,7 @@ def legend(master) -> ttk.Frame:
             ("obj", OBJ_FILL["central"], "Central objective")]
     for kind, color, text in rows:
         row = ttk.Frame(f, style="Flat.TFrame")
-        row.pack(anchor="w", pady=1)
+        row.pack(anchor="w")
         sw = tk.Canvas(row, width=18, height=14, bg=C["panel"], highlightthickness=0)
         if kind == "obj":
             sw.create_oval(3, 1, 15, 13, fill=color, outline="white")

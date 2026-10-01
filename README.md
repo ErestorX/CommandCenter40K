@@ -164,6 +164,11 @@ as a dash-dot line from the footprint edge to the nearest point of the objective
 objective is the whole terrain its marker stands on; terrain areas touching along an
 edge (at least 1" of outline in contact, not just a corner) count as one piece.
 
+Targets (option): arrows from attackers to their targets in the Optimizer's army plan for
+these two lists, edge to edge, redrawn as units move and as soon as the Optimizer re-plans.
+By default the selected unit's 1st target (for a selected defender: the attackers aiming at
+it); "2nd" adds the 2nd targets (dashed), "all" shows them for every attacker on the maps.
+
 Line of sight (option): what the unit sees up to its longest ranged weapon, shaded very
 lightly, with a circle (and its distance) per weapon range, all from the base edge. Rays
 leave from points around the base; a dense terrain feature stops a ray, and a ray can
