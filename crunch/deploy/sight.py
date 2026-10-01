@@ -161,13 +161,25 @@ def ray_lengths(O: np.ndarray, D: np.ndarray, allowed: np.ndarray, max_range: fl
     return length
 
 
-def visibility(outline: list[tuple[float, float]], max_range: float, obstacles: Obstacles,
-               origins: int = ORIGINS, directions: int = DIRECTIONS,
-               hidden: float | None = None) -> list[list[tuple[float, float]]]:
-    """For points around a unit's outline, the fan of what each sees: [origin, end of ray 1, ...]
-    with rays in angle order (a polygon to draw). Their union is the unit's line of sight."""
+@dataclass
+class Rays:
+    """The rays cast from a unit: origin, unit direction and how far each sees; owner: which point of
+    the base it leaves from."""
+    O: np.ndarray
+    D: np.ndarray
+    length: np.ndarray
+    owner: np.ndarray
+
+    @property
+    def ends(self) -> np.ndarray:
+        return self.O + self.D * self.length[:, None]
+
+
+def cast(outline: list[tuple[float, float]], max_range: float, obstacles: Obstacles,
+         origins: int = ORIGINS, directions: int = DIRECTIONS, hidden: float | None = None) -> Rays | None:
+    """Rays from points around a unit's outline, every direction facing outward, as far as each sees."""
     if max_range <= 0 or len(outline) < 3:
-        return []
+        return None
     pts = np.array(outline, float)
     step = max(1, len(pts) // origins)
     idx = np.arange(0, len(pts), step)
@@ -189,13 +201,54 @@ def visibility(outline: list[tuple[float, float]], max_range: float, obstacles: 
         allowed += [2 if inside_one else 1] * k
     O, D = np.concatenate(rays_o), np.concatenate(rays_d)
     owner, allowed = np.array(owner), np.array(allowed)
-    ends = O + D * ray_lengths(O, D, allowed, max_range, obstacles, hidden)[:, None]
+    return Rays(O, D, ray_lengths(O, D, allowed, max_range, obstacles, hidden), owner)
 
-    fans = []
-    for n, i in enumerate(idx):
-        sel = owner == n
-        o = pts[i]
-        e, d = ends[sel], D[sel]
+
+def fans(rays: Rays | None) -> list[list[tuple[float, float]]]:
+    """For each point of the base, the fan of what it sees: [origin, end of ray 1, ...] in angle order
+    (a polygon to draw). Their union is the unit's line of sight."""
+    if rays is None:
+        return []
+    ends, out = rays.ends, []
+    for n in np.unique(rays.owner):
+        sel = rays.owner == n
+        e, d = ends[sel], rays.D[sel]
         order = np.argsort(np.arctan2(d[:, 1], d[:, 0]))
-        fans.append([tuple(o)] + [tuple(p) for p in e[order]])
-    return fans
+        out.append([tuple(rays.O[sel][0])] + [tuple(p) for p in e[order]])
+    return out
+
+
+def visibility(outline: list[tuple[float, float]], max_range: float, obstacles: Obstacles,
+               origins: int = ORIGINS, directions: int = DIRECTIONS,
+               hidden: float | None = None) -> list[list[tuple[float, float]]]:
+    """The fans of what a unit sees (see fans)."""
+    return fans(cast(outline, max_range, obstacles, origins, directions, hidden))
+
+
+def reaching_fans(rays: Rays, polygon: list[tuple[float, float]]) -> list[list[tuple[float, float]]]:
+    """The parts of the line of sight that reach `polygon`: for each point of the base, its rays
+    reaching it, side by side, as fans [origin, ray ends up to the target...] (a lone ray: 2 points)."""
+    reach = reaching(rays, polygon)
+    out = []
+    for n in np.unique(rays.owner):
+        sel = np.nonzero(rays.owner == n)[0]
+        sel = sel[np.argsort(np.arctan2(rays.D[sel, 1], rays.D[sel, 0]))]
+        o = tuple(rays.O[sel[0]])
+        run: list[tuple[float, float]] = []
+        for i in list(sel) + [None]:                 # None closes the last run
+            if i is not None and np.isfinite(reach[i]):
+                run.append(tuple(rays.O[i] + rays.D[i] * reach[i]))
+            elif run:
+                out.append([o] + run)
+                run = []
+    return out
+
+
+def reaching(rays: Rays, polygon: list[tuple[float, float]]) -> np.ndarray:
+    """For each ray, how far along it reaches `polygon` (a target's outline) within what it sees; inf
+    where it doesn't get there."""
+    poly = [tuple(p) for p in polygon]
+    a = np.array(poly, float)
+    b = np.array(poly[1:] + poly[:1], float)
+    t = _hits(rays.O, rays.D, (a, b)).min(axis=1) if len(a) else np.full(len(rays.O), np.inf)
+    return np.where(t <= rays.length, t, np.inf)

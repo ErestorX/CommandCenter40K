@@ -9,7 +9,8 @@ selects a token, a double click turns it 30 degrees clockwise, a right click rel
 For the selected unit the map can also draw its movement rings (move, advance, charge: lines at that
 distance from its footprint edge), the shortest line from it to each objective, an objective being
 the whole terrain its marker stands on (crunch.deploy.objectives), and its line of sight: what it can
-see up to its longest weapon range (crunch.deploy.sight), with a circle per weapon range.
+see up to its longest weapon range (crunch.deploy.sight), with a circle per weapon range; with the
+planned targets shown too, the part of it reaching its 1st target (and 2nd, with "plan2") is green.
 
 The map can also draw arrows to planned targets (the Optimizer's army plan): set_plan_links() gives
 the pairs; the "plan" overlay shows the selected unit's 1st target (or, for a selected defender, the
@@ -26,7 +27,7 @@ from crunch.deploy import Footprint
 from crunch.deploy.movement import rings
 from crunch.deploy.objectives import distance_to_region, objective_regions
 from crunch.deploy.placement import clamp, ellipse_polygon, extent, offset_ellipse, random_spot
-from crunch.deploy.sight import GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, visibility
+from crunch.deploy.sight import GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, cast, fans, reaching_fans
 from crunch.ui.theme import C, font_family
 
 BOARD_W, BOARD_H = 60.0, 44.0
@@ -46,6 +47,7 @@ DISTANCE_INK = "#1d1c1a"
 DISTANCE_DASH = (8, 3, 2, 3)      # dash-dot: visible without hiding the terrain
 SIGHT_FILL, SIGHT_STIPPLE = "#6e6a63", "gray12"   # very light grey: an eighth of the pixels
 RANGE_INK = "#55524c"
+TARGET_FILL, TARGET_STIPPLE = "#2e9e44", "gray25"   # faint green: the sight reaching its planned target(s)
 PLAN_INK = C["att"]
 OVERLAYS = ("move", "advance", "charge", "objectives", "plan", "plan2", "planall", "sight", "hidden", "ground")
 
@@ -293,9 +295,22 @@ class LayoutMap(ttk.Frame):
             hidden = None
             if self.overlays["hidden"]:
                 hidden = GO_TO_GROUND_RANGE if self.overlays["ground"] else HIDDEN_RANGE
-            for fan in visibility(outline, max(t.ranges), self.obstacles, hidden=hidden):   # union: what it sees
+            rays = cast(outline, max(t.ranges), self.obstacles, hidden=hidden)
+            for fan in fans(rays):                                             # union: what it sees
                 cv.create_polygon([c for p in fan for c in self._to_px(*p)], fill=SIGHT_FILL,
                                   stipple=SIGHT_STIPPLE, outline="", tags=tags)
+            if rays is not None and self.overlays["plan"]:      # what of it reaches its targets: green
+                for a_key, d_key, rank in self.plan_links:
+                    d = self.tokens.get(d_key)
+                    if a_key != t.key or not d or (rank == "secondary" and not self.overlays["plan2"]):
+                        continue
+                    target = ellipse_polygon(d.x, d.y, d.footprint.w, d.footprint.h, d.angle, n=36)
+                    for fan in reaching_fans(rays, target):
+                        pts = [c for p in fan for c in self._to_px(*p)]
+                        if len(fan) > 2:
+                            cv.create_polygon(pts, fill=TARGET_FILL, stipple=TARGET_STIPPLE, outline="", tags=tags)
+                        else:                                 # a lone ray
+                            cv.create_line(pts, fill=TARGET_FILL, stipple=TARGET_STIPPLE, tags=tags)
             # each circle's distance written where it faces the board centre: on the board, spread out
             cx, cy = BOARD_W / 2 - t.x, BOARD_H / 2 - t.y
             norm = (cx * cx + cy * cy) ** 0.5 or 1.0

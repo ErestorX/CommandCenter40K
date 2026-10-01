@@ -168,6 +168,9 @@ Targets (option): arrows from attackers to their targets in the Optimizer's army
 these two lists, edge to edge, redrawn as units move and as soon as the Optimizer re-plans.
 By default the selected unit's 1st target (for a selected defender: the attackers aiming at
 it); "2nd" adds the 2nd targets (dashed), "all" shows them for every attacker on the maps.
+With Line of sight on too, the part of the selected unit's line of sight that reaches its
+1st target (and 2nd, with "2nd") is shaded faint green instead of grey: no green, no line
+of sight to that target.
 
 Line of sight (option): what the unit sees up to its longest ranged weapon, shaded very
 lightly, with a circle (and its distance) per weapon range, all from the base edge. Rays

@@ -7,11 +7,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
+
 from crunch.data.layouts import parse_layouts
 from crunch.deploy import parse_base, unit_footprint
 from crunch.deploy.movement import parse_move, rings
 from crunch.deploy.objectives import contact_length, distance_to_region, objective_regions, terrain_pieces, touching
-from crunch.deploy.sight import GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, piece_crossings, ray_lengths, visibility
+from crunch.deploy.sight import (GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, cast, piece_crossings, ray_lengths, reaching,
+                                 reaching_fans,
+                                 visibility)
 from crunch.deploy.placement import (clamp, ellipse_polygon, extent, nearest_on_outline, offset_ellipse, overlaps,
                                      random_spot)
 from crunch.deploy.roster import roster
@@ -253,6 +257,31 @@ class SightTest(unittest.TestCase):
         # a real gap (1") between two separate areas: two pieces, the ray stops at the first one's far edge
         lay["terrain"].append({"area": "M", "features": [], "footprints": [{"los_points": square(39.1, 30, 2, 4)}]})
         self.assertAlmostEqual(float(ray_lengths(O, D, np.array([1]), 48, Obstacles.from_layout(lay))[0]), 18.1)
+
+    def test_rays_reaching_a_target(self):
+        # a unit at (5, 30) looking east: a target at x 20..24 in the open, another behind the free wall at x=40
+        rays = cast(ellipse_polygon(5, 30, 2, 2, n=36), 48, Obstacles.from_layout(self.LAYOUT))
+        open_target = square(20, 29, 4, 2)
+        reach = reaching(rays, open_target)
+        hits = np.isfinite(reach)
+        self.assertTrue(hits.any())
+        ends = rays.O[hits] + rays.D[hits] * reach[hits][:, None]
+        self.assertTrue(all(abs(x - 20) < 1e-6 or abs(y - 29) < 1e-6 or abs(y - 31) < 1e-6 for x, y in ends))
+        self.assertFalse(np.isfinite(reaching(rays, square(44, 29, 4, 4))).any())   # behind the wall
+        self.assertFalse(np.isfinite(reaching(cast(ellipse_polygon(5, 30, 2, 2, n=36), 10,
+                                                    Obstacles.from_layout(self.LAYOUT)), open_target)).any())
+
+    def test_reaching_fans_cover_the_rays_reaching_a_target(self):
+        rays = cast(ellipse_polygon(5, 30, 2, 2, n=36), 48, Obstacles.from_layout(self.LAYOUT))
+        target = square(20, 29, 4, 2)
+        wedges = reaching_fans(rays, target)
+        n_rays = int(np.isfinite(reaching(rays, target)).sum())
+        self.assertTrue(wedges)
+        self.assertEqual(sum(len(w) - 1 for w in wedges), n_rays)            # every reaching ray, once
+        for w in wedges:                                                     # from the base to the target
+            self.assertTrue(math.dist(w[0], (5, 30)) <= 1.01)
+            self.assertTrue(all(19.99 <= x <= 24.01 and 28.99 <= y <= 31.01 for x, y in w[1:]))
+        self.assertEqual(reaching_fans(rays, square(44, 29, 4, 4)), [])     # behind the wall: nothing
 
     def test_visibility_fans_are_polygons_from_the_base(self):
         fans = visibility(ellipse_polygon(5, 30, 2, 2, n=36), 12, Obstacles.from_layout(self.LAYOUT))
