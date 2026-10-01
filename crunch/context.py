@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from crunch.analysis.army_plans import ArmyPlanStore
 from crunch.data.missionbook import MissionBook
 from crunch.data.rules import RulesBook
 from crunch.data.wahapedia import Wahapedia
@@ -24,6 +25,7 @@ class AppContext:
         self.settings = settings or Settings()
         self._rules: RulesBook | None = None
         self._missions: MissionBook | None = None
+        self._army_plans: ArmyPlanStore | None = None
 
     @property
     def rules(self) -> RulesBook:
@@ -38,3 +40,11 @@ class AppContext:
         if self._missions is None:
             self._missions = MissionBook(Path(self.wd.data_dir).parent / "missions" / "json")
         return self._missions
+
+    @property
+    def army_plans(self) -> ArmyPlanStore:
+        """The Optimizer's army plans, one per pair of lists, shared by every window (subscribe to
+        hear about changes)."""
+        if self._army_plans is None:
+            self._army_plans = ArmyPlanStore()
+        return self._army_plans

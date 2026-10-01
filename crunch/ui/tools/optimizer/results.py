@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import filedialog, ttk
 from typing import TYPE_CHECKING
 
+from crunch.analysis.army_plans import PlanEntry, PlanTarget, SavedPlan, units_of
 from crunch.analysis.assign import plan_army
 from crunch.analysis.results import ATT_MODES, DEF_MODES, DIMS, METRICS, PHASE_VIEWS, TOTAL, Agg, ResultSet
 from crunch.analysis.sweep import TestRecord, to_csv
@@ -35,15 +36,18 @@ class ResultsWindow(tk.Toplevel):
         self.minsize(1100, 700)
         self.rs = ResultSet(records)
         self.selection = selection
+        self.plans = master.ctx.army_plans          # the army plan is saved there for other windows
+        saved = self.plans.get(selection.attacker.path, selection.defender.path)
+        self._saved = saved.settings if saved else {}   # reopening shows (and keeps) the saved plan
         self.pair_selected: tuple[str, str] | None = None
 
         # ---- top bar -------------------------------------------------------------------------
         top = ttk.Frame(self, padding=(10, 8))
         top.pack(fill="x")
-        self.phase_view = tk.StringVar(value=PHASE_VIEWS[TOTAL])
+        self.phase_view = tk.StringVar(value=PHASE_VIEWS.get(self._saved.get("phase"), PHASE_VIEWS[TOTAL]))
         self.metric = tk.StringVar(value=METRICS["dmg_mean"].label)
-        self.att_mode = tk.StringVar(value=ATT_MODES["best"])
-        self.def_mode = tk.StringVar(value=DEF_MODES["mean"])
+        self.att_mode = tk.StringVar(value=ATT_MODES.get(self._saved.get("attacker_tests"), ATT_MODES["best"]))
+        self.def_mode = tk.StringVar(value=DEF_MODES.get(self._saved.get("defender_tests"), DEF_MODES["mean"]))
         for label, var, values, w in (("Phase", self.phase_view, list(PHASE_VIEWS.values()), 22),
                                       ("Metric", self.metric, [m.label for m in METRICS.values()], 26),
                                       ("Attacker tests", self.att_mode, list(ATT_MODES.values()), 24),
@@ -174,7 +178,7 @@ class ResultsWindow(tk.Toplevel):
         bar = ttk.Frame(tab, style="Flat.TFrame")
         bar.pack(fill="x", pady=(0, 4))
         ttk.Label(bar, text="Guide by:  points removed per 100 pts", style="Panel.TLabel").pack(side="left")
-        self.plan_weight = tk.DoubleVar(value=50)
+        self.plan_weight = tk.DoubleVar(value=100 * self._saved.get("weight", 0.5))
         ttk.Scale(bar, from_=0, to=100, orient="horizontal", length=260, variable=self.plan_weight,
                   command=lambda v: self._schedule_plan()).pack(side="left", padx=8)
         ttk.Label(bar, text="share of the unit's wounds", style="Panel.TLabel").pack(side="left")
@@ -228,6 +232,7 @@ class ResultsWindow(tk.Toplevel):
             if f and p:
                 frac[a, d], ppp[a, d] = f.value, p.value
         plan = plan_army(atts, defs, frac, ppp, self.plan_weight.get() / 100)
+        self._save_plan(plan, frac, ppp)
         self.plan_title.configure(text=f"Army plan: {self.phase_view.get()}, {self.att_mode.get().lower()}, "
                                        f"{self.def_mode.get().lower()}")
         n_def = len(defs)
@@ -263,6 +268,17 @@ class ResultsWindow(tk.Toplevel):
             t.insert("", "end", tags=(tag,) if tag else (), values=(
                 d, def_pts[d], ", ".join(first[d]) or "–", pct(w1) if first[d] else "",
                 ", ".join(second[d]) or "–", pct(w2) if second[d] else ""))
+
+    def _save_plan(self, plan, frac: dict, ppp: dict):
+        """Keep the plan of this pair of lists up to date in the shared store (and on disk)."""
+        def target(a, d):
+            return PlanTarget(d, units_of(d), round(frac[a, d], 4), round(ppp[a, d], 2)) if d else None
+        entries = [PlanEntry(s.attacker, units_of(s.attacker), target(s.attacker, s.primary),
+                             target(s.attacker, s.secondary)) for s in plan.assignments]
+        self.plans.put(SavedPlan(
+            self.selection.attacker.path.name, self.selection.defender.path.name, entries, list(plan.uncovered),
+            {"phase": self.phase, "attacker_tests": self.am, "defender_tests": self.dm,
+             "weight": round(self.plan_weight.get() / 100, 3)}))
 
     # ------------------------------------------------------------------ matrix tab
     def _build_matrix_tab(self):
@@ -512,11 +528,13 @@ class ResultsWindow(tk.Toplevel):
         tab = self.nb.index("current") if self.nb.tabs() else 0
         if tab == 0:
             self._refresh_plan()
-        elif tab == 1:
+        else:
+            self._schedule_plan()           # keep the saved army plan up to date, whatever is on show
+        if tab == 1:
             self._refresh_matrix()
         elif tab == 2:
             self._refresh_rank("into")
         elif tab == 3:
             self._refresh_rank("from")
-        else:
+        elif tab == 4:
             self._refresh_table()

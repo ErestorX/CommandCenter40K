@@ -75,6 +75,7 @@ crunch/
     sweep.py              build every test, run them in parallel worker processes
     results.py            filtering, hiding and aggregation (best / average / worst, phase totals)
     assign.py             army plan: a 1st and 2nd target for every attacker
+    army_plans.py         saved army plans, one per pair of lists, shared with other windows
   ui/
     app.py                Tk root, launcher, opens tools
     registry.py           @register_tool + auto-discovery
@@ -121,7 +122,12 @@ simulated separately, so a total doesn't account for Shooting casualties before 
 - **Army plan** - gives every attacker a 1st target (its priority) and a 2nd target
   (worth half) so that every defender is targeted at least once, guided by a mix of
   share of the unit's wounds and points removed per 100 pts (slider). Attackers sent
-  at the same unit share it: damage beyond its wounds counts for nothing.
+  at the same unit share it: damage beyond its wounds counts for nothing. The plan is
+  saved automatically, one per pair of lists (attacker list, defender list), and kept
+  up to date as settings, filters or hidden tests change (user_data/army_plans.json);
+  reopening the results restores it. Other windows read it through `ctx.army_plans`:
+  `get(attacker_list, defender_list)`, then `targets_of(unit)` / `attackers_of(unit)`
+  (any unit of a group finds it), and `subscribe(callback)` to hear about changes.
 - **Matrix** - attackers x defenders heatmap; click a cell for every test behind it,
   right-click to hide the pairing.
 - **Best attackers into... / Best targets for...** - ranked bars; click a bar to hide

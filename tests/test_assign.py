@@ -1,8 +1,11 @@
 """Army plan: two targets per attacker, every defender covered, overkill avoided."""
 import itertools
 import random
+import tempfile
 import unittest
+from pathlib import Path
 
+from crunch.analysis.army_plans import ArmyPlanStore, PlanEntry, PlanTarget, SavedPlan, units_of
 from crunch.analysis.assign import _value, pair_scores, plan_army
 
 
@@ -70,6 +73,51 @@ class PlanArmyTest(unittest.TestCase):
         A, D = [f"a{i}" for i in range(8)], [f"d{j}" for j in range(9)]
         frac = {(a, d): rnd.random() for a in A for d in D}
         self.assertEqual(targets(plan_army(A, D, frac, frac)), targets(plan_army(A, D, frac, frac)))
+
+
+class ArmyPlanStoreTest(unittest.TestCase):
+    def plan(self, att="Drukhari.txt", dfn="BloodAngels.txt", second="Eradicator Squad #1"):
+        t1 = PlanTarget("Chief Librarian Mephiston", ["Chief Librarian Mephiston"], 0.8, 40.0)
+        t2 = PlanTarget(second, units_of(second), 0.5, 20.0)
+        return SavedPlan(att, dfn, [
+            PlanEntry("Kabalite Warriors + Archon", ["Kabalite Warriors", "Archon"], t1, t2),
+            PlanEntry("Ravager #1", ["Ravager #1"], t2, None)], ["Impulsor #1"], {"weight": 0.5})
+
+    def test_saved_per_pair_of_lists_and_reloaded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "plans.json"
+            store = ArmyPlanStore(path)
+            store.put(self.plan())
+            store.put(self.plan(att="BloodAngels.txt", dfn="Drukhari.txt"))      # roles swapped: another plan
+            again = ArmyPlanStore(path)
+            p = again.get(Path("lists/Drukhari.txt"), "BloodAngels.txt")
+            self.assertEqual([e.attacker for e in p.entries], ["Kabalite Warriors + Archon", "Ravager #1"])
+            self.assertEqual((p.uncovered, p.settings["weight"]), (["Impulsor #1"], 0.5))
+            self.assertIsNotNone(again.get("BloodAngels.txt", "Drukhari.txt"))
+            self.assertIsNone(again.get("Drukhari.txt", "ImperialKnights.txt"))
+
+    def test_relations_by_any_unit_of_a_group(self):
+        p = self.plan()
+        self.assertEqual([t.name for t in p.targets_of("Archon")],
+                         ["Chief Librarian Mephiston", "Eradicator Squad #1"])
+        self.assertEqual([t.name for t in p.targets_of("Kabalite Warriors + Archon")],
+                         ["Chief Librarian Mephiston", "Eradicator Squad #1"])
+        self.assertEqual(p.targets_of("Wracks"), [])
+        self.assertEqual([(e.attacker, rank) for e, rank in p.attackers_of("Eradicator Squad #1")],
+                         [("Kabalite Warriors + Archon", "secondary"), ("Ravager #1", "primary")])
+
+    def test_listeners_hear_changes_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = ArmyPlanStore(Path(tmp) / "plans.json")
+            heard = []
+            unsubscribe = store.subscribe(lambda plan: heard.append(plan.key))
+            store.put(self.plan())
+            store.put(self.plan())                                   # same plan: nothing to say
+            store.put(self.plan(second="Inceptor Squad #1"))         # changed
+            self.assertEqual(heard, ["Drukhari.txt|BloodAngels.txt"] * 2)
+            unsubscribe()
+            store.put(self.plan(second="Incursor Squad"))
+            self.assertEqual(len(heard), 2)
 
 
 if __name__ == "__main__":
