@@ -68,6 +68,7 @@ crunch/
     placement.py          random spot in a deployment zone, keeping footprints on the board
     movement.py           move / advance / charge rings
     objectives.py         objectives as terrain: touching areas joined, distance to a unit
+    sight.py              line of sight by ray casting (dense terrain, ruin edges, board edges)
   analysis/               Optimizer back end (no UI)
     variants.py           catalogue of attacker / defender modifiers, test packages
     plan.py               per-unit test plans, saved to user_data/test_plans.json
@@ -156,6 +157,15 @@ at that distance from the unit's footprint edge - and the distance to each objec
 as a dash-dot line from the footprint edge to the nearest point of the objective. An
 objective is the whole terrain its marker stands on; terrain areas touching along an
 edge (at least 1" of outline in contact, not just a corner) count as one piece.
+
+Line of sight (option): what the unit sees up to its longest ranged weapon, shaded very
+lightly, with a circle (and its distance) per weapon range, all from the base edge. Rays
+leave from points around the base; a dense terrain feature stops a ray, and a ray can
+cross one terrain-area edge (see into a ruin, not through it), two when it starts inside
+one. Light features don't block; the board edges do; elevation is ignored. Its sub-option
+Hidden: nothing inside a terrain area can be seen from more than 15" - a ray entering a
+terrain area stops 15" from its source (or at the area's edge if it gets there beyond 15");
+and Hidden's own sub-option Go to Ground brings that down to 12".
 
 ## Adding a new window (tool)
 

@@ -99,7 +99,8 @@ def parse_layouts(terrain_js: str, measurements_js: str) -> dict:
             area = areas.setdefault(p["areaId"], {"area": p["areaId"], "footprints": [], "features": []})
             if p.get("feature"):
                 area["features"].append({"category": p.get("category", ""), "elevation": p.get("elevation"),
-                                         "codes": p.get("codes", []), "points": _pts(p["points"])})
+                                         "codes": p.get("codes", []), "points": _pts(p["points"]),
+                                         "los_points": _pts(p.get("losPoints", []))})
             else:                                   # a footprint: an area can be made of several pieces
                 area["footprints"].append({"piece_type": p.get("pieceType", ""),
                                            "obscuring": p.get("obscuring", False),

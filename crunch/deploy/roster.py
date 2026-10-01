@@ -2,11 +2,11 @@
 the unit they join, each with the footprint of all its bases."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from crunch.deploy.bases import Base, Footprint, parse_base, unit_footprint
 from crunch.deploy.movement import parse_move
-from crunch.lists import ArmyList, ListUnit
+from crunch.lists import ArmyList, ListUnit, weapon_loads
 
 
 @dataclass
@@ -18,6 +18,7 @@ class RosterRow:
     points: int
     footprint: Footprint
     move: float = 0.0             # inches: the slowest model's Move (a unit moves at its slowest)
+    ranges: list[float] = field(default_factory=list)   # distinct ranged weapon ranges, inches, shortest first
 
 
 def unit_bases(u: ListUnit) -> list[tuple[Base, int]]:
@@ -54,7 +55,8 @@ def roster(army: ArmyList, wd) -> list[RosterRow]:
         name = " + ".join(x.label or x.name for x in group) + ("" if u.datasheet else "  (no datasheet)")
         bases = [b for x in group for b in unit_bases(x)]
         rows.append(RosterRow(f"u{u.uid}", group, name, sum(x.model_count for x in group),
-                              sum(x.points for x in group), unit_footprint(bases), unit_move(group)))
+                              sum(x.points for x in group), unit_footprint(bases), unit_move(group),
+                              weapon_ranges(group)))
     return rows
 
 
@@ -69,3 +71,16 @@ def unit_move(units: list[ListUnit]) -> float:
         moves += [parse_move(p.M) for p in profiles]
     moving = [m for m in moves if m > 0]
     return min(moving) if moving else 0.0
+
+
+def weapon_ranges(units: list[ListUnit]) -> list[float]:
+    """Distinct ranges of the ranged weapons the units carry (melee weapons have none)."""
+    found = set()
+    for u in units:
+        if not u.datasheet:
+            continue
+        for ld in weapon_loads(u):
+            r = parse_move(ld.weapon.range)
+            if not ld.weapon.melee and r > 0:
+                found.add(r)
+    return sorted(found)

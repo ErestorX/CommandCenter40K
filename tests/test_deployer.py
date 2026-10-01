@@ -11,6 +11,7 @@ from crunch.data.layouts import parse_layouts
 from crunch.deploy import parse_base, unit_footprint
 from crunch.deploy.movement import parse_move, rings
 from crunch.deploy.objectives import contact_length, distance_to_region, objective_regions, terrain_pieces, touching
+from crunch.deploy.sight import GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, ray_lengths, visibility
 from crunch.deploy.placement import (clamp, ellipse_polygon, extent, nearest_on_outline, offset_ellipse, overlaps,
                                      random_spot)
 from crunch.deploy.roster import roster
@@ -84,6 +85,8 @@ class RosterTest(unittest.TestCase):
         self.assertEqual(rows[1].name, "Intercessor Squad #2")
         self.assertEqual(sum(r.points for r in rows), 300)
         self.assertEqual(r.footprint.models, 7)
+        # bolt rifles 24", and the attached characters' 18" pistol; melee weapons have no range
+        self.assertEqual((r.ranges, rows[1].ranges), ([18.0, 24.0], [24.0]))
 
 
 class BasesTest(unittest.TestCase):
@@ -182,6 +185,58 @@ class ObjectiveTerrainTest(unittest.TestCase):
         regions = {r["number"]: r for r in objective_regions(lay)}
         self.assertEqual(len(regions[2]["polygons"]), 2)                  # T03: two footprints, one objective
         self.assertEqual(regions[5]["areas"], ["TH-TH-A-T11"])           # T04 only meets T11 at a corner
+
+
+class SightTest(unittest.TestCase):
+    """A ruin footprint 10..20 x 10..20 with a dense wall inside it at x = 16, rays going east."""
+    LAYOUT = {"terrain": [
+        {"area": "T1", "footprints": [{"los_points": square(10, 10, 10, 10), "obscuring": True}],
+         "features": [{"category": "DENSE", "los_points": square(16, 10, 0.5, 4)},       # wall, y 10..14
+                      {"category": "LIGHT", "los_points": square(12, 16, 2, 2)}]},   # light: no effect
+        {"area": "T2", "footprints": [], "features": [{"category": "DENSE", "los_points": square(40, 28, 1, 6)}]}]}
+
+    def length(self, x, y, allowed=1, max_range=48, hidden=None, dx=1.0):
+        import numpy as np
+        ob = Obstacles.from_layout(self.LAYOUT)
+        return float(ray_lengths(np.array([[x, y]], float), np.array([[dx, 0.0]]), np.array([allowed]),
+                                 max_range, ob, hidden)[0])
+
+    def test_hidden_entering_terrain_stops_at_15_or_12_gone_to_ground(self):
+        self.assertAlmostEqual(self.length(2, 18), 18)                     # enters at 8", sees through to 18"
+        self.assertAlmostEqual(self.length(2, 18, hidden=HIDDEN_RANGE), 15)
+        self.assertAlmostEqual(self.length(2, 18, hidden=GO_TO_GROUND_RANGE), 12)
+
+    def test_hidden_terrain_entered_beyond_the_limit_is_not_seen_into(self):
+        self.assertAlmostEqual(self.length(40, 18, dx=-1.0), 30)           # west: through... to x=10
+        self.assertAlmostEqual(self.length(40, 18, dx=-1.0, hidden=HIDDEN_RANGE), 20)   # its edge, x=20
+
+    def test_hidden_leaves_open_ground_and_own_ruin_alone(self):
+        self.assertAlmostEqual(self.length(2, 30, max_range=24, hidden=HIDDEN_RANGE), 24)
+        self.assertAlmostEqual(self.length(12, 18, allowed=2, hidden=HIDDEN_RANGE), 48)
+
+    def test_open_ground_goes_to_the_range(self):
+        self.assertAlmostEqual(self.length(2, 30, max_range=24), 24)
+
+    def test_board_edge_stops_it(self):
+        self.assertAlmostEqual(self.length(50, 30), 10)                    # board is 60" wide
+
+    def test_dense_terrain_cuts_the_ray(self):
+        self.assertAlmostEqual(self.length(2, 31), 38)                     # free-standing wall at x=40
+
+    def test_see_into_a_ruin_not_through_it(self):
+        self.assertAlmostEqual(self.length(2, 18), 18)                     # enters at x=10, stops at x=20
+
+    def test_dense_wall_inside_the_ruin(self):
+        self.assertAlmostEqual(self.length(2, 12), 14)                     # enters at x=10, wall at x=16
+
+    def test_from_inside_a_ruin_it_sees_out_and_into_another(self):
+        self.assertAlmostEqual(self.length(12, 18, allowed=2), 48)         # out at x=20, no other ruin
+
+    def test_visibility_fans_are_polygons_from_the_base(self):
+        fans = visibility(ellipse_polygon(5, 30, 2, 2, n=36), 12, Obstacles.from_layout(self.LAYOUT))
+        self.assertTrue(fans and all(len(f) > 3 for f in fans))
+        for f in fans:
+            self.assertTrue(all(math.dist(f[0], p) <= 12 + 1e-6 for p in f[1:]))
 
 
 class PlacementTest(unittest.TestCase):

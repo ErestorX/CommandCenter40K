@@ -67,6 +67,7 @@ class DeployerWindow(ToolWindow):
         bottom.grid(row=1, column=0, sticky="ew", pady=(6, 0))
         ttk.Label(bottom, text="Selected unit", style="Muted.TLabel").pack(anchor="w")
         self.overlay_vars = {name: tk.BooleanVar(value=False) for name in OVERLAYS}
+        self.overlay_widgets: dict[str, list] = {}
 
         def option_row(lead: str, options: list[tuple[str, str]]):
             row = ttk.Frame(bottom, style="Flat.TFrame")
@@ -74,13 +75,26 @@ class DeployerWindow(ToolWindow):
             if lead:
                 ttk.Label(row, text=lead, style="Panel.TLabel").pack(side="left", padx=(0, 8))
             for name, text in options:                     # "Movement ☐": the label, then its box
-                ttk.Label(row, text=text, style="Panel.TLabel").pack(side="left")
-                ttk.Checkbutton(row, variable=self.overlay_vars[name], style="Panel.TCheckbutton",
-                                command=self._toggle_overlays).pack(side="left", padx=(2, 12))
+                lb = ttk.Label(row, text=text, style="Panel.TLabel")
+                lb.pack(side="left")
+                cb = ttk.Checkbutton(row, variable=self.overlay_vars[name], style="Panel.TCheckbutton",
+                                     command=self._toggle_overlays)
+                cb.pack(side="left", padx=(2, 12))
+                self.overlay_widgets[name] = [lb, cb]
 
         option_row("Show", [("move", "Movement"), ("advance", "Advance"), ("charge", "Charge")])
         option_row("", [("objectives", "Distances to the objectives")])
+        option_row("Show", [("sight", "Line of Sight"), ("hidden", "Hidden"), ("ground", "Go to Ground")])
+        self._sub_options()
         return cell
+
+    def _sub_options(self):
+        """Hidden refines line of sight and Go to Ground refines Hidden: each only available while the
+        option it refines is on."""
+        sight = self.overlay_vars["sight"].get()
+        for name, on in (("hidden", sight), ("ground", sight and self.overlay_vars["hidden"].get())):
+            for w in self.overlay_widgets[name]:
+                w.state(["!disabled"] if on else ["disabled"])
 
     def _on_select(self, source: LayoutMap, key: str | None):
         """One selection for the whole window: selecting on one map clears the others."""
@@ -95,11 +109,12 @@ class DeployerWindow(ToolWindow):
         key = f"{role}:{row.key}"
         for m in self.maps:
             if on:
-                m.add_token(key, role, row.name, row.footprint, row.move)
+                m.add_token(key, role, row.name, row.footprint, row.move, row.ranges)
             else:
                 m.remove_token(key)
 
     def _toggle_overlays(self):
+        self._sub_options()
         flags = {name: v.get() for name, v in self.overlay_vars.items()}
         for m in self.maps:
             m.set_overlays(**flags)

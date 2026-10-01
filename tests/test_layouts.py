@@ -71,7 +71,7 @@ class ParseTest(unittest.TestCase):
         self.assertEqual((a["area"], fp["piece_type"], fp["obscuring"]), ("TH-TH-A-T01", "large_rect_7x11.5", True))
         self.assertTrue(fp["points"] and fp["los_points"])
         self.assertTrue(a["features"])
-        self.assertEqual(set(a["features"][0]), {"category", "elevation", "codes", "points"})
+        self.assertEqual(set(a["features"][0]), {"category", "elevation", "codes", "points", "los_points"})
 
     def test_every_footprint_piece_is_kept(self):
         # T03 of TH-TH-A is made of two footprint pieces (the one carrying objective 2, and another)

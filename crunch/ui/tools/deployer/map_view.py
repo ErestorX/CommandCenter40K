@@ -7,8 +7,9 @@ half see-through (a stippled fill, Tk has no transparency) so terrain shows unde
 selects a token, a double click turns it 30 degrees clockwise, a right click releases the selection.
 
 For the selected unit the map can also draw its movement rings (move, advance, charge: lines at that
-distance from its footprint edge) and the shortest line from it to each objective, an objective being
-the whole terrain its marker stands on (crunch.deploy.objectives)."""
+distance from its footprint edge), the shortest line from it to each objective, an objective being
+the whole terrain its marker stands on (crunch.deploy.objectives), and its line of sight: what it can
+see up to its longest weapon range (crunch.deploy.sight), with a circle per weapon range."""
 from __future__ import annotations
 
 import random
@@ -21,6 +22,7 @@ from crunch.deploy import Footprint
 from crunch.deploy.movement import rings
 from crunch.deploy.objectives import distance_to_region, objective_regions
 from crunch.deploy.placement import clamp, ellipse_polygon, extent, offset_ellipse, random_spot
+from crunch.deploy.sight import GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, visibility
 from crunch.ui.theme import C, font_family
 
 BOARD_W, BOARD_H = 60.0, 44.0
@@ -38,7 +40,9 @@ ROTATE_STEP = 30                  # degrees clockwise per double click
 RING_INK = ["#2f7d32", "#c26a00", "#7b3fa0"]      # innermost ring first
 DISTANCE_INK = "#1d1c1a"
 DISTANCE_DASH = (8, 3, 2, 3)      # dash-dot: visible without hiding the terrain
-OVERLAYS = ("move", "advance", "charge", "objectives")
+SIGHT_FILL, SIGHT_STIPPLE = "#6e6a63", "gray12"   # very light grey: an eighth of the pixels
+RANGE_INK = "#55524c"
+OVERLAYS = ("move", "advance", "charge", "objectives", "sight", "hidden", "ground")
 
 
 @dataclass
@@ -48,6 +52,7 @@ class Token:
     label: str
     footprint: Footprint
     move: float = 0.0           # inches
+    ranges: tuple[float, ...] = ()   # ranged weapon ranges, inches
     x: float = 0.0              # centre, board inches
     y: float = 0.0
     angle: float = 0.0          # degrees clockwise, as seen from above
@@ -95,6 +100,7 @@ class LayoutMap(ttk.Frame):
         self.on_select = None                                       # callback(map, key or None)
         self.overlays: dict[str, bool] = {name: False for name in OVERLAYS}
         self.regions: list[dict] = []                               # objectives as terrain, per layout
+        self.obstacles: Obstacles | None = None                    # what blocks line of sight, per layout
         self.cv.bind("<Configure>", lambda e: self.draw())
         # bound on the canvas, finding the token under the pointer: selecting redraws the token, and
         # Tk's "current" item stays empty until the pointer moves again
@@ -119,6 +125,7 @@ class LayoutMap(ttk.Frame):
         self._show_sub()
         if changed:                                   # new board: every unit starts again in its zone
             self.regions = objective_regions(layout) if layout else []
+            self.obstacles = Obstacles.from_layout(layout) if layout else None
             for t in self.tokens.values():
                 self._place(t)
         self.draw()
@@ -130,8 +137,9 @@ class LayoutMap(ttk.Frame):
         self.sub.configure(text=text or default)
 
     # ---------------------------------------------------------------- units
-    def add_token(self, key: str, role: str, label: str, footprint: Footprint, move: float = 0.0):
-        t = Token(key, role, label, footprint, move)
+    def add_token(self, key: str, role: str, label: str, footprint: Footprint, move: float = 0.0,
+                  ranges: tuple[float, ...] = ()):
+        t = Token(key, role, label, footprint, move, tuple(ranges))
         self._place(t)
         self.tokens[key] = t
         self._draw_tokens()
@@ -236,6 +244,23 @@ class LayoutMap(ttk.Frame):
         fam = font_family()
         tags = ("overlay",)
         fp = t.footprint
+        if self.overlays["sight"] and t.ranges and self.obstacles:
+            outline = ellipse_polygon(t.x, t.y, fp.w, fp.h, t.angle, n=72)
+            hidden = None
+            if self.overlays["hidden"]:
+                hidden = GO_TO_GROUND_RANGE if self.overlays["ground"] else HIDDEN_RANGE
+            for fan in visibility(outline, max(t.ranges), self.obstacles, hidden=hidden):   # union: what it sees
+                cv.create_polygon([c for p in fan for c in self._to_px(*p)], fill=SIGHT_FILL,
+                                  stipple=SIGHT_STIPPLE, outline="", tags=tags)
+            # each circle's distance written where it faces the board centre: on the board, spread out
+            cx, cy = BOARD_W / 2 - t.x, BOARD_H / 2 - t.y
+            norm = (cx * cx + cy * cy) ** 0.5 or 1.0
+            for r in t.ranges:
+                pts = offset_ellipse(t.x, t.y, fp.w, fp.h, t.angle, r)
+                cv.create_polygon([c for p in pts for c in self._to_px(*p)], fill="", outline=RANGE_INK,
+                                  width=1, smooth=True, tags=tags)
+                at = max(pts, key=lambda p: ((p[0] - t.x) * cx + (p[1] - t.y) * cy) / norm)
+                self._halo_text(*self._to_px(*at), f'{r:g}"', RANGE_INK, fam, tags)
         for (label, d), ink in zip(rings(t.move, self.overlays["move"], self.overlays["advance"],
                                          self.overlays["charge"]), RING_INK):
             pts = offset_ellipse(t.x, t.y, fp.w, fp.h, t.angle, d)
