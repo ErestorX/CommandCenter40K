@@ -18,7 +18,10 @@ the first time it starts, and checks them again at start-up when the last check 
 24 hours old (a small window shows the progress; without a connection it says so and starts
 with the data it has). `python -m command_center fetch` does the same from the command line.
 
-Army lists are NewRecruit **text** exports placed in `lists/`.
+Army lists are NewRecruit **text** exports placed in `lists/`. The launcher's **Add...** button
+does it for you: in NewRecruit, once the list is finished, click Export, then Text export,
+choose the Export Format **NR**, tick all the Content options and copy to the clipboard; paste
+the text in the dialog and give the list a new name. It is saved in `lists/` and selected.
 
 Command line:
 
@@ -63,6 +66,7 @@ command_center/
     missionbook.py        primary missions and layouts from missions/json (lazy), per disposition pairing
   lists/
     registry.py           pluggable list formats
+    library.py            the lists folder: a pasted list checked and saved under a new name
     newrecruit.py         NewRecruit text export
     model.py              ArmyList / ListUnit (format-independent)
     linking.py            list -> datasheets, weapon loads, targets

@@ -1,7 +1,10 @@
+import tempfile
 import unittest
+from pathlib import Path
 
 from command_center import config
 from command_center.lists import formats, parse_list, target_for, weapon_loads
+from command_center.lists.library import clean_name, name_problem, save_list, text_problem
 from command_center.lists.newrecruit import split_items
 from tests.helpers import FIXTURES, FIXTURE_LIST, fixture_wd
 
@@ -11,6 +14,44 @@ class SplitItemsTest(unittest.TestCase):
         self.assertEqual(split_items("Bladevanes, 3x Dark Lance [5 pts]"), [("Bladevanes", 1), ("Dark Lance", 3)])
         self.assertEqual(split_items("Big gun and stubber [15 pts] (Stubber, 2x Big gun)"),
                          [("Stubber", 1), ("Big gun", 2)])
+
+
+class AddListTest(unittest.TestCase):
+    """A list pasted in the launcher: checked, then saved next to the others under a new name."""
+
+    def test_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            lists = Path(tmp)
+            (lists / "Drukhari.txt").write_text("x", encoding="utf-8")
+            self.assertIsNone(name_problem("My new list", lists))
+            self.assertIsNone(name_problem("  Drukhari 2  ", lists))
+            self.assertIn("name", name_problem("   ", lists))
+            self.assertIn("already", name_problem("Drukhari", lists))            # it has to be new
+            self.assertIn("already", name_problem("drukhari.TXT", lists))        # whatever the case, or a typed .txt
+            self.assertIn("can't contain", name_problem("a/b", lists))
+            self.assertIn("can't contain", name_problem("what?", lists))
+            self.assertIsNone(name_problem("Anything", lists / "not there yet"))
+            self.assertEqual(clean_name("  Blood   Angels v2.txt "), "Blood Angels v2")
+
+    def test_text_is_checked(self):
+        wd = fixture_wd()
+        text = FIXTURE_LIST.read_text(encoding="utf-8")
+        self.assertIsNone(text_problem(text, wd))
+        self.assertIn("Paste", text_problem("   \n", wd))
+        self.assertIsNotNone(text_problem("just some words, not a list", wd))
+
+    def test_saved_next_to_the_others_and_never_over_one(self):
+        text = FIXTURE_LIST.read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as tmp:
+            lists = Path(tmp) / "lists"                                           # made if missing
+            path = save_list("\n" + text + "\n\n", " My Marines.txt ", lists)
+            self.assertEqual((path.parent, path.name), (lists, "My Marines.txt"))
+            self.assertEqual(path.read_text(encoding="utf-8"), text.strip() + "\n")
+            army, same = parse_list(path, fixture_wd()), parse_list(FIXTURE_LIST, fixture_wd())
+            self.assertEqual((army.faction, len(army.units)), ("Space Marines", len(same.units)))    # reads back the same
+            with self.assertRaises(ValueError):
+                save_list("something else", "my marines", lists)
+            self.assertEqual(path.read_text(encoding="utf-8"), text.strip() + "\n")       # untouched
 
 
 class NewRecruitTest(unittest.TestCase):
