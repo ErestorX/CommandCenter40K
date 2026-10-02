@@ -14,7 +14,10 @@ planned targets shown too, the part of it reaching its 1st target (and 2nd, with
 
 The map can also draw arrows to planned targets (the Optimizer's army plan): set_plan_links() gives
 the pairs; the "plan" overlay shows the selected unit's 1st target (or, for a selected defender, the
-attackers aiming at it), "plan2" adds 2nd targets, "planall" shows every attacker's."""
+attackers aiming at it), "plan2" adds 2nd targets, "planall" shows every attacker's.
+
+With show_territory, the line between the two players' territories is drawn (crunch.deploy.territory).
+role_names: what the two sides are called on the map ("attacker" and "defender" unless changed)."""
 from __future__ import annotations
 
 import random
@@ -28,6 +31,7 @@ from crunch.deploy.movement import rings
 from crunch.deploy.objectives import distance_to_region, objective_regions
 from crunch.deploy.placement import clamp, ellipse_polygon, extent, offset_ellipse, random_spot
 from crunch.deploy.sight import GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, cast, fans, reaching_fans
+from crunch.deploy.territory import territory_line
 from crunch.ui.theme import C, font_family
 
 BOARD_W, BOARD_H = 60.0, 44.0
@@ -38,6 +42,7 @@ AREA_FILL, AREA_LINE = "#ddd6c8", "#9b9384"
 FEATURE_FILL = {"DENSE": "#5f584d", "LIGHT": "#a8a092"}
 OBJ_FILL = {"central": "#1d1c1a", "expansion": "#3c7d45"}
 MEASURE = "#6e6a63"
+TERRITORY_INK, TERRITORY_DASH = "#1d1c1a", (10, 5)
 TOKEN = {"attacker": ("#c9474b", "#6b1417"), "defender": ("#3d73b3", "#12304f")}   # fill, outline
 TOKEN_STIPPLE = "gray50"          # half the pixels filled: terrain stays visible underneath
 SELECTED = "#e0a800"
@@ -100,6 +105,8 @@ class LayoutMap(ttk.Frame):
         self.layout: dict | None = None
         self.message = ""
         self.show_measurements = False
+        self.show_territory = False                                 # the line between the two territories
+        self.role_names = {"attacker": "attacker", "defender": "defender"}      # as written on the map
         self.tokens: dict[str, Token] = {}
         self._geom: tuple[float, float, float] | None = None       # origin x, origin y, pixels per inch
         self._drag: tuple[str, float, float] | None = None         # token key, grab offset (inches)
@@ -142,8 +149,8 @@ class LayoutMap(ttk.Frame):
 
     def _show_sub(self, text: str = ""):
         lay = self.layout
-        default = (f"{lay['id']}  ·  attacker deploys {lay.get('attacker_edge', '?')}, "
-                   f"defender {lay.get('defender_edge', '?')}") if lay else ""
+        default = (f"{lay['id']}  ·  {self.role_names['attacker']} deploys {lay.get('attacker_edge', '?')}, "
+                   f"{self.role_names['defender']} {lay.get('defender_edge', '?')}") if lay else ""
         self.sub.configure(text=text or default)
 
     # ---------------------------------------------------------------- units
@@ -464,6 +471,10 @@ class LayoutMap(ttk.Frame):
                 if len(f.get("points", [])) >= 3:
                     cv.create_polygon(flat(f["points"]), fill=FEATURE_FILL.get(f.get("category"), "#8a857a"),
                                       outline="")
+        if self.show_territory:
+            line = territory_line(lay)
+            if line:
+                cv.create_line(*xy(line[0]), *xy(line[1]), fill=TERRITORY_INK, width=2, dash=TERRITORY_DASH)
         if self.show_measurements:
             m = lay.get("measurements", {})
             for x1, y1, x2, y2 in m.get("lines", []):
@@ -493,7 +504,7 @@ class LayoutMap(ttk.Frame):
             edge = self.layout.get(f"{side}_edge", "")
             if edge in spots:
                 x, y, angle = spots[edge]
-                self.cv.create_text(x, y, text=side.upper(), angle=angle, fill=ZONE_INK[side],
+                self.cv.create_text(x, y, text=self.role_names[side].upper(), angle=angle, fill=ZONE_INK[side],
                                     font=(fam, 8, "bold"))
 
 

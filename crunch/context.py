@@ -12,6 +12,7 @@ from crunch.analysis.army_plans import ArmyPlanStore
 from crunch.data.missionbook import MissionBook
 from crunch.data.rules import RulesBook
 from crunch.data.wahapedia import Wahapedia
+from crunch.deploy.estimates import EstimateStore
 
 
 @dataclass
@@ -26,6 +27,7 @@ class AppContext:
         self._rules: RulesBook | None = None
         self._missions: MissionBook | None = None
         self._army_plans: ArmyPlanStore | None = None
+        self._estimates: EstimateStore | None = None
 
     @property
     def rules(self) -> RulesBook:
@@ -48,3 +50,10 @@ class AppContext:
         if self._army_plans is None:
             self._army_plans = ArmyPlanStore()
         return self._army_plans
+
+    @property
+    def estimates(self) -> EstimateStore:
+        """The Disposition Cogitator's saved Estimates, which the Score Oracle imports."""
+        if self._estimates is None:
+            self._estimates = EstimateStore()
+        return self._estimates

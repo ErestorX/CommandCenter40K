@@ -11,6 +11,7 @@ import numpy as np
 
 from crunch.data.layouts import parse_layouts
 from crunch.deploy import parse_base, unit_footprint
+from crunch.deploy.arrange import arrange
 from crunch.deploy.movement import parse_move, rings
 from crunch.deploy.objectives import contact_length, distance_to_region, objective_regions, terrain_pieces, touching
 from crunch.deploy.sight import (GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, cast, piece_crossings, ray_lengths, reaching,
@@ -19,6 +20,7 @@ from crunch.deploy.sight import (GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, ca
 from crunch.deploy.placement import (clamp, ellipse_polygon, extent, nearest_on_outline, offset_ellipse, overlaps,
                                      random_spot)
 from crunch.deploy.roster import roster
+from crunch.deploy.territory import territory_line
 from crunch.data.missionbook import MissionBook
 from crunch.data.missions import parse_deck
 from crunch.lists import parse_list
@@ -288,6 +290,89 @@ class SightTest(unittest.TestCase):
         self.assertTrue(fans and all(len(f) > 3 for f in fans))
         for f in fans:
             self.assertTrue(all(math.dist(f[0], p) <= 12 + 1e-6 for p in f[1:]))
+
+
+class TerritoryTest(unittest.TestCase):
+    """A territory: the half of the battlefield that includes a player's deployment zone."""
+
+    @staticmethod
+    def layout(edge, zone):
+        return {"attacker_edge": edge, "deployment_zones": {"attacker": [zone]}}
+
+    def test_between_the_battlefield_edges(self):
+        strip = [(0.14, 0.04), (0.14, 43.96), (18.01, 43.96), (18.01, 0.04)]
+        self.assertEqual(territory_line(self.layout("left", strip)), ((30, 0), (30, 44)))
+        self.assertEqual(territory_line(self.layout("bottom", [(0, 0), (0, 12), (60, 12), (60, 0)])), ((0, 22), (60, 22)))
+
+    def test_rounded_corner_is_not_a_diagonal(self):
+        zone = [(30.02, 13.02), (28.19, 13.21), (26.51, 13.73), (24.98, 14.56), (23.65, 15.65), (22.56, 16.98),
+                (21.73, 18.5), (21.21, 20.19), (21.03, 22.02), (0.14, 22.02), (0.14, 0.04), (30.02, 0.04)]
+        self.assertEqual(territory_line(self.layout("bottom", zone)), ((0, 22), (60, 22)))
+
+    def test_diagonal_deployment(self):
+        # the line runs through the centre, parallel to the zone's slanted edge, from edge to edge
+        (x1, y1), (x2, y2) = territory_line(self.layout("left", [(30, 0), (0, 44), (0, 0)]))
+        self.assertEqual(sorted([(round(x1, 2), round(y1, 2)), (round(x2, 2), round(y2, 2))]), [(15, 44), (45, 0)])
+
+    def test_unknown(self):
+        self.assertIsNone(territory_line({"deployment_zones": {}}))
+
+    def test_every_fixture_layout_has_one(self):
+        book = MissionBook(build_json_dir())
+        self.assertTrue(book.layouts)
+        for lay in book.layouts:
+            (x1, y1), (x2, y2) = territory_line(lay)
+            self.assertAlmostEqual((x1 + x2) / 2, 30)           # through the centre of the board
+            self.assertAlmostEqual((y1 + y2) / 2, 22)
+
+
+class ArrangeTest(unittest.TestCase):
+    TALL, WIDE = (300, 440), (640, 270)                      # the info panel: stacked, side by side
+
+    def arranged(self, n, w=990, h=880):
+        return arrange(n, w, h, self.TALL, self.WIDE, chrome=(26, 70))
+
+    def test_three_boards_keep_the_grid(self):
+        a = self.arranged(3)                                  # 2 x 2, the info panel in the fourth cell
+        self.assertEqual(a.boards, [(0, 0, 495, 440), (495, 0, 495, 440), (0, 440, 495, 440)])
+        self.assertEqual((a.info, a.wide), ((495, 440, 495, 440), False))
+
+    def test_two_boards_stack_beside_the_panel(self):
+        a = self.arranged(2)
+        self.assertEqual(a.boards, [(0, 0, 690, 440), (0, 440, 690, 440)])
+        self.assertEqual((a.info, a.wide), ((690, 0, 300, 880), False))
+        self.assertGreater(a.scale, self.arranged(3).scale)
+
+    def test_one_board_above_the_panel(self):
+        a = self.arranged(1)
+        self.assertEqual(a.boards, [(0, 0, 990, 610)])
+        self.assertEqual((a.info, a.wide), ((0, 610, 990, 270), True))
+        self.assertGreater(a.scale, self.arranged(2).scale)
+        tall = self.arranged(1, w=600, h=1000)                # too narrow for the wide panel: stacked, below
+        self.assertEqual((tall.boards, tall.info, tall.wide), ([(0, 0, 600, 500)], (0, 500, 600, 500), False))
+
+    def test_small_window_keeps_the_grid(self):
+        a = self.arranged(3, 790, 750)                        # the panel 65 short of its height: squeezed
+        self.assertEqual((a.boards[1], a.info), ((395, 0, 395, 375), (395, 375, 395, 375)))
+        b = self.arranged(3, 790, 700)                        # too short for that: a strip under smaller boards
+        self.assertEqual((b.info, b.wide, b.boards[2]), ((0, 430, 790, 270), True, (526, 0, 263, 430)))
+        self.assertLess(b.scale, a.scale)
+
+    def test_nothing_overlaps(self):
+        for n in range(1, 4):
+            for w, h in ((990, 880), (1400, 700), (700, 1000), (800, 800), (1900, 1000)):
+                a = self.arranged(n, w, h)
+                rects = a.boards + [a.info]
+                self.assertEqual(len(a.boards), n)
+                for i, (x, y, rw, rh) in enumerate(rects):
+                    self.assertTrue(x >= 0 and y >= 0 and x + rw <= w and y + rh <= h, (n, w, h, rects))
+                    for x2, y2, w2, h2 in rects[i + 1:]:
+                        self.assertTrue(x + rw <= x2 or x2 + w2 <= x or y + rh <= y2 or y2 + h2 <= y, (n, w, h, rects))
+
+    def test_no_board_or_no_room(self):
+        self.assertEqual(self.arranged(0).info, (0, 0, 990, 880))            # the panel alone
+        a = self.arranged(3, 400, 300)                        # too small for the panel: it still gets a share
+        self.assertEqual((len(a.boards), a.info), (3, (200, 0, 200, 300)))
 
 
 class PlacementTest(unittest.TestCase):

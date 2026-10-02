@@ -5,10 +5,16 @@ One per Deployer: opening it again brings it to the front; it closes with the De
 The sheet puts the two players face to face: a header (players, the WTC result and the VP), then one
 grid per player, side by side, with a column per battle round and one for the end of the battle: went
 first, Battle Ready, the primary mission, the secondary missions (a row per mission, drawn at random
-among those the player hasn't had yet, scored from a drop-down per round), and the CP (gained, used, remaining). The primary mission has a row per scoring option of its card: a tick box where it is
-scored once, a - n + counter where it is scored "for each ...". VP above a cap can still be entered:
-a "!" then shows on the round's total (15 VP a round) or at the end of the secondary mission's row
-(5 VP a mission). Scores are kept in crunch.deploy.scoring.PlayerScore objects (totals, caps, WTC)."""
+among those the player hasn't had yet, scored from a drop-down per round), and the CP (gained, used,
+remaining). The primary mission has a row per scoring option of its card (crunch.ui.views.scoresheet).
+VP above a cap can still be entered: a "!" then shows on the round's total (15 VP a round) or at the
+end of the secondary mission's row (5 VP a mission). Scores are kept in
+crunch.deploy.scoring.PlayerScore objects (totals, caps, WTC).
+
+"Import Estimate" fills the two primary missions from the Disposition Cogitator's saved Estimate of
+the game's pairing, the one with the player ticked "Went first" going first (crunch.deploy.estimates).
+The circle next to it has that Estimate's difficulty colour, as on the Cogitator's matrix, from the
+attacker's point of view; it is white when there is no such Estimate, or nobody is ticked yet."""
 from __future__ import annotations
 
 import random
@@ -18,18 +24,18 @@ from string import capwords
 from tkinter import ttk
 from typing import TYPE_CHECKING
 
-from crunch.deploy.scoring import (BATTLE_READY, COLUMNS, END, PRIMARY_MAX, ROUND_MAX, ROUNDS, SECONDARY_CELLS,
+from crunch.deploy.estimates import difficulty, game_estimate
+from crunch.deploy.scoring import (BATTLE_READY, COLUMNS, PRIMARY_MAX, ROUND_MAX, ROUNDS, SECONDARY_CELLS,
                                    SECONDARY_MAX, SECONDARY_MISSION_MAX, PlayerScore, SecondaryRow, primary_options,
                                    wtc)
-from crunch.ui.theme import C, font_family
+from crunch.ui.theme import DIFFICULTY_COLORS, NO_ESTIMATE, C, font_family
+from crunch.ui.views.scoresheet import (CELL_DONE, OVER_INK, FaceToFace, PrimaryRows, column_headers, sheet_fonts,
+                                        show_vp, summary_row)
 
 if TYPE_CHECKING:
     from crunch.ui.tools.deployer.window import DeployerWindow
 
 ROLES = ("attacker", "defender")
-CELL_BG, CELL_DONE = "#ffffff", "#e9e6df"          # empty cell, cell with a value
-CELL_BAD = "#f6d4d4"                               # not a number
-OVER_INK = "#b26a00"                               # VP lost to a cap
 WIN_INK, LOSE_INK = "#2f7d32", C["muted"]
 
 
@@ -44,7 +50,7 @@ class ScoreOracle(tk.Toplevel):
         self.transient(deployer)                   # floats above the Deployer, both usable
         fam = font_family()
         self.fonts = {"score": (fam, 30, "bold"), "name": (fam, 13, "bold"), "result": (fam, 12, "bold"),
-                      "cell": (fam, 10), "total": (fam, 10, "bold"), "small": (fam, 9)}
+                      **sheet_fonts()}
         self.scores = {role: PlayerScore(name=role.title()) for role in ROLES}
         self.cells: dict[str, dict] = {role: {} for role in ROLES}
         self.primary_names = {role: "Primary mission" for role in ROLES}
@@ -54,54 +60,11 @@ class ScoreOracle(tk.Toplevel):
         self._build_header(body).pack(fill="x")
         self.footer = ttk.Label(body, text="", style="Muted.TLabel", wraplength=1200, justify="left")
         self.footer.pack(side="bottom", anchor="w", pady=(6, 0))
-        # the two grids scroll together when they are taller than the window
-        area = ttk.Frame(body)
-        area.pack(fill="both", expand=True, pady=(8, 0))
-        bar = ttk.Scrollbar(area, orient="vertical")
-        bar.pack(side="right", fill="y")
-        self.canvas = tk.Canvas(area, bg=C["bg"], highlightthickness=0, yscrollcommand=bar.set)
-        self.canvas.pack(side="left", fill="both", expand=True)
-        bar.configure(command=self.canvas.yview)
-        grids = self.sheet = ttk.Frame(self.canvas)
-        self.sheet_id = self.canvas.create_window(0, 0, window=grids, anchor="nw")
-        self.canvas.bind("<Configure>", self._resized)
-        grids.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=(0, 0, e.width, e.height)))
-        self.bind("<MouseWheel>", self._wheel)
-        for c in range(2):
-            grids.columnconfigure(c, weight=1, uniform="players")
-        grids.rowconfigure(0, weight=1)
-        self.grids = {}
-        for c, role in enumerate(ROLES):                  # face to face: attacker left, defender right
-            g = ttk.Frame(grids, style="Panel.TFrame", padding=10)
-            g.grid(row=0, column=c, sticky="nsew", padx=(0, 5) if c == 0 else (5, 0))
-            self.grids[role] = g
+        self.faces = FaceToFace(body)                     # face to face: attacker left, defender right
+        self.faces.pack(fill="both", expand=True, pady=(8, 0))
+        for role in ROLES:
             self._build_player(role)
         self.refresh()
-
-    def _wheel(self, e):
-        """The wheel scrolls the sheet, wherever the pointer is: never the value of a drop-down under it."""
-        self.canvas.yview_scroll(-1 if e.delta > 0 else 1, "units")
-        return "break"
-
-    def _resized(self, e):
-        """The sheet is as wide as the scrolling area, and at least as tall; its texts wrap to that width."""
-        self.canvas.itemconfigure(self.sheet_id, width=e.width)
-        self.sheet.rowconfigure(0, minsize=e.height)
-        for role in ROLES:
-            self._wrap(role)
-
-    def _wrap(self, role: str):
-        """Texts wrap at the width their grid leaves them. That width comes from the scrolling area's,
-        not from the grid's own: the grid's depends on its texts, and the two would chase each other."""
-        g, c = self.grids[role], self.cells[role]
-        full = (self.canvas.winfo_width() - 10) // 2 - 26     # half the sheet, less the gap, border and padding
-        if full < 100:                                        # not laid out yet
-            return
-        beside = full - g.grid_bbox(1, 0, 1 + COLUMNS, 0)[2] - 10     # left of the round columns
-        for lb in c.get("wide", []):
-            lb.configure(wraplength=full)
-        for lb in c.get("beside", []):
-            lb.configure(wraplength=max(120, beside))
 
     # ---------------------------------------------------------------- header
     def _build_header(self, parent) -> ttk.Frame:
@@ -109,7 +72,15 @@ class ScoreOracle(tk.Toplevel):
         for c in (0, 2):
             h.columnconfigure(c, weight=1, uniform="sides")
         ttk.Label(h, text=date.today().strftime("%B %d, %Y"), style="Muted.TLabel").grid(
-            row=0, column=0, columnspan=3, sticky="w")
+            row=0, column=0, columnspan=2, sticky="w")
+        imp = ttk.Frame(h, style="Flat.TFrame")                # the Cogitator's Estimate of this game, on demand
+        imp.grid(row=0, column=1, columnspan=2, sticky="e")
+        self.import_note = ttk.Label(imp, text="", style="Muted.TLabel")
+        self.import_note.pack(side="left", padx=(0, 8))
+        ttk.Button(imp, text="Import Estimate", command=self.import_estimate).pack(side="left")
+        self.estimate_dot = tk.Canvas(imp, width=16, height=16, bg=C["panel"], highlightthickness=0)
+        self.estimate_dot.create_oval(2, 2, 14, 14, fill=NO_ESTIMATE, outline=C["muted"], tags="dot")
+        self.estimate_dot.pack(side="left", padx=(6, 0))
         self.name_vars, self.side_labels = {}, {}
         for col, role, anchor in ((0, "attacker", "w"), (2, "defender", "e")):
             f = ttk.Frame(h, style="Flat.TFrame")
@@ -136,18 +107,12 @@ class ScoreOracle(tk.Toplevel):
 
     # ---------------------------------------------------------------- one player's grid
     def _build_player(self, role: str):
-        g = self.grids[role]
-        for w in g.winfo_children():
-            w.destroy()
-        for i in range(g.grid_size()[1] + 1):                 # earlier builds' spacer rows: back to normal
-            g.rowconfigure(i, weight=0)
+        side = ROLES.index(role)
+        g = self.faces.clear(side)
         s = self.scores[role]
-        g.columnconfigure(0, weight=1)
         ttk.Label(g, text=role.upper(), style="Att.TLabel" if role == "attacker" else "Def.TLabel").grid(
             row=0, column=0, sticky="w")
-        for col in range(COLUMNS):                              # round numbers, then the end of the battle
-            ttk.Label(g, text="End" if col == END else str(col + 1), style="Muted.TLabel").grid(row=0, column=1 + col)
-        self.cells[role].update(wide=[], beside=[])
+        column_headers(g)
         row = 1
 
         # went first: one tick, for one player
@@ -170,11 +135,16 @@ class ScoreOracle(tk.Toplevel):
         row += 1
 
         # primary mission: the VP counted per column, then a row per scoring option
-        self._summary_row(g, row, role, "primary", self.primary_names[role], COLUMNS)
-        row = self._primary_rows(g, row + 1, role)
+        primary = self.cells[role]["primary"] = PrimaryRows(g, row, s, self.primary_names[role], self.fonts,
+                                                            self.update_totals)
+        self.faces.wide[side] += primary.wide
+        self.faces.beside[side] += primary.beside
+        row = primary.next_row
 
         # secondary missions: the VP counted per round, then a row per mission drawn ("!": over its cap)
-        self._summary_row(g, row, role, "secondary", "Secondary missions", ROUNDS)
+        lb, self.cells[role]["secondary_rounds"], self.cells[role]["secondary_total"] = summary_row(
+            g, row, "Secondary missions", ROUNDS, self.fonts)
+        self.faces.beside[side].append(lb)
         row += 1
         self.cells[role]["secondary_marks"] = []
         names = self._secondary_names()
@@ -187,7 +157,7 @@ class ScoreOracle(tk.Toplevel):
                               style="Sheet.TCombobox")
             # the missions on the player's other rows are left out of the list
             cb.configure(postcommand=lambda cb=cb, sec=sec: cb.configure(values=s.unused_secondaries(names, sec)))
-            cb.bind("<MouseWheel>", self._wheel)
+            cb.bind("<MouseWheel>", self.faces.wheel)
             cb.pack(side="left", fill="x", expand=True)
             x = tk.Label(cell, text="✕", bg=C["panel"], fg=C["muted"], cursor="hand2", padx=4)
             x.pack(side="left")
@@ -218,68 +188,7 @@ class ScoreOracle(tk.Toplevel):
         ttk.Frame(g, style="Flat.TFrame").grid(row=row, column=0)
         g.rowconfigure(row, weight=1)                          # space below, not between the rows
         self.update_totals()
-        self._wrap(role)
-
-    def _summary_row(self, g, row: int, role: str, key: str, title: str, n: int):
-        """A section's heading: its name, the VP counted in each column ("!": more were scored than the
-        round's cap), its total."""
-        lb = ttk.Label(g, text=title, style="Panel.TLabel", font=self.fonts["total"], wraplength=220, justify="left")
-        lb.grid(row=row, column=0, sticky="w", pady=(10, 2))
-        self.cells[role]["beside"].append(lb)
-        self.cells[role][f"{key}_rounds"] = []
-        for col in range(n):
-            t = tk.Label(g, text="", font=self.fonts["total"], bg=C["panel"], fg=C["ink"], width=3)
-            t.grid(row=row, column=1 + col, pady=(10, 2))
-            self.cells[role][f"{key}_rounds"].append(t)
-        self.cells[role][f"{key}_total"] = ttk.Label(g, text="", style="Panel.TLabel", font=self.fonts["total"])
-        self.cells[role][f"{key}_total"].grid(row=row, column=1 + COLUMNS, padx=(6, 0), pady=(10, 2))
-
-    def _primary_rows(self, g, row: int, role: str) -> int:
-        """A row per scoring option of the primary mission, under its block's heading; a row of VP cells
-        when the mission isn't known. Returns the next free row."""
-        s, c = self.scores[role], self.cells[role]
-        c["counts"] = {}
-        if not s.options:
-            ttk.Label(g, text="VP scored", style="Muted.TLabel").grid(row=row, column=0, sticky="w", pady=1)
-            self._round_cells(g, row, s.primary, pady=1)
-            return row + 1
-        block = None
-        for i, opt in enumerate(s.options):
-            if opt.block != block:                              # "Second battle round onwards · End of your turn."
-                block = opt.block
-                head = ttk.Label(g, text="  ·  ".join(t for t in (opt.round.capitalize(), opt.when) if t),
-                                 style="Muted.TLabel", wraplength=400, justify="left")
-                head.grid(row=row, column=0, columnspan=2 + COLUMNS, sticky="w", pady=(5, 0))
-                c["wide"].append(head)
-                row += 1
-            text = f"{'or ' if opt.group != i else ''}{'+' if opt.additional else ''}{opt.vp}VP  {opt.text}"
-            lb = tk.Label(g, text=text, font=self.fonts["small"], bg=C["panel"], fg=C["ink"], wraplength=220,
-                          justify="left", anchor="w")
-            lb.grid(row=row, column=0, sticky="w", padx=(8, 0), pady=1)
-            c["beside"].append(lb)
-            for col in opt.columns:
-                v = c["counts"][i, col] = tk.IntVar(value=s.counts[i][col])
-                if opt.tick:
-                    w = ttk.Checkbutton(g, variable=v, style="Panel.TCheckbutton",
-                                        command=lambda i=i, col=col, v=v: self._score(role, i, col, v.get()))
-                else:
-                    w = self._counter(g, role, i, col, v)
-                w.grid(row=row, column=1 + col, padx=1 if opt.tick else 4, pady=1)
-            row += 1
-        return row
-
-    def _counter(self, g, role: str, i: int, col: int, v: tk.IntVar) -> tk.Frame:
-        """- n +: how many times an option is scored in a column."""
-        f = tk.Frame(g, bg=C["panel"])
-        for text, step in (("−", -1), ("", 0), ("+", 1)):
-            if not step:
-                tk.Label(f, textvariable=v, width=2, font=self.fonts["cell"], bg=C["panel"], fg=C["ink"]).pack(
-                    side="left")
-                continue
-            b = tk.Label(f, text=text, font=self.fonts["total"], bg=CELL_DONE, fg=C["ink"], cursor="hand2", padx=3)
-            b.pack(side="left")
-            b.bind("<Button-1>", lambda e, step=step: self._score(role, i, col, v.get() + step))
-        return f
+        self.faces.wrap(side)
 
     def _cp_counter(self, g, values: list[int], r: int) -> tk.Frame:
         """- n +: CP gained (or used) in a round."""
@@ -317,44 +226,11 @@ class ScoreOracle(tk.Toplevel):
                               style="Sheet.TCombobox")
             cb.grid(row=row, column=1 + r, padx=1, pady=1)
             cb.bind("<<ComboboxSelected>>", lambda e, r=r: pick(r))
-            cb.bind("<MouseWheel>", self._wheel)
+            cb.bind("<MouseWheel>", self.faces.wheel)
             boxes.append(cb)
         show()
 
-    def _round_cells(self, g, row: int, values: list[str], pady):
-        """A cell per column of `values`, editing them in place: a number, "-" or nothing."""
-        for r in range(len(values)):
-            v = tk.StringVar(value=values[r])
-            e = tk.Entry(g, textvariable=v, width=3, justify="center", font=self.fonts["cell"], relief="flat",
-                         highlightthickness=1, highlightbackground=C["line"], highlightcolor=C["ink"],
-                         bg=self._cell_bg(values[r]))
-            e.grid(row=row, column=1 + r, padx=1, pady=pady, ipady=2)
-            v.trace_add("write", lambda *a, v=v, e=e, r=r: self._on_cell(values, r, v, e))
-
-    @staticmethod
-    def _cell_bg(text: str) -> str:
-        if not text:
-            return CELL_BG
-        return CELL_DONE if text == "-" or text.isdigit() else CELL_BAD
-
     # ---------------------------------------------------------------- edits
-    def _on_cell(self, values: list[str], r: int, v: tk.StringVar, e: tk.Entry):
-        text = v.get().strip()
-        bg = self._cell_bg(text)
-        e.configure(bg=bg)
-        values[r] = "" if bg == CELL_BAD else text
-        self.update_totals()
-
-    def _score(self, role: str, i: int, col: int, n: int):
-        """A primary option is scored n times in a column; ticks and counters then show the sheet's state
-        (scoring an option unticks its alternatives)."""
-        s = self.scores[role]
-        s.score(i, col, n)
-        for (j, c), v in self.cells[role]["counts"].items():
-            if c == col:
-                v.set(s.counts[j][c])
-        self.update_totals()
-
     def _on_name(self, role: str):
         self.scores[role].name = self.name_vars[role].get()
         self.update_totals()
@@ -365,6 +241,40 @@ class ScoreOracle(tk.Toplevel):
             other = "defender" if role == "attacker" else "attacker"
             self.scores[other].went_first = False
             self.cells[other]["went_first"].set(False)
+        self.show_estimate()
+
+    def show_estimate(self):
+        """The circle by "Import Estimate": the difficulty colour of the Estimate that would be imported,
+        for the attacker; white without one (none saved, or nobody ticked "Went first")."""
+        d = self.deployer
+        fd = {role: d.side.disposition(role) for role in ROLES}
+        first = next((role for role in ROLES if self.scores[role].went_first), None)
+        group = None
+        if first and all(fd.values()):
+            group = difficulty(d.ctx.missions, d.ctx.estimates).get((fd["attacker"], fd["defender"], first == "attacker"))
+        self.estimate_dot.itemconfigure("dot", fill=NO_ESTIMATE if group is None else DIFFICULTY_COLORS[group])
+
+    def import_estimate(self):
+        """Fill the two primary missions from the Cogitator's saved Estimate of this game: its pairing of
+        Force Dispositions, with the player ticked "Went first" going first. What was scored on the
+        primaries is replaced; the note next to the button says what was done, or what is missing."""
+        d = self.deployer
+        fd = {role: d.side.disposition(role) for role in ROLES}
+        first = next((role for role in ROLES if self.scores[role].went_first), None)
+        if not all(fd.values()):
+            return self.import_note.configure(text="Both lists need a Force Disposition")
+        if first is None:
+            return self.import_note.configure(text="Tick who went first, then import")
+        p1, p2, goes_first, attacker_is_p1 = game_estimate(d.ctx.missions.dispositions, fd["attacker"],
+                                                          fd["defender"], first == "attacker")
+        roles = ROLES if attacker_is_p1 else ROLES[::-1]        # the roles of Player 1 and Player 2
+        label = f"{p1} vs {p2}, Player {goes_first + 1} ({roles[goes_first]}) first"
+        if not d.ctx.estimates.load(p1, p2, goes_first, [self.primary_names[r] for r in roles],
+                                    [self.scores[r] for r in roles]):
+            return self.import_note.configure(text=f"No Estimate saved for {label}")
+        for role in ROLES:
+            self._build_player(role)
+        self.import_note.configure(text=f"Imported: {label}")
 
     def _secondary_names(self) -> list[str]:
         return [capwords(m["name"]) for m in self.deployer.ctx.missions.secondary_missions]
@@ -384,17 +294,15 @@ class ScoreOracle(tk.Toplevel):
     def update_totals(self):
         for role in ROLES:
             s, c = self.scores[role], self.cells[role]
-            if "primary_total" in c:
-                for col, lb in enumerate(c["primary_rounds"]):
-                    self._show_vp(lb, s.primary_vp(col), s.primary_over(col))
+            if "cp_remaining" in c:                             # its grid is built
+                c["primary"].refresh()
                 for r, lb in enumerate(c["secondary_rounds"]):
-                    self._show_vp(lb, s.secondary_vp(r), s.secondary_over(r))
+                    show_vp(lb, s.secondary_vp(r), s.secondary_over(r))
                 for sec, mark in c["secondary_marks"]:
                     mark.configure(text="!" if sec.over else "")
                 for r, lb in enumerate(c["cp_remaining"]):      # up to the last round played
                     left = s.cp_remaining(r)
                     lb.configure(text=left if s.cp_played(r) else "", fg=C["att"] if left < 0 else C["ink"])
-                c["primary_total"].configure(text=f"{s.primary_total}/{PRIMARY_MAX}")
                 c["secondary_total"].configure(text=f"{s.secondary_total}/{SECONDARY_MAX}")
                 c["battle_ready_total"].configure(text=f"{BATTLE_READY if s.battle_ready else 0}/{BATTLE_READY}")
         a, d = self.scores["attacker"], self.scores["defender"]
@@ -406,11 +314,6 @@ class ScoreOracle(tk.Toplevel):
             winner = a if a.total > d.total else d
             self.result_lbl.configure(text=f"{(winner.name or 'Winner').upper()} WINS", fg=WIN_INK)
         self.points_lbl.configure(text=f"WTC  ·  Points: {a.total} - {d.total}")
-
-    @staticmethod
-    def _show_vp(lb: tk.Label, points: int, over: bool):
-        """The VP counted in a column; with a "!" when more were scored than the round's cap."""
-        lb.configure(text=f"{points}!" if over else str(points) if points else "", fg=OVER_INK if over else C["ink"])
 
     def refresh(self):
         """Armies, dispositions and primary missions, as the Deployer shows them."""
@@ -438,3 +341,4 @@ class ScoreOracle(tk.Toplevel):
                                      f" secondary), {SECONDARY_MISSION_MAX} per secondary mission, {PRIMARY_MAX}"
                                      " over the game.")
         self.update_totals()
+        self.show_estimate()

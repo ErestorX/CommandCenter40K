@@ -1,4 +1,5 @@
-"""First window: choose the attacker and defender army lists, then a tool."""
+"""First window: choose the attacker and defender army lists, then a tool. Tools that need no army
+list have their buttons apart, on the left of the others."""
 from __future__ import annotations
 
 import tkinter as tk
@@ -134,20 +135,33 @@ class Launcher(ttk.Frame):
 
         bottom = ttk.Frame(self)
         bottom.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(14, 0))
-        ttk.Label(bottom, text=ATTRIBUTION, foreground=C["muted"]).pack(side="left")
-        self.tool_buttons: list[ttk.Button] = []
+        self.tool_buttons: list[ttk.Button] = []          # those that need both lists chosen
         for tool in reversed(tools()):          # packed from the right: first tool ends up right-most
-            b = ttk.Button(bottom, text=f"{tool.title}  →", style="Accent.TButton",
-                           command=lambda t=tool: self.open_tool(t))
+            if not tool.needs_armies:
+                continue
+            b = self._tool_button(bottom, tool)
             b.pack(side="right", padx=(8, 0))
-            if tool.description:
-                Tooltip(b, tool.description)
             self.tool_buttons.append(b)
+        apart = [t for t in tools() if not t.needs_armies]
+        if apart:                               # on their own, left of a rule
+            ttk.Separator(bottom, orient="vertical").pack(side="right", fill="y", padx=(20, 12))
+            for tool in reversed(apart):
+                self._tool_button(bottom, tool).pack(side="right", padx=(8, 0))
+        # on its own line: next to the buttons it would be cut short on a narrow window
+        ttk.Label(self, text=ATTRIBUTION, foreground=C["muted"]).grid(row=4, column=0, columnspan=3, sticky="w",
+                                                                      pady=(8, 0))
         paths = self.att.paths
         if len(paths) >= 2:
             self.att.select(paths[0])
             self.dfn.select(paths[1])
         self.update_buttons()
+
+    def _tool_button(self, parent, tool: Tool) -> ttk.Button:
+        b = ttk.Button(parent, text=f"{tool.title}  →", style="Accent.TButton",
+                       command=lambda: self.open_tool(tool))
+        if tool.description:
+            Tooltip(b, tool.description)
+        return b
 
     @property
     def selection(self) -> Selection | None:
@@ -167,5 +181,5 @@ class Launcher(ttk.Frame):
 
     def open_tool(self, tool: Tool):
         sel = self.selection
-        if sel:
+        if sel or not tool.needs_armies:
             self.app.open_tool(tool.key, sel)

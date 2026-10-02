@@ -9,6 +9,22 @@ C = {
     "bg": "#f3f1ec", "panel": "#fbfaf8", "ink": "#1d1c1a", "muted": "#6e6a63", "line": "#d8d3c8",
     "att": "#a3262a", "def": "#1f5288", "bar": "#a3262a", "bar2": "#e2b8b9", "grid": "#e7e3da",
 }
+# Force Dispositions' colour code: ink (text), tint (a badge's background)
+DISPOSITION_COLORS = {
+    "take and hold": ("#2f7d32", "#d6ead7"),        # green
+    "purge the foe": ("#a3262a", "#f1d3d3"),        # red
+    "disruption": ("#1b3a8a", "#d2daf0"),           # deep blue
+    "reconnaissance": ("#0f7a7a", "#cfe8e8"),       # teal
+    "priority assets": ("#8a6d00", "#f5e6a8"),      # yellow
+}
+# how hard a matchup is, by the group of its Estimate (crunch.deploy.estimates.difficulty_groups)
+DIFFICULTY_COLORS = ("#c0392b", "#e67e22", "#f1c40f", "#8bc34a", "#2e7d32")        # the hardest group first
+NO_ESTIMATE = "white"
+
+
+def disposition_colors(name: str) -> tuple[str, str]:
+    """(ink, tint) of a Force Disposition; muted grey for one without a colour."""
+    return DISPOSITION_COLORS.get(" ".join((name or "").lower().split()), (C["muted"], C["grid"]))
 
 
 def setup_style(root: tk.Tk) -> None:
@@ -49,6 +65,10 @@ def setup_style(root: tk.Tk) -> None:
     # drop-downs of a sheet: white while they can be chosen from, greyed once locked
     style.map("Sheet.TCombobox", fieldbackground=[("disabled", C["grid"]), ("readonly", "white")],
               foreground=[("disabled", C["muted"])])
+    # cells of a matrix: white boxes on the panel
+    style.configure("Cell.TFrame", background="white", relief="solid", borderwidth=1, bordercolor=C["line"])
+    style.configure("Cell.TLabel", background="white")
+    style.configure("CellMuted.TLabel", background="white", foreground=C["muted"], font=root.fonts["small"])
     # badges: a value shown as a tinted tag, in its side's colours
     badge = dict(font=root.fonts["role"], padding=(10, 3), relief="flat", borderwidth=0)
     style.configure("AttBadge.TLabel", background="#f1d3d3", foreground=C["att"], **badge)

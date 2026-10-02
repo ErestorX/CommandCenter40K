@@ -10,6 +10,8 @@ Add a tool
         return GamePlanWindow(app, selection)
 
 The launcher shows one button per tool, in `order`, enabled once both army lists are chosen.
+A tool that works without army lists registers with needs_armies=False: its button stands apart, on
+the left, always enabled, and its factory may be handed None as the selection.
 """
 from __future__ import annotations
 
@@ -37,16 +39,17 @@ class Tool:
     key: str
     title: str
     description: str
-    open: Callable[["App", Selection], "tk.Toplevel"]
+    open: Callable[["App", "Selection | None"], "tk.Toplevel"]
     order: int = 100
+    needs_armies: bool = True          # False: opens without army lists chosen
 
 
 _TOOLS: dict[str, Tool] = {}
 
 
-def register_tool(key: str, title: str, description: str = "", order: int = 100):
+def register_tool(key: str, title: str, description: str = "", order: int = 100, needs_armies: bool = True):
     def deco(factory):
-        _TOOLS[key] = Tool(key, title, description, factory, order)
+        _TOOLS[key] = Tool(key, title, description, factory, order, needs_armies)
         return factory
     return deco
 

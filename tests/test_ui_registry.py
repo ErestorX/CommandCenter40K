@@ -15,6 +15,12 @@ class RegistryTest(unittest.TestCase):
         self.assertIn("finder", keys)
         self.assertIn("optimizer", keys)
 
+    def test_tools_without_armies(self):
+        from crunch.ui.registry import discover
+        tools = {t.key: t for t in discover()}
+        self.assertFalse(tools["cogitator"].needs_armies)         # opens with no list chosen
+        self.assertTrue(all(tools[k].needs_armies for k in ("finder", "optimizer", "deployer")))
+
 
 if __name__ == "__main__":
     unittest.main()

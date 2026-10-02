@@ -1,6 +1,9 @@
 """Score sheet: VP per round, primary scoring options, caps, Battle Ready, and the WTC result."""
+import tempfile
 import unittest
+from pathlib import Path
 
+from crunch.deploy.estimates import EstimateStore, difficulty, difficulty_groups, game_estimate, saved_scores
 from crunch.deploy.scoring import END, PlayerScore, SecondaryRow, columns, primary_options, vp, wtc
 
 
@@ -157,6 +160,123 @@ class ScoringTest(unittest.TestCase):
     def test_wtc_bands(self):
         self.assertEqual([wtc(50 + d, 50)[0] for d in (0, 5, 6, 10, 11, 30, 50, 51, 60)],
                          [10, 10, 11, 11, 12, 15, 19, 20, 20])
+
+
+class EstimateTest(unittest.TestCase):
+    ORDER = ["Take and Hold", "Purge the Foe", "Disruption"]
+
+    @staticmethod
+    def players():
+        scores = [PlayerScore("Player 1"), PlayerScore("Player 2")]
+        for s in scores:
+            s.set_options(primary_options(MISSION))
+        return scores
+
+    def test_saved_per_pairing_and_first_player(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "estimates.json"
+            store = EstimateStore(path)
+            p1_first, p2_first = self.players(), self.players()
+            p1_first[0].score(0, 0, 1)
+            p1_first[1].score(2, 1, 3)
+            p2_first[1].score(5, END, 1)
+            store.put("Take and Hold", "Disruption", 0, ["Test", "Test"], p1_first)
+            store.put("Take and Hold", "Disruption", 1, ["Test", "Test"], p2_first)
+
+            again = EstimateStore(path)                         # as saved: each version its own scoring
+            a, b = self.players(), self.players()
+            self.assertTrue(again.load("Take and Hold", "Disruption", 0, ["Test", "Test"], a))
+            self.assertTrue(again.load("Take and Hold", "Disruption", 1, ["Test", "Test"], b))
+            self.assertEqual([s.primary_total for s in a], [3, 9])
+            self.assertEqual([s.primary_total for s in b], [0, 8])
+            self.assertFalse(again.has("Disruption", "Take and Hold", 0))      # the pairing the other way round
+            self.assertFalse(again.load("Take and Hold", "Purge the Foe", 0, ["Test", "Test"], a))
+            self.assertEqual([s.primary_total for s in a], [3, 9])              # nothing loaded, nothing changed
+
+    def test_mirror_pairing_has_one_estimate(self):
+        # who goes first makes no difference: the player going first always has the same scoring
+        with tempfile.TemporaryDirectory() as tmp:
+            store = EstimateStore(Path(tmp) / "estimates.json")
+            p1_first = self.players()
+            p1_first[0].score(0, 0, 1)                          # the player going first: 3 VP
+            p1_first[1].score(5, END, 1)                        # the player going second: 8 VP
+            store.put("Disruption", "Disruption", 0, ["Test", "Test"], p1_first)
+            self.assertTrue(store.has("Disruption", "Disruption", 1))
+            p2_first = self.players()
+            self.assertTrue(store.load("Disruption", "Disruption", 1, ["Test", "Test"], p2_first))
+            self.assertEqual([s.primary_total for s in p2_first], [8, 3])       # Player 2 goes first: it has the 3
+            p2_first[1].score(1, 1, 1)                          # edited there: the player going first, 9 VP
+            store.put("Disruption", "Disruption", 1, ["Test", "Test"], p2_first)
+            back = self.players()
+            store.load("Disruption", "Disruption", 0, ["Test", "Test"], back)
+            self.assertEqual([s.primary_total for s in back], [9, 8])
+            self.assertEqual(len(store._data), 1)
+
+    def test_load_replaces_and_checks_the_cards(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = EstimateStore(Path(tmp) / "estimates.json")
+            saved = self.players()
+            saved[0].score(1, 0, 1)
+            store.put("a", "b", 0, ["Test", "Test"], saved)
+            mine = self.players()
+            mine[0].score(4, 0, 2)                              # scored before the import: replaced by it
+            self.assertTrue(store.load("a", "b", 0, ["Test", "Test"], mine))
+            self.assertEqual(mine[0].counts, saved[0].counts)
+            self.assertFalse(store.load("a", "b", 0, ["Test", "Another mission"], mine))   # another card
+            other = [PlayerScore(), PlayerScore()]              # no options: the saved counts don't fit
+            self.assertFalse(store.load("a", "b", 0, ["Test", "Test"], other))
+
+    def test_unreadable_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "estimates.json"
+            path.write_text("not json", encoding="utf-8")
+            self.assertFalse(EstimateStore(path).has("a", "b", 0))
+
+    def test_difficulty_groups(self):
+        # fifths of the margins, by rank: 0 the hardest (lowest margins), 4 the easiest
+        margins = {k: m for k, m in zip("abcdefghij", (-20, -12, -7, -3, 0, 0, 3, 7, 12, 20))}
+        self.assertEqual(difficulty_groups(margins), dict(zip("abcdefghij", (0, 0, 1, 1, 2, 2, 3, 3, 4, 4))))
+        self.assertEqual(difficulty_groups({"a": 7}), {"a": 2})                         # alone: the middle
+        self.assertEqual(difficulty_groups({"a": 4, "b": 4, "c": 4}), {"a": 2, "b": 2, "c": 2})
+        self.assertEqual(difficulty_groups({"a": 5, "b": -5}), {"a": 3, "b": 1})        # a pairing's two sides
+        self.assertEqual(difficulty_groups({"a": 100, "b": 1, "c": 2, "d": 3, "e": 4}),  # by rank, not by size
+                         {"b": 0, "c": 1, "d": 2, "e": 3, "a": 4})
+        self.assertEqual(difficulty_groups({}), {})
+
+    def test_difficulty_of_saved_estimates(self):
+        class Book:                                             # two dispositions, the same card for every pairing
+            dispositions = ["A", "B"]
+
+            @staticmethod
+            def primary_mission(own, opponent):
+                return MISSION
+        with tempfile.TemporaryDirectory() as tmp:
+            store = EstimateStore(Path(tmp) / "estimates.json")
+            self.assertEqual(difficulty(Book, store), {})
+            names, scores, saved = saved_scores(Book, store, "A", "B", 0)
+            self.assertEqual((names, saved, [s.primary_total for s in scores]), (["Test", "Test"], False, [0, 0]))
+            scores[0].score(1, 0, 1)                            # A against B, A first: 6 - 0
+            store.put("A", "B", 0, names, scores)
+            # each player's point of view; nothing for the Estimate with B going first, nor the mirrors
+            self.assertEqual(difficulty(Book, store), {("A", "B", True): 3, ("B", "A", False): 1})
+            _, mirror, _ = saved_scores(Book, store, "A", "A", 0)
+            mirror[1].score(5, END, 1)                          # A against A: 0 - 8 for the player going first
+            store.put("A", "A", 0, names, mirror)
+            self.assertEqual(difficulty(Book, store), {("A", "A", True): 0, ("B", "A", False): 1,
+                                                       ("A", "B", True): 3, ("A", "A", False): 4})
+
+    def test_the_estimate_of_a_game(self):
+        # Player 1 has the disposition that comes first in the matrix
+        self.assertEqual(game_estimate(self.ORDER, "Take and Hold", "Disruption", True),
+                         ("Take and Hold", "Disruption", 0, True))
+        self.assertEqual(game_estimate(self.ORDER, "Take and Hold", "Disruption", False),
+                         ("Take and Hold", "Disruption", 1, True))
+        self.assertEqual(game_estimate(self.ORDER, "Disruption", "Take and Hold", True),       # the attacker: Player 2
+                         ("Take and Hold", "Disruption", 1, False))
+        self.assertEqual(game_estimate(self.ORDER, "Disruption", "Take and Hold", False),
+                         ("Take and Hold", "Disruption", 0, False))
+        self.assertEqual(game_estimate(self.ORDER, "Disruption", "Disruption", False),         # mirror: the attacker is 1
+                         ("Disruption", "Disruption", 1, True))
 
 
 if __name__ == "__main__":

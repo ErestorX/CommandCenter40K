@@ -33,7 +33,7 @@ class App(tk.Tk):
         self.launcher = Launcher(self)
         self.launcher.pack(fill="both", expand=True)
 
-    def open_tool(self, key: str, selection: Selection) -> tk.Toplevel:
+    def open_tool(self, key: str, selection: Selection | None) -> tk.Toplevel:
         win = get_tool(key).open(self, selection)
         self.open_windows.append(win)
         self.withdraw()

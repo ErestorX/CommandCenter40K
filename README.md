@@ -68,7 +68,10 @@ crunch/
     placement.py          random spot in a deployment zone, keeping footprints on the board
     movement.py           move / advance / charge rings
     objectives.py         objectives as terrain: touching areas joined, distance to a unit
+    arrange.py            where the boards viewed and the info panel go, boards as large as possible
+    estimates.py          saved Estimates (primary scoring per pairing and first player), user_data/estimates.json
     scoring.py            score sheet maths: primary scoring options, VP per round, caps, Battle Ready, WTC result
+    territory.py          the line between the two players' territories (the halves holding their zones)
     sight.py              line of sight by ray casting (dense terrain, ruin edges, board edges)
   analysis/               Optimizer back end (no UI)
     variants.py           catalogue of attacker / defender modifiers, test packages
@@ -81,25 +84,62 @@ crunch/
     app.py                Tk root, launcher, opens tools
     registry.py           @register_tool + auto-discovery
     toolwindow.py         base class for tool windows
-    launcher.py           choose attacker/defender lists, then a tool
+    launcher.py           choose attacker/defender lists, then a tool (list-free tools: apart, on the left)
     theme.py, widgets.py  colours, styles, shared widgets
     charts.py             canvas heatmap and bar chart with tooltips
     richtext.py           Wahapedia HTML -> text window, stratagem cards
     views/rules.py        army-rules and unit-abilities windows (reusable)
+    views/scoresheet.py   score sheet parts: two players face to face, the rows of a primary mission
     tools/
+      cogitator/          the Disposition Cogitator: the matrix of Force Dispositions (needs no list)
+                          estimate.py: a pairing's Estimate window (primaries to score | its three layouts)
       finder/             the Finder: one unit against another (army panels | results)
       optimizer/          the Optimizer (test plans | run | results window)
       deployer/           the Deployer: missions + army summaries | the pairing's three layouts
                           score_oracle.py: the floating Score Oracle window, with the score sheet
 tests/                    unit tests + small fixtures
 lists/                    your army lists
-user_data/                saved test plans (git-ignored)
+user_data/                saved test plans, army plans and Estimates (git-ignored)
 wahapedia_data/           downloaded data (git-ignored)
 ```
 
 Dependencies only point downwards: `ui → lists → data → core`. Nothing in `core`
 imports from `data`, `lists` or `ui`, so the engine can be reused (CLI, tests,
 a future web front end) without tkinter.
+
+## Disposition Cogitator
+
+Opens from the launcher without choosing any list (its button stands apart, left of the
+Finder's). At its centre, a matrix of every Force Disposition against every other; each
+cell names the primary mission its row's disposition plays against its column's, and the
+one played in return. Dispositions have their colour code: Take and Hold green, Purge the
+Foe red, Disruption deep blue, Reconnaissance teal, Priority Assets yellow.
+
+Click a matchup to open its **Estimate**, a floating window (one per pairing, several can
+be open; the two cells of a pairing, either side of the diagonal, open the same one). Its
+players are Player 1 and Player 2: Player 1 has the disposition of the upper cell's row,
+and the attacker's side of the layouts. A pairing has two Estimates, one per player going
+first: the header switches between them (Player 1 first to begin with). A mirror pairing
+has one only, mirrored: what is scored for the player going first shows on whichever
+player goes first. Each is saved as
+you go (`user_data/estimates.json`) and is there again the next time. In the Deployer's
+Score Oracle, **Import Estimate** fills the two primary missions from the Estimate of the
+game's pairing, with the player ticked "Went first" going first.
+
+In the matrix, each cell has "1st ● / 2nd ●" in its bottom right corner: how hard the
+matchup is for its row's disposition (Player 1, in the upper triangle) going first and
+going second. A circle is coloured from its saved Estimate's margin (the row's primary VP
+less the column's), in five groups relative to all the other Estimates, from red (the
+hardest fifth) to green (the easiest); it stays empty while that Estimate hasn't been made.
+The Score Oracle shows the same circle next to **Import Estimate**, for the Estimate it
+would import, from the attacker's point of view; white when there is none, or when nobody
+is ticked "Went first" yet.
+Top half: the two primary missions face to face, as on the Score Oracle's sheet, to tick
+or count option by option and see the VP per battle round (15 VP a round, 45 over the
+game). Bottom half: the pairing's three layouts, with the deployment zones and the line
+between the two territories (a territory is the half of the battlefield that includes a
+player's deployment zone; on diagonal deployments the line follows the diagonal).
+Needs the mission data from `python -m crunch fetch`.
 
 ## Optimizer
 
@@ -146,6 +186,11 @@ primary mission each player plays, a compact view of both armies (Leaders and Su
 characters merged into their unit), and the three battlefield layouts of the pairing:
 deployment zones, terrain, objectives and, optionally, the table-setup measurements.
 Needs the mission data from `python -m crunch fetch`.
+
+Each layout can be taken off the view (Layout A / B / C, next to the legend). The boards
+left and the legend and options are then rearranged to draw the boards as large as the
+window allows: the legend and options in a cell beside the boards, in a column on their
+right, or in a strip under them.
 
 Tick a unit (✓) to put it on every map, each at its own random spot in its side's
 deployment zone; drag it anywhere on its board, it stops at the edges. A single model

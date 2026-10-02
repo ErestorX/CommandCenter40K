@@ -12,7 +12,8 @@ if TYPE_CHECKING:
 
 
 class ToolWindow(tk.Toplevel):
-    """A themed top-level window that knows the app context and the selected armies.
+    """A themed top-level window that knows the app context and the selected armies (None for a tool
+    registered with needs_armies=False, when no lists are chosen).
 
     Closing it (or calling back()) returns to the launcher when no other tool is open."""
 
@@ -20,7 +21,7 @@ class ToolWindow(tk.Toplevel):
     default_geometry = "1500x900"
     min_size = (1200, 760)
 
-    def __init__(self, app: "App", selection: "Selection"):
+    def __init__(self, app: "App", selection: "Selection | None"):
         super().__init__(app)
         self.app = app
         self.ctx = app.ctx
