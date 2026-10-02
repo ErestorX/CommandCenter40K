@@ -49,7 +49,7 @@ class UnitPlanPanel(ttk.Frame):
         f, self.units_tree = make_tree(self, [("on", "✓"), ("unit", "Unit"), ("pts", "Pts"), ("tests", "Tests")],
                                        [30, -200, 46, 46], height=7)
         f.pack(fill="both", expand=True)
-        self.units_tree.tag_configure("off", foreground="#9a958b")
+        self.units_tree.tag_configure("off", foreground=C["dim"])
         for u in army.units:
             self.units_tree.insert("", "end", iid=str(u.uid))
             self._refresh_row(u)
@@ -137,7 +137,7 @@ class UnitPlanPanel(ttk.Frame):
                       ("s", "S"), ("ap", "AP"), ("d", "D"), ("kw", "Abilities")],
                 [24, 52, 26, -120, 38, 32, 28, 30, 44, -90], height=6)
             f.pack(fill="both", expand=True)
-            self.weapons_tree.tag_configure("off", foreground="#a9a49a")
+            self.weapons_tree.tag_configure("off", foreground=C["dim"])
             self.weapons_tree.bind("<ButtonRelease-1>", self._toggle_weapon)
 
     def _attached(self) -> list[ListUnit]:

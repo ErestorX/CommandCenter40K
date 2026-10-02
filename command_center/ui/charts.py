@@ -8,26 +8,26 @@ from dataclasses import dataclass, field
 from tkinter import ttk
 from typing import Callable
 
-from command_center.ui.theme import font_family
+from command_center.ui.theme import C, font_family
 
-INK = "#0b0b0b"
-INK_2 = "#52514e"
-INK_3 = "#8a877f"
-GRID = "#e4e2dc"
-SURFACE = "#fcfcfb"
+INK = C["ink"]
+INK_2 = C["muted"]
+INK_3 = C["dim"]
+GRID = C["grid"]
+SURFACE = C["panel"]
 # sequential blue ramp, light -> dark (steps 100 ... 700)
-RAMP = ["#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7", "#3987e5",
-        "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b"]
+RAMP = ["#0d366b", "#104281", "#184f95", "#1c5cab", "#256abf", "#2a78d6", "#3987e5",
+        "#5598e7", "#6da7ec", "#86b6ef", "#9ec5f4", "#b7d3f6", "#cde2fb"]       # low (dark) to high (light)
 # categorical slots, fixed order (slot 1 blue, slot 2 orange, ...)
 SLOTS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
-MISSING = "#f0efec"
+MISSING = C["field"]
 
 
 def ramp_color(t: float) -> tuple[str, str]:
     """Fill for a 0..1 magnitude and a readable text ink for it."""
     t = min(1.0, max(0.0, t))
     i = round(t * (len(RAMP) - 1))
-    return RAMP[i], ("white" if i >= 6 else INK)
+    return RAMP[i], ("white" if i <= 6 else "#0b0b0b")
 
 
 class _Tip:
@@ -54,7 +54,7 @@ class _Tip:
             dy = min(dy, (cy - 14) - (y1 + 6) - (cy + 14 - y0))  # flip above the cursor
         self.cv.move(t, dx, dy)
         x0, y0, x1, y1 = self.cv.bbox(t)
-        r = self.cv.create_rectangle(x0 - 6, y0 - 4, x1 + 6, y1 + 4, fill="#1d1c1a", outline="")
+        r = self.cv.create_rectangle(x0 - 6, y0 - 4, x1 + 6, y1 + 4, fill=C["raised"], outline=C["line"])
         self.cv.tag_raise(t, r)
         self.items = [r, t]
 
@@ -270,7 +270,7 @@ class BarChart(ttk.Frame):
         for n, it in enumerate(self.items):
             y = top + n * self.ROW
             if self._hovered is not None and self._hovered is it.key:
-                cv.create_rectangle(0, y, W, y + self.ROW, fill="#efece4", outline="")
+                cv.create_rectangle(0, y, W, y + self.ROW, fill=GRID, outline="")
             cv.create_text(label_w, y + (10 if it.sublabel else self.ROW / 2), text=it.label, anchor="e",
                            width=label_w - 8, fill=INK, font=(fam, 9))
             if it.sublabel:

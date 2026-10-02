@@ -13,9 +13,9 @@ from typing import Callable
 from command_center.deploy.scoring import COLUMNS, END, PRIMARY_MAX, PlayerScore
 from command_center.ui.theme import C, font_family
 
-CELL_BG, CELL_DONE = "#ffffff", "#e9e6df"          # empty cell, cell with a value
-CELL_BAD = "#f6d4d4"                               # not a number
-OVER_INK = "#b26a00"                               # VP lost to a cap
+CELL_BG, CELL_DONE = C["field"], C["raised"]       # empty cell, cell with a value
+CELL_BAD = C["bad"]                                # not a number
+OVER_INK = C["warn"]                               # VP lost to a cap
 
 
 def sheet_fonts() -> dict[str, tuple]:

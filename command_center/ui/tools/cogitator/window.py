@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 from command_center.deploy.estimates import difficulty
 from command_center.ui.registry import Selection, register_tool
-from command_center.ui.theme import DIFFICULTY_COLORS, NO_ESTIMATE, C, disposition_colors, font_family
+from command_center.ui.theme import C, DIFFICULTY_COLORS, NO_ESTIMATE, display_family, disposition_colors, font_family
 from command_center.ui.tools.cogitator.estimate import EstimateWindow
 from command_center.ui.toolwindow import ToolWindow
 
@@ -64,7 +64,7 @@ class CogitatorWindow(ToolWindow):
                                                                                         sticky="sw", padx=6, pady=6)
         for i, name in enumerate(names):
             ink, tint = disposition_colors(name)
-            badge = dict(text=name.upper(), bg=tint, fg=ink, font=(fam, 9, "bold"), padx=10, pady=3)
+            badge = dict(text=name.upper(), bg=tint, fg=ink, font=(display_family(), 10, "bold"), padx=10, pady=3)
             tk.Label(f, anchor="center", **badge).grid(row=0, column=1 + i, sticky="ew", padx=3, pady=(0, 6))
             tk.Label(f, anchor="e", **badge).grid(row=1 + i, column=0, sticky="ew", padx=(0, 6), pady=3)
             f.columnconfigure(1 + i, uniform="pairings", minsize=170)
@@ -104,7 +104,7 @@ class CogitatorWindow(ToolWindow):
 
     def _difficulty_dots(self, cell, r: int, c: int, fam: str) -> tk.Canvas:
         """"1st o / 2nd o" for a cell: a circle per turn order of the row's disposition."""
-        cv = tk.Canvas(cell, width=96, height=16, bg="white", highlightthickness=0)
+        cv = tk.Canvas(cell, width=96, height=16, bg=C["field"], highlightthickness=0)
         x = 0
         for text, goes_first in (("1st", True), ("/  2nd", False)):
             t = cv.create_text(x, 8, text=text, anchor="w", fill=C["muted"], font=(fam, 9))

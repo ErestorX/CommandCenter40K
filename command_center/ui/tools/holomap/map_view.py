@@ -36,8 +36,8 @@ from command_center.ui.theme import C, font_family
 
 BOARD_W, BOARD_H = 60.0, 44.0
 ZONE_FILL = {"attacker": "#f1d3d3", "defender": "#d3dff0"}
-ZONE_INK = {"attacker": C["att"], "defender": C["def"]}
-BOARD_FILL = "#f7f5ef"
+ZONE_INK = {"attacker": "#a3262a", "defender": "#1f5288"}
+BOARD_FILL, BOARD_INK = "#f7f5ef", "#1d1c1a"       # a light board on the dark window: its own inks
 AREA_FILL, AREA_LINE = "#ddd6c8", "#9b9384"
 FEATURE_FILL = {"DENSE": "#5f584d", "LIGHT": "#a8a092"}
 OBJ_FILL = {"central": "#1d1c1a", "expansion": "#3c7d45"}
@@ -53,7 +53,7 @@ DISTANCE_DASH = (8, 3, 2, 3)      # dash-dot: visible without hiding the terrain
 SIGHT_FILL, SIGHT_STIPPLE = "#6e6a63", "gray12"   # very light grey: an eighth of the pixels
 RANGE_INK = "#55524c"
 TARGET_FILL, TARGET_STIPPLE = "#2e9e44", "gray25"   # faint green: the sight reaching its planned target(s)
-PLAN_INK = C["att"]
+PLAN_INK = ZONE_INK["attacker"]
 OVERLAY_DELAY = 30                # ms between overlay redraws while dragging
 OVERLAYS = ("move", "advance", "charge", "objectives", "plan", "plan2", "planall", "sight", "hidden", "ground")
 
@@ -482,7 +482,7 @@ class LayoutMap(ttk.Frame):
             size = max(7, min(9, int(k * 1.1)))
             for lb in m.get("labels", []):
                 x, y = xy((lb["x"], lb["y"]))
-                t = cv.create_text(x, y, text=lb["text"], fill=C["ink"], font=(fam, size))
+                t = cv.create_text(x, y, text=lb["text"], fill=BOARD_INK, font=(fam, size))
                 bb = cv.bbox(t)
                 r = cv.create_rectangle(bb[0] - 1, bb[1], bb[2] + 1, bb[3], fill=BOARD_FILL, outline="")
                 cv.tag_raise(t, r)
@@ -491,7 +491,7 @@ class LayoutMap(ttk.Frame):
             x, y = xy(o["position"])
             cv.create_oval(x - r, y - r, x + r, y + r, fill=objective_fill(o), outline="white", width=2)
             cv.create_text(x, y, text=str(o["number"]), fill="white", font=(fam, max(7, int(r * 0.9)), "bold"))
-        cv.create_rectangle(ox, oy, ox + BOARD_W * k, oy + BOARD_H * k, outline=C["ink"])
+        cv.create_rectangle(ox, oy, ox + BOARD_W * k, oy + BOARD_H * k, outline=BOARD_INK)
         self._edge_labels(ox, oy, k, fam)
         self._draw_tokens()
 

@@ -21,6 +21,7 @@ DATA_ROOT_CANDIDATES = [DATA_ROOT, PROJECT_ROOT / "data"]
 
 # Per-user state that isn't part of the code (saved test plans, ...). Git-ignored.
 USER_DATA_DIR = PROJECT_ROOT / "user_data"
+FONTS_DIR = PROJECT_ROOT / "assets" / "fonts"        # the display font (see command_center.ui.theme)
 
 ATTRIBUTION = "Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are (c) Games Workshop."
 ATTRIBUTION_SHORT = "Powered by Wahapedia · rules and stats © Games Workshop"

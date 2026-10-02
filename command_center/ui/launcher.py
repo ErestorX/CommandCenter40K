@@ -29,8 +29,8 @@ class ListPicker(ttk.Frame):
         box = ttk.Frame(self, style="Flat.TFrame")
         box.pack(fill="both", expand=True)
         self.listbox = tk.Listbox(box, height=10, activestyle="none", exportselection=False,
-                                  highlightthickness=0, borderwidth=0, selectbackground="#e9dcc3",
-                                  selectforeground=C["ink"])
+                                  highlightthickness=0, borderwidth=0, selectbackground=C["select"],
+                                  selectforeground="white")
         sb = ttk.Scrollbar(box, orient="vertical", command=self.listbox.yview)
         self.listbox.configure(yscrollcommand=sb.set)
         self.listbox.pack(side="left", fill="both", expand=True)

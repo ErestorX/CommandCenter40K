@@ -4,7 +4,7 @@ from __future__ import annotations
 import tkinter as tk
 from typing import TYPE_CHECKING
 
-from command_center.ui.theme import C
+from command_center.ui.theme import C, dark_title_bar
 
 if TYPE_CHECKING:
     from command_center.ui.app import App
@@ -28,6 +28,7 @@ class ToolWindow(tk.Toplevel):
         self.selection = selection
         self.title(f"Command Center 40K — {self.title_text}")
         self.configure(bg=C["bg"])
+        dark_title_bar(self)
         self.geometry(self.default_geometry)
         self.minsize(*self.min_size)
         self.protocol("WM_DELETE_WINDOW", self.back)

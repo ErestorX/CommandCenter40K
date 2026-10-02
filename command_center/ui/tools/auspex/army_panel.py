@@ -83,7 +83,7 @@ class ArmyPanel(ttk.Frame):
                 [24, 28, -130, 38, 38, 30, 32, 44, -110], height=7)
             f.pack(fill="both", expand=True)
             self.weapons_tree.bind("<ButtonRelease-1>", self._toggle_weapon)
-            self.weapons_tree.tag_configure("off", foreground="#a9a49a")
+            self.weapons_tree.tag_configure("off", foreground=C["dim"])
         else:
             self._build_allocation()
         self.note = ttk.Label(self, text="", style="Muted.TLabel", wraplength=420, justify="left")
@@ -220,7 +220,7 @@ class ArmyPanel(ttk.Frame):
                 ttk.Label(row, text=label, style="Panel.TLabel").pack(side="left", padx=(0, 4))
                 v = tk.StringVar(value="")
                 e = tk.Entry(row, textvariable=v, width=5, relief="solid", borderwidth=1, highlightthickness=0,
-                             bg="white", justify="center")
+                             bg=C["field"], justify="center")
                 e.pack(side="left", padx=(0, 10))
                 Tooltip(e, tip)
                 v.trace_add("write", lambda *_a, k=key: self._on_field(k))
@@ -271,9 +271,9 @@ class ArmyPanel(ttk.Frame):
         v, kind, entry = self.fields[key]
         try:
             self._parse_field(v.get(), kind)
-            entry.configure(bg="white")
+            entry.configure(bg=C["field"])
         except ValueError:
-            entry.configure(bg="#f6d4d4")     # invalid: shown in red, ignored in the simulation
+            entry.configure(bg=C["bad"])     # invalid: shown in red, ignored in the simulation
         self.win.schedule()
 
     def field_value(self, key: str):

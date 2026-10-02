@@ -10,6 +10,7 @@ from tkinter import ttk
 import re
 
 from command_center.util import clean_glyphs
+from command_center.ui.theme import C, dark_title_bar
 
 # =============================================================================
 # HTML -> tagged text
@@ -115,23 +116,23 @@ def render_html(html_text: str) -> list[tuple[str, tuple[str, ...]]]:
 # =============================================================================
 # window
 # =============================================================================
-CARD = {"head": "#1d1c1a", "sub": "#1f4a73", "border": "#b9b3a6", "body": "#ffffff", "legend": "#f4f1ea"}
+CARD = {"head": "#4a1715", "sub": "#1f4a73", "border": C["line"], "body": C["field"], "legend": C["grid"]}
 
 
 def _style_text(t: tk.Text, fam: str) -> None:
     t.tag_configure("h1", font=(fam, 16, "bold"), spacing1=6, spacing3=6)
-    t.tag_configure("h2", font=(fam, 13, "bold"), foreground="#a3262a", spacing1=14, spacing3=4)
+    t.tag_configure("h2", font=(fam, 13, "bold"), foreground=C["att"], spacing1=14, spacing3=4)
     t.tag_configure("h3", font=(fam, 11, "bold"), spacing1=8, spacing3=2)
-    t.tag_configure("meta", font=(fam, 9), foreground="#6e6a63", spacing3=4)
+    t.tag_configure("meta", font=(fam, 9), foreground=C["muted"], spacing3=4)
     t.tag_configure("bold", font=(fam, 10, "bold"))
-    t.tag_configure("italic", font=(fam, 10, "italic"), foreground="#4a4741")
+    t.tag_configure("italic", font=(fam, 10, "italic"), foreground="#c4c1bb")
     t.tag_configure("underline", underline=True)
     t.tag_configure("kw", font=(fam, 9, "bold"))
-    t.tag_configure("muted", foreground="#8a857c")
-    t.tag_configure("bullet", foreground="#a3262a")
+    t.tag_configure("muted", foreground=C["muted"])
+    t.tag_configure("bullet", foreground=C["att"])
     t.tag_configure("indent", lmargin1=18, lmargin2=34)
-    t.tag_configure("rule", foreground="#d8d3c8")
-    t.tag_configure("found", background="#f2dd9b")
+    t.tag_configure("rule", foreground=C["line"])
+    t.tag_configure("found", background="#7a6410", foreground="white")
 
 
 def _display_lines(t: tk.Text) -> int:
@@ -150,7 +151,8 @@ class RichTextWindow(tk.Toplevel):
         super().__init__(master)
         self.title(title)
         self.geometry(f"{width}x{height}")
-        self.configure(bg="#fbfaf8")
+        self.configure(bg=C["panel"])
+        dark_title_bar(self)
         bar = ttk.Frame(self, padding=(10, 8, 10, 4))
         bar.pack(fill="x")
         ttk.Label(bar, text="Find").pack(side="left")
@@ -165,7 +167,7 @@ class RichTextWindow(tk.Toplevel):
         body.pack(fill="both", expand=True)
         fam = tkfont.nametofont("TkDefaultFont").actual("family")
         self.text = tk.Text(body, wrap="word", padx=18, pady=12, borderwidth=0, highlightthickness=0,
-                            bg="#fbfaf8", fg="#1d1c1a", font=(fam, 10), spacing1=1, spacing3=2,
+                            bg=C["panel"], fg=C["ink"], font=(fam, 10), spacing1=1, spacing3=2,
                             cursor="arrow")
         sb = ttk.Scrollbar(body, orient="vertical", command=self.text.yview)
         self.text.configure(yscrollcommand=sb.set)
@@ -207,7 +209,7 @@ class RichTextWindow(tk.Toplevel):
         """Stratagems as cards, `per_row` per line; cards in a row share its height."""
         if not stratagems:
             return
-        grid = tk.Frame(self.text, bg="#fbfaf8")
+        grid = tk.Frame(self.text, bg=C["panel"])
         texts = []
         self._card_labels[grid] = []
         for c in range(per_row):
@@ -238,9 +240,9 @@ class RichTextWindow(tk.Toplevel):
             sub.pack(fill="x")
             self._card_labels[parent].append((sub, 24))
         body = tk.Text(card, wrap="word", width=1, height=4, padx=8, pady=6, borderwidth=0, highlightthickness=0,
-                       bg=CARD["body"], fg="#1d1c1a", font=(fam, 10), spacing1=1, spacing3=2, cursor="arrow")
+                       bg=CARD["body"], fg=C["ink"], font=(fam, 10), spacing1=1, spacing3=2, cursor="arrow")
         _style_text(body, fam)
-        body.tag_configure("legend", font=(fam, 9, "italic"), foreground="#4a4741", background=CARD["legend"],
+        body.tag_configure("legend", font=(fam, 9, "italic"), foreground="#c4c1bb", background=CARD["legend"],
                            spacing3=6)
         if st.get("legend"):
             body.insert("end", clean(st["legend"]).strip() + "\n", ("legend",))
@@ -250,7 +252,7 @@ class RichTextWindow(tk.Toplevel):
         body.pack(fill="both", expand=True)
         foot = "  ·  ".join(x for x in (st.get("turn"), st.get("phase")) if x)
         if foot:
-            tk.Label(card, text=foot, bg=CARD["body"], fg="#6e6a63", font=(fam, 8), anchor="w",
+            tk.Label(card, text=foot, bg=CARD["body"], fg=C["muted"], font=(fam, 8), anchor="w",
                      padx=8, pady=3).pack(fill="x", side="bottom")
         for w in (card, head, name, body):
             self._forward_wheel(w)

@@ -63,7 +63,8 @@ class Tooltip:
         self.tip = tk.Toplevel(self.widget)
         self.tip.wm_overrideredirect(True)
         self.tip.geometry(f"+{x}+{y}")
-        tk.Label(self.tip, text=self.text, bg="#1d1c1a", fg="white", padx=6, pady=2).pack()
+        self.tip.configure(bg=C["line"])                # a thin border around the text
+        tk.Label(self.tip, text=self.text, bg=C["raised"], fg=C["ink"], padx=6, pady=2).pack(padx=1, pady=1)
 
     def hide(self, _e=None):
         if self.tip:

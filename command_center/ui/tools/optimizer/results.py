@@ -12,7 +12,7 @@ from command_center.analysis.assign import plan_army
 from command_center.analysis.results import ATT_MODES, DEF_MODES, DIMS, METRICS, PHASE_VIEWS, TOTAL, Agg, ResultSet
 from command_center.analysis.sweep import TestRecord, to_csv
 from command_center.ui.charts import INK_3, SLOTS, BarChart, BarItem, Heatmap
-from command_center.ui.theme import C
+from command_center.ui.theme import C, dark_title_bar
 from command_center.ui.widgets import make_tree
 
 if TYPE_CHECKING:
@@ -32,6 +32,7 @@ class ResultsWindow(tk.Toplevel):
         super().__init__(master)
         self.title(f"Command Center 40K — Engagement Optimizer results ({len(records):,} tests)")
         self.configure(bg=C["bg"])
+        dark_title_bar(self)
         self.geometry("1500x900")
         self.minsize(1100, 700)
         self.rs = ResultSet(records)
@@ -75,7 +76,7 @@ class ResultsWindow(tk.Toplevel):
         self.filters.configure(yscrollcommand=sb.set)
         self.filters.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
-        self.filters.tag_configure("off", foreground="#a9a49a")
+        self.filters.tag_configure("off", foreground=C["dim"])
         self.filters.tag_configure("dim", font=("TkDefaultFont", 9, "bold"))
         self.filters.bind("<ButtonRelease-1>", self._toggle_filter)
         body.add(side, weight=1)
@@ -204,7 +205,7 @@ class ResultsWindow(tk.Toplevel):
                                       [-230, 50, -260, 64, -260, 64], height=8)
         f.pack(fill="both", expand=True)
         self.plan_defs.tag_configure("uncovered", foreground=C["muted"])
-        self.plan_defs.tag_configure("overkill", foreground="#9a5b00")
+        self.plan_defs.tag_configure("overkill", foreground=C["warn"])
         pw.add(bottom, weight=1)
         self._plan_job = None
 
@@ -487,7 +488,7 @@ class ResultsWindow(tk.Toplevel):
                   style="Muted.TLabel").pack(anchor="w", pady=(0, 4))
         f, self.table = make_tree(tab, [(k, t) for k, t, _ in self.COLS], [w for _, _, w in self.COLS], height=20)
         f.pack(fill="both", expand=True)
-        self.table.tag_configure("hidden", foreground="#b3aea4")
+        self.table.tag_configure("hidden", foreground=C["dim"])
         for k, t, _ in self.COLS:
             if k != "on":
                 self.table.heading(k, text=t, command=lambda k=k: self._sort(k))

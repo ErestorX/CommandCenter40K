@@ -85,7 +85,7 @@ command_center/
     registry.py           @register_tool + auto-discovery
     toolwindow.py         base class for tool windows
     launcher.py           choose attacker/defender lists, then a tool (list-free tools: apart, on the left)
-    theme.py, widgets.py  colours, styles, shared widgets
+    theme.py, widgets.py  the dark theme (colours, fonts, ttk styles), shared widgets
     charts.py             canvas heatmap and bar chart with tooltips
     richtext.py           Wahapedia HTML -> text window, stratagem cards
     views/rules.py        army-rules and unit-abilities windows (reusable)
@@ -98,6 +98,7 @@ command_center/
       holomap/           the Field Holomap: missions + army summaries | the pairing's three layouts
                           score_oracle.py: the floating Score Oracle window, with the score sheet
 tests/                    unit tests + small fixtures
+assets/fonts/             the display font (Caliban Angelus), loaded by the app itself: no install needed
 lists/                    your army lists
 user_data/                saved test plans, army plans and Estimates (git-ignored)
 wahapedia_data/           downloaded data (git-ignored)

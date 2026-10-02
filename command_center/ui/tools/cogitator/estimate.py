@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 
 from command_center.deploy.estimates import PLAYERS, saved_scores
 from command_center.deploy.scoring import PlayerScore
-from command_center.ui.theme import C
+from command_center.ui.theme import C, dark_title_bar
 from command_center.ui.tools.holomap.map_view import LayoutMap
 from command_center.ui.views.scoresheet import FaceToFace, PrimaryRows, column_headers, sheet_fonts
 
@@ -38,6 +38,7 @@ class EstimateWindow(tk.Toplevel):
         self.geometry("1280x900")
         self.minsize(1000, 640)
         self.transient(cogitator)                  # floats above the Cogitator, both usable
+        dark_title_bar(self)
         book = cogitator.ctx.missions
         self.cogitator = cogitator
         self.store = cogitator.ctx.estimates

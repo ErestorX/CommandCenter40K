@@ -12,7 +12,7 @@ from tkinter import messagebox
 from command_center.context import AppContext
 from command_center.ui.launcher import Launcher
 from command_center.ui.registry import Selection, discover, get_tool
-from command_center.ui.theme import setup_style
+from command_center.ui.theme import load_fonts, setup_style
 
 
 class App(tk.Tk):
@@ -23,12 +23,13 @@ class App(tk.Tk):
                 ctypes.windll.shcore.SetProcessDpiAwareness(1)   # crisp text on high-DPI screens
             except Exception:  # noqa: BLE001 - older Windows: keep default scaling
                 pass
+        load_fonts()                       # before Tk starts: it lists the fonts once
         super().__init__()
         self.ctx = ctx
         self.title("Command Center 40K")
         setup_style(self)                  # also sets self.fonts
-        self.geometry("980x560")
-        self.minsize(820, 480)
+        self.geometry("1040x600")
+        self.minsize(960, 520)
         self.open_windows: list[tk.Toplevel] = []
         self.launcher = Launcher(self)
         self.launcher.pack(fill="both", expand=True)

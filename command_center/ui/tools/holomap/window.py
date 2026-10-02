@@ -62,7 +62,7 @@ class HolomapWindow(ToolWindow):
         cell = ttk.Frame(parent)
 
         top = self.info_top = ttk.Frame(cell, style="Panel.TFrame", padding=10)
-        self.pairing = ttk.Label(top, text="", style="H2.TLabel", wraplength=270, justify="left")
+        self.pairing = ttk.Label(top, text="", style="H2.TLabel", wraplength=350, justify="left")
         self.pairing.pack(anchor="w")
         self.info = ttk.Label(top, text="", style="Muted.TLabel", wraplength=270, justify="left")
         self.info.pack(anchor="w", pady=(2, 6))

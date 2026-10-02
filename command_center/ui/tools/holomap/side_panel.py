@@ -77,7 +77,7 @@ class SidePanel(ttk.Frame):
     def _make_text(self, parent) -> tk.Text:
         fr = ttk.Frame(parent, style="Flat.TFrame")
         fr.pack(fill="both", expand=True, pady=(2, 6))
-        t = tk.Text(fr, wrap="word", relief="flat", bg="white", padx=8, pady=6, width=10, height=10, cursor="arrow")
+        t = tk.Text(fr, wrap="word", relief="flat", bg=C["field"], padx=8, pady=6, width=10, height=10, cursor="arrow")
         sb = ttk.Scrollbar(fr, orient="vertical", command=t.yview)
         t.configure(yscrollcommand=sb.set)
         t.pack(side="left", fill="both", expand=True)
