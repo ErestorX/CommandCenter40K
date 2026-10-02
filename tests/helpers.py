@@ -4,7 +4,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from crunch.data.wahapedia import Wahapedia
+from command_center.data.wahapedia import Wahapedia
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 FIXTURE_DATA = FIXTURES / "wahapedia"

@@ -1,8 +1,8 @@
 """Engine behaviour, checked against hand-calculated expectations (Monte Carlo tolerance ~3%)."""
 import unittest
 
-from crunch.core import (Dice, ModelProfile, Modifiers, Target, TargetGroup, Weapon, WeaponKeywords, WeaponLoad,
-                         simulate, wound_target)
+from command_center.core import (Dice, ModelProfile, Modifiers, Target, TargetGroup, Weapon, WeaponKeywords, WeaponLoad,
+                                 simulate, wound_target)
 
 BOLT = Weapon("Bolt rifle", "Ranged", '24"', Dice(0, 0, 2), 3, 4, 1, Dice(0, 0, 1), WeaponKeywords())
 BOY = ModelProfile("Boy", '6"', 5, 5, None, 1)

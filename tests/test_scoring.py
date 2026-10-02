@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from crunch.deploy.estimates import EstimateStore, difficulty, difficulty_groups, game_estimate, saved_scores
-from crunch.deploy.scoring import END, PlayerScore, SecondaryRow, columns, primary_options, vp, wtc
+from command_center.deploy.estimates import EstimateStore, difficulty, difficulty_groups, game_estimate, saved_scores
+from command_center.deploy.scoring import END, PlayerScore, SecondaryRow, columns, primary_options, vp, wtc
 
 
 def _cond(text, points, additional=False, alternative=False):
@@ -12,7 +12,7 @@ def _cond(text, points, additional=False, alternative=False):
             "additional": additional, "alternative": alternative}
 
 
-# a card in the shape crunch.data.missions parses them
+# a card in the shape command_center.data.missions parses them
 MISSION = {"name": "TEST", "scoring": [
     {"round": "ANY BATTLE ROUND", "when": "End of your turn.", "conditions": [
         _cond("One or two objectives are consecrated.", "3VP"),

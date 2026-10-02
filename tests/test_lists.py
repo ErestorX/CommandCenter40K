@@ -1,8 +1,8 @@
 import unittest
 
-from crunch import config
-from crunch.lists import formats, parse_list, target_for, weapon_loads
-from crunch.lists.newrecruit import split_items
+from command_center import config
+from command_center.lists import formats, parse_list, target_for, weapon_loads
+from command_center.lists.newrecruit import split_items
 from tests.helpers import FIXTURES, FIXTURE_LIST, fixture_wd
 
 
@@ -83,7 +83,7 @@ class LedByReferencesTest(unittest.TestCase):
                      "needs downloaded Wahapedia data and the lists/ folder")
 class RealDataTest(unittest.TestCase):
     def test_every_unit_in_every_list_has_a_datasheet(self):
-        from crunch.data import Wahapedia
+        from command_center.data import Wahapedia
         wd = Wahapedia()
         for path in sorted(config.LISTS_DIR.glob("*.txt")):
             with self.subTest(list=path.name):

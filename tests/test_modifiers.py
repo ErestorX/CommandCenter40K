@@ -1,8 +1,8 @@
 """Modifier fields: re-roll variants, free-form A/AP/D, defender T/Sv/AP changes."""
 import unittest
 
-from crunch.core import (Dice, DiceMod, ModelProfile, Modifiers, Target, TargetGroup, Weapon, WeaponKeywords,
-                         WeaponLoad, simulate)
+from command_center.core import (Dice, DiceMod, ModelProfile, Modifiers, Target, TargetGroup, Weapon, WeaponKeywords,
+                                 WeaponLoad, simulate)
 
 TROOP = ModelProfile("Troop", '6"', 4, 4, None, 1)
 

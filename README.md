@@ -1,4 +1,4 @@
-# Game Crunch
+# Command Center 40K
 
 Warhammer 40,000 (11th edition) toolkit: load two army lists, pick units, and get
 mathhammer statistics (expected damage, models slain, full distributions) from a
@@ -10,7 +10,7 @@ Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are © Games
 
 ```bash
 pip install -r requirements.txt        # numpy (tkinter ships with Python on Windows)
-python -m crunch fetch                  # download Wahapedia data, mission deck and layouts into wahapedia_data/
+python -m command_center fetch                  # download Wahapedia data, mission deck and layouts into wahapedia_data/
 python main.py                          # launch the app   (or double-click run_app.bat)
 ```
 
@@ -19,11 +19,11 @@ Army lists are NewRecruit **text** exports placed in `lists/`.
 Command line:
 
 ```bash
-python -m crunch show  --unit "Knight Castellan"
-python -m crunch fight --attacker "Kabalite Warriors" --attacker-models 10 \
+python -m command_center show  --unit "Knight Castellan"
+python -m command_center fight --attacker "Kabalite Warriors" --attacker-models 10 \
                        --defender "Custodian Guard" --defender-models 5 --mod cover
-python -m crunch fetch --force          # refresh the data
-python -m crunch fetch --no-missions    # CSVs only
+python -m command_center fetch --force          # refresh the data
+python -m command_center fetch --no-missions    # CSVs only
 ```
 
 Tests (standard library `unittest`, no extra packages):
@@ -37,10 +37,10 @@ python -m unittest discover -s tests -t .
 ```
 main.py                   start the app
 run_app.bat               start the app with .venv, errors -> run_log.txt
-crunch/
+command_center/
   config.py               paths (project, data, lists), edition, attribution
   context.py              AppContext: loaded data + settings shared by every window
-  cli.py, __main__.py     python -m crunch  ui | fetch | show | fight
+  cli.py, __main__.py     python -m command_center  ui | fetch | show | fight
   util.py                 text helpers (norm, strip_html, to_int, clean_glyphs)
   core/                   rules engine - pure Python/numpy, no files, no UI
     dice.py               "D6+1" etc.
@@ -62,7 +62,7 @@ crunch/
     newrecruit.py         NewRecruit text export
     model.py              ArmyList / ListUnit (format-independent)
     linking.py            list -> datasheets, weapon loads, targets
-  deploy/                 Deployer back end (no UI)
+  deploy/                 Field Holomap back end (no UI)
     bases.py              base sizes (inches; estimated when the data has none), unit footprints
     roster.py             an army as it stands on the table: unit + attached characters, footprint
     placement.py          random spot in a deployment zone, keeping footprints on the board
@@ -73,7 +73,7 @@ crunch/
     scoring.py            score sheet maths: primary scoring options, VP per round, caps, Battle Ready, WTC result
     territory.py          the line between the two players' territories (the halves holding their zones)
     sight.py              line of sight by ray casting (dense terrain, ruin edges, board edges)
-  analysis/               Optimizer back end (no UI)
+  analysis/               Engagement Optimizer back end (no UI)
     variants.py           catalogue of attacker / defender modifiers, test packages
     plan.py               per-unit test plans, saved to user_data/test_plans.json
     sweep.py              build every test, run them in parallel worker processes
@@ -93,9 +93,9 @@ crunch/
     tools/
       cogitator/          the Disposition Cogitator: the matrix of Force Dispositions (needs no list)
                           estimate.py: a pairing's Estimate window (primaries to score | its three layouts)
-      finder/             the Finder: one unit against another (army panels | results)
-      optimizer/          the Optimizer (test plans | run | results window)
-      deployer/           the Deployer: missions + army summaries | the pairing's three layouts
+      auspex/             the Armies Auspex: one unit against another (army panels | results)
+      optimizer/          the Engagement Optimizer (test plans | run | results window)
+      holomap/           the Field Holomap: missions + army summaries | the pairing's three layouts
                           score_oracle.py: the floating Score Oracle window, with the score sheet
 tests/                    unit tests + small fixtures
 lists/                    your army lists
@@ -110,7 +110,7 @@ a future web front end) without tkinter.
 ## Disposition Cogitator
 
 Opens from the launcher without choosing any list (its button stands apart, left of the
-Finder's). At its centre, a matrix of every Force Disposition against every other; each
+Armies Auspex's). At its centre, a matrix of every Force Disposition against every other; each
 cell names the primary mission its row's disposition plays against its column's, and the
 one played in return. Dispositions have their colour code: Take and Hold green, Purge the
 Foe red, Disruption deep blue, Reconnaissance teal, Priority Assets yellow.
@@ -122,7 +122,7 @@ and the attacker's side of the layouts. A pairing has two Estimates, one per pla
 first: the header switches between them (Player 1 first to begin with). A mirror pairing
 has one only, mirrored: what is scored for the player going first shows on whichever
 player goes first. Each is saved as
-you go (`user_data/estimates.json`) and is there again the next time. In the Deployer's
+you go (`user_data/estimates.json`) and is there again the next time. In the Field Holomap's
 Score Oracle, **Import Estimate** fills the two primary missions from the Estimate of the
 game's pairing, with the player ticked "Went first" going first.
 
@@ -139,9 +139,9 @@ or count option by option and see the VP per battle round (15 VP a round, 45 ove
 game). Bottom half: the pairing's three layouts, with the deployment zones and the line
 between the two territories (a territory is the half of the battlefield that includes a
 player's deployment zone; on diagonal deployments the line follows the diagonal).
-Needs the mission data from `python -m crunch fetch`.
+Needs the mission data from `python -m command_center fetch`.
 
-## Optimizer
+## Engagement Optimizer
 
 Tick attacking and defending units, then build each unit's tests (Tests tab): tick
 some modifiers and press **Add test**. All ticked modifiers are applied **together**,
@@ -179,13 +179,13 @@ simulated separately, so a total doesn't account for Shooting casualties before 
   (damage, models slain, % wounds, wipe chance, points removed, points per 100 pts),
   best / average / worst over attacker scenarios and defender tests, CSV export.
 
-## Deployer
+## Field Holomap
 
 Uses each list's `Force Disposition:` line (shown as a badge, set in the list) to show the
 primary mission each player plays, a compact view of both armies (Leaders and Support
 characters merged into their unit), and the three battlefield layouts of the pairing:
 deployment zones, terrain, objectives and, optionally, the table-setup measurements.
-Needs the mission data from `python -m crunch fetch`.
+Needs the mission data from `python -m command_center fetch`.
 
 Each layout can be taken off the view (Layout A / B / C, next to the legend). The boards
 left and the legend and options are then rearranged to draw the boards as large as the
@@ -211,8 +211,8 @@ as a dash-dot line from the footprint edge to the nearest point of the objective
 objective is the whole terrain its marker stands on; terrain areas touching along an
 edge (at least 1" of outline in contact, not just a corner) count as one piece.
 
-Targets (option): arrows from attackers to their targets in the Optimizer's army plan for
-these two lists, edge to edge, redrawn as units move and as soon as the Optimizer re-plans.
+Targets (option): arrows from attackers to their targets in the Engagement Optimizer's army plan for
+these two lists, edge to edge, redrawn as units move and as soon as the Engagement Optimizer re-plans.
 By default the selected unit's 1st target (for a selected defender: the attackers aiming at
 it); "2nd" adds the 2nd targets (dashed), "all" shows them for every attacker on the maps.
 With Line of sight on too, the part of the selected unit's line of sight that reaches its
@@ -232,12 +232,12 @@ and Hidden's own sub-option Go to Ground brings that down to 12".
 
 ## Adding a new window (tool)
 
-1. Create `crunch/ui/tools/<name>.py` (or a package `crunch/ui/tools/<name>/`).
+1. Create `command_center/ui/tools/<name>.py` (or a package `command_center/ui/tools/<name>/`).
 2. Subclass `ToolWindow` and register a factory:
 
 ```python
-from crunch.ui.registry import Selection, register_tool
-from crunch.ui.toolwindow import ToolWindow
+from command_center.ui.registry import Selection, register_tool
+from command_center.ui.toolwindow import ToolWindow
 
 
 class GamePlanWindow(ToolWindow):
@@ -256,14 +256,14 @@ def open_gameplan(app, selection):
 ```
 
 That's all: the launcher discovers it and shows a **Game plan →** button next to
-**Finder →**. Reuse `crunch.ui.widgets`, `crunch.ui.theme` and `crunch.ui.views`
+**Armies Auspex →**. Reuse `command_center.ui.widgets`, `command_center.ui.theme` and `command_center.ui.views`
 for a consistent look.
 
 ## Adding a list format
 
-Write `crunch/lists/<format>.py` with `detect(text) -> bool` and
+Write `command_center/lists/<format>.py` with `detect(text) -> bool` and
 `parse(text, path, wd) -> ArmyList`, call `register_parser(...)`, and import the
-module in `crunch/lists/__init__.py`. Datasheet linking, weapon loads and targets
+module in `command_center/lists/__init__.py`. Datasheet linking, weapon loads and targets
 then work unchanged.
 
 ## Engine rules (11th edition)

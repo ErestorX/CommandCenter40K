@@ -1,4 +1,4 @@
-"""Optimizer: modifier catalogue, test packages, sweep execution and result aggregation."""
+"""Engagement Optimizer: modifier catalogue, test packages, sweep execution and result aggregation."""
 import json
 import tempfile
 from dataclasses import replace
@@ -6,12 +6,12 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from crunch.analysis.plan import DEFENDER, ATTACKER, PlanStore, TestPackage, test_count
-from crunch.analysis.results import ResultSet
-from crunch.analysis.sweep import AttackerSpec, DefenderSpec, TestRecord, build_cases, run_sweep
-from crunch.analysis.variants import (ATTACKER_VARIANTS, DEFENDER_VARIANTS, MELEE, RANGED, combined, for_phase,
-                                      package_label, toggle)
-from crunch.core import Dice, ModelProfile, Target, TargetGroup, Weapon, WeaponKeywords, WeaponLoad
+from command_center.analysis.plan import DEFENDER, ATTACKER, PlanStore, TestPackage, test_count
+from command_center.analysis.results import ResultSet
+from command_center.analysis.sweep import AttackerSpec, DefenderSpec, TestRecord, build_cases, run_sweep
+from command_center.analysis.variants import (ATTACKER_VARIANTS, DEFENDER_VARIANTS, MELEE, RANGED, combined, for_phase,
+                                              package_label, toggle)
+from command_center.core import Dice, ModelProfile, Target, TargetGroup, Weapon, WeaponKeywords, WeaponLoad
 
 BOLT = Weapon("Bolt rifle", "Ranged", '24"', Dice(0, 0, 2), 3, 4, 1, Dice(0, 0, 1), WeaponKeywords())
 KNIFE = Weapon("Knife", "Melee", "Melee", Dice(0, 0, 3), 3, 4, 0, Dice(0, 0, 1), WeaponKeywords())

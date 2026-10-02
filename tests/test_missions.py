@@ -1,4 +1,4 @@
-"""Mission deck scraping: parsing the page, storing it, and the update check in `crunch fetch`."""
+"""Mission deck scraping: parsing the page, storing it, and the update check in `command_center fetch`."""
 import json
 import shutil
 import tempfile
@@ -6,9 +6,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from crunch import config
-from crunch.data import fetch as fetch_mod
-from crunch.data.missions import PAGE_FILE, parse_deck, rebuild_missions, update_missions
+from command_center import config
+from command_center.data import fetch as fetch_mod
+from command_center.data.missions import PAGE_FILE, parse_deck, rebuild_missions, update_missions
 
 FIX = Path(__file__).parent / "fixtures" / "wahapedia"
 LAYOUT_FIX = Path(__file__).parent / "fixtures" / "rapidingress"
@@ -151,13 +151,13 @@ class UpdateTest(unittest.TestCase):
 
 
 class FetchCommandTest(unittest.TestCase):
-    """`python -m crunch fetch --from-dir` with CSVs and the saved page, the layouts from a fake site."""
+    """`python -m command_center fetch --from-dir` with CSVs and the saved page, the layouts from a fake site."""
 
     def test_csvs_missions_and_layouts_share_the_manifest(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "out"
             with mock.patch.object(fetch_mod, "fetch", FakeSite()), mock.patch.object(fetch_mod, "log"), \
-                    mock.patch("crunch.data.layouts.time.sleep"):
+                    mock.patch("command_center.data.layouts.time.sleep"):
                 fetch_mod.main(["--out", str(out), "--from-dir", str(FIX)])
                 ed = out / "wh40k11ed"
                 manifest = json.loads((ed / "manifest.json").read_text(encoding="utf-8"))

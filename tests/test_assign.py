@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from crunch.analysis.army_plans import ArmyPlanStore, PlanEntry, PlanTarget, SavedPlan, units_of
-from crunch.analysis.assign import _value, pair_scores, plan_army
+from command_center.analysis.army_plans import ArmyPlanStore, PlanEntry, PlanTarget, SavedPlan, units_of
+from command_center.analysis.assign import _value, pair_scores, plan_army
 
 
 def grid(atts, defs, rows):

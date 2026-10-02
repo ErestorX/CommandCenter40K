@@ -10,16 +10,16 @@ except ImportError:          # some Linux Pythons ship without tkinter
 @unittest.skipUnless(HAVE_TK, "tkinter not available")
 class RegistryTest(unittest.TestCase):
     def test_tools_are_discovered(self):
-        from crunch.ui.registry import discover
+        from command_center.ui.registry import discover
         keys = [t.key for t in discover()]
-        self.assertIn("finder", keys)
+        self.assertIn("auspex", keys)
         self.assertIn("optimizer", keys)
 
     def test_tools_without_armies(self):
-        from crunch.ui.registry import discover
+        from command_center.ui.registry import discover
         tools = {t.key: t for t in discover()}
         self.assertFalse(tools["cogitator"].needs_armies)         # opens with no list chosen
-        self.assertTrue(all(tools[k].needs_armies for k in ("finder", "optimizer", "deployer")))
+        self.assertTrue(all(tools[k].needs_armies for k in ("auspex", "optimizer", "holomap")))
 
 
 if __name__ == "__main__":

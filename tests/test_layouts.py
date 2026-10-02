@@ -7,8 +7,8 @@ from collections import Counter
 from pathlib import Path
 from unittest import mock
 
-from crunch.data.layouts import (LAYOUT_FILES, MEASUREMENTS_FILE, TERRAIN_FILE, board_edge, centroid, js_const,
-                                 parse_layouts, rebuild_layouts, update_layouts)
+from command_center.data.layouts import (LAYOUT_FILES, MEASUREMENTS_FILE, TERRAIN_FILE, board_edge, centroid, js_const,
+                                         parse_layouts, rebuild_layouts, update_layouts)
 
 FIX = Path(__file__).parent / "fixtures" / "rapidingress"
 FILES = {n: (FIX / n).read_bytes() for n in LAYOUT_FILES}
@@ -98,7 +98,7 @@ class UpdateTest(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.tmp)
-        patcher = mock.patch("crunch.data.layouts.time.sleep")
+        patcher = mock.patch("command_center.data.layouts.time.sleep")
         patcher.start()
         self.addCleanup(patcher.stop)
 

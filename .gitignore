@@ -7,7 +7,7 @@ venv/
 # IDE
 .idea/
 
-# Downloaded game data (regenerate with: python -m crunch fetch). Rules and stats are (c) Games Workshop.
+# Downloaded game data (regenerate with: python -m command_center fetch). Rules and stats are (c) Games Workshop.
 /wahapedia_data/
 /data/
 

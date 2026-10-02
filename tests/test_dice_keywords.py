@@ -1,6 +1,6 @@
 import unittest
 
-from crunch.core import Dice, parse_weapon_keywords, target_matches
+from command_center.core import Dice, parse_weapon_keywords, target_matches
 
 
 class DiceTest(unittest.TestCase):
