@@ -46,6 +46,9 @@ def setup_style(root: tk.Tk) -> None:
     style.configure("Treeview.Heading", font=root.fonts["small"])
     style.map("Treeview", background=[("selected", "#e9dcc3")], foreground=[("selected", C["ink"])])
     style.configure("Accent.TButton", font=root.fonts["h2"])
+    # drop-downs of a sheet: white while they can be chosen from, greyed once locked
+    style.map("Sheet.TCombobox", fieldbackground=[("disabled", C["grid"]), ("readonly", "white")],
+              foreground=[("disabled", C["muted"])])
     # badges: a value shown as a tinted tag, in its side's colours
     badge = dict(font=root.fonts["role"], padding=(10, 3), relief="flat", borderwidth=0)
     style.configure("AttBadge.TLabel", background="#f1d3d3", foreground=C["att"], **badge)
