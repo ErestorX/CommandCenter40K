@@ -1,6 +1,7 @@
 """Mission deck scraping: parsing the page, storing it, and the update check in `command_center fetch`."""
 import json
 import shutil
+from datetime import datetime, timedelta, timezone
 import tempfile
 import unittest
 from pathlib import Path
@@ -170,6 +171,64 @@ class FetchCommandTest(unittest.TestCase):
                 manifest = json.loads((ed / "manifest.json").read_text(encoding="utf-8"))
                 self.assertIn("missions", manifest)
                 self.assertIn("layouts", manifest)
+
+
+class AutoUpdateTest(unittest.TestCase):
+    """What the app relies on to fetch by itself: when the data was last checked, and update()."""
+
+    @staticmethod
+    def site(url):
+        """The CSV export, from the fixtures; nothing else is published."""
+        path = FIX / url.rsplit("/", 1)[-1]
+        return path.read_bytes() if url.endswith(".csv") and path.exists() else None
+
+    def test_stale_without_data_or_after_a_day(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ed = Path(tmp)
+            self.assertIsNone(fetch_mod.last_checked(ed))
+            self.assertTrue(fetch_mod.is_stale(ed))                         # never fetched
+            now = datetime(2026, 10, 2, 12, 0, tzinfo=timezone.utc)
+            fetch_mod.mark_checked(ed, now - timedelta(hours=23))
+            self.assertFalse(fetch_mod.is_stale(ed, now=now))
+            fetch_mod.mark_checked(ed, now - timedelta(hours=25))
+            self.assertTrue(fetch_mod.is_stale(ed, now=now))
+            self.assertFalse(fetch_mod.is_stale(ed, max_age_hours=48, now=now))
+            (ed / "manifest.json").write_text('{"fetched_at": "2026-10-02T02:00:00+00:00"}', encoding="utf-8")
+            self.assertFalse(fetch_mod.is_stale(ed, now=now))               # an older manifest: when it was built
+            (ed / "manifest.json").write_text("not json", encoding="utf-8")
+            self.assertTrue(fetch_mod.is_stale(ed, now=now))
+
+    def test_update_checks_the_site_and_notes_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ed = Path(tmp) / "wh40k11ed"
+            messages = []
+            fetch_mod.set_log(messages.append)
+            try:
+                with mock.patch.object(fetch_mod, "fetch", self.site), mock.patch.object(fetch_mod.time, "sleep"):
+                    self.assertTrue(fetch_mod.update(ed, with_missions=False))          # first time: built
+                    first = json.loads((ed / "manifest.json").read_text(encoding="utf-8"))
+                    self.assertTrue((ed / "raw" / "Datasheets.csv").exists())
+                    self.assertFalse(fetch_mod.is_stale(ed))
+                    fetch_mod.mark_checked(ed, datetime(2026, 1, 1, tzinfo=timezone.utc))
+                    self.assertTrue(fetch_mod.is_stale(ed))
+                    self.assertFalse(fetch_mod.update(ed, with_missions=False))         # nothing new on the site
+                    again = json.loads((ed / "manifest.json").read_text(encoding="utf-8"))
+                    self.assertFalse(fetch_mod.is_stale(ed))                            # but checked: not due again
+                    self.assertEqual(again["fetched_at"], first["fetched_at"])
+            finally:
+                fetch_mod.set_log(None)
+            self.assertTrue(any("Already up to date" in m for m in messages))
+
+    def test_unreachable_site_changes_nothing(self):
+        def down(url):
+            raise RuntimeError(f"failed to fetch {url}: no network")
+        with tempfile.TemporaryDirectory() as tmp:
+            ed = Path(tmp) / "wh40k11ed"
+            with mock.patch.object(fetch_mod, "fetch", down), mock.patch.object(fetch_mod, "log"):
+                with self.assertRaises(RuntimeError):
+                    fetch_mod.update(ed)
+            self.assertFalse((ed / "manifest.json").exists())                # still due for a check next time
+            self.assertTrue(fetch_mod.is_stale(ed))
 
 
 if __name__ == "__main__":

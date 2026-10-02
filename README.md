@@ -10,9 +10,13 @@ Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are © Games
 
 ```bash
 pip install -r requirements.txt        # numpy (tkinter ships with Python on Windows)
-python -m command_center fetch                  # download Wahapedia data, mission deck and layouts into wahapedia_data/
 python main.py                          # launch the app   (or double-click run_app.bat)
 ```
+
+The app downloads Wahapedia's data, the mission deck and the layouts into `wahapedia_data/`
+the first time it starts, and checks them again at start-up when the last check is more than
+24 hours old (a small window shows the progress; without a connection it says so and starts
+with the data it has). `python -m command_center fetch` does the same from the command line.
 
 Army lists are NewRecruit **text** exports placed in `lists/`.
 
@@ -84,6 +88,7 @@ command_center/
     app.py                Tk root, launcher, opens tools
     registry.py           @register_tool + auto-discovery
     toolwindow.py         base class for tool windows
+    updater.py            the data check at start-up (once a day), in a window of its own
     launcher.py           choose attacker/defender lists, then a tool (list-free tools: apart, on the left)
     theme.py, widgets.py  the dark theme (colours, fonts, ttk styles), shared widgets
     charts.py             canvas heatmap and bar chart with tooltips

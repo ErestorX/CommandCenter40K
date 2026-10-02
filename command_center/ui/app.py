@@ -1,5 +1,5 @@
-"""Application shell: creates the Tk root, loads the shared context, shows the launcher and
-opens tools from the registry.
+"""Application shell: updates the data if it is due (command_center.ui.updater), then creates the Tk
+root, loads the shared context, shows the launcher and opens tools from the registry.
 
     python main.py            # or: python -m command_center
 """
@@ -13,16 +13,22 @@ from command_center.context import AppContext
 from command_center.ui.launcher import Launcher
 from command_center.ui.registry import Selection, discover, get_tool
 from command_center.ui.theme import load_fonts, setup_style
+from command_center.ui.updater import refresh_data
+
+
+def dpi_aware() -> None:
+    """Crisp text on high-DPI screens (Windows). To call before the first window."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        except Exception:  # noqa: BLE001 - older Windows, or already set: keep the scaling there is
+            pass
 
 
 class App(tk.Tk):
     def __init__(self, ctx: AppContext):
-        if sys.platform == "win32":
-            try:
-                import ctypes
-                ctypes.windll.shcore.SetProcessDpiAwareness(1)   # crisp text on high-DPI screens
-            except Exception:  # noqa: BLE001 - older Windows: keep default scaling
-                pass
+        dpi_aware()
         load_fonts()                       # before Tk starts: it lists the fonts once
         super().__init__()
         self.ctx = ctx
@@ -48,13 +54,19 @@ class App(tk.Tk):
 
 
 def main(data_dir: str | None = None) -> None:
+    """data_dir: a folder of Wahapedia CSVs to use as it is; without one, the app's own data, which is
+    fetched again first when its last check is more than a day old."""
     discover()
+    if data_dir is None:
+        dpi_aware()
+        refresh_data()
     try:
         ctx = AppContext(data_dir)
     except FileNotFoundError as e:
         root = tk.Tk()
         root.withdraw()
-        messagebox.showerror("Command Center 40K", f"{e}\n\nRun:  python -m command_center fetch")
+        messagebox.showerror("Command Center 40K", f"{e}\n\nThe data could not be downloaded: check the connection and "
+                                                   "start the app again, or run:  python -m command_center fetch")
         root.destroy()
         raise SystemExit(1)
     App(ctx).mainloop()

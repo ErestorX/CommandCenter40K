@@ -33,6 +33,7 @@ C = {
 DISPLAY_FAMILY = "Caliban Angelus"
 BODY_IN_DISPLAY_FONT = False    # True: every text in the display font, numbers included
 _display: str | None = None     # the display family once known to be there (else the system's)
+_fonts_loaded = False
 
 # Force Dispositions' colour code: ink (text), tint (a badge's background)
 DISPOSITION_COLORS = {
@@ -55,9 +56,11 @@ def disposition_colors(name: str) -> tuple[str, str]:
 
 def load_fonts() -> None:
     """Make the fonts of assets/fonts usable by this process (Windows; elsewhere they must be installed).
-    To call before the Tk root is created."""
-    if sys.platform != "win32":
+    To call before the Tk root is created; once is enough, more calls do nothing."""
+    global _fonts_loaded
+    if sys.platform != "win32" or _fonts_loaded:
         return
+    _fonts_loaded = True
     try:
         import ctypes
         for path in sorted(config.FONTS_DIR.glob("*.ttf")):

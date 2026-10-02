@@ -8,6 +8,9 @@ Download Wahapedia's CSV export and mission deck, the battlefield layouts, and b
     python -m command_center fetch --rebuild-json   # only rebuild json/ (and missions/json/) from what's saved
     python -m command_center fetch --no-missions    # CSVs only
 
+The app runs the same update by itself when it starts, if the last check is more than a day old
+(update(), is_stale(): see command_center.ui.app).
+
 Output: <root>/<edition>/{raw/, archive/<update>/, json/, missions/, manifest.json, README.txt}
 The CSVs, the mission deck (command_center.data.missions) and the layouts (command_center.data.layouts) are checked
 for updates separately.
@@ -70,8 +73,22 @@ ATTRIBUTION = config.ATTRIBUTION
 # -----------------------------------------------------------------------------
 # helpers
 # -----------------------------------------------------------------------------
+RETRIES, TIMEOUT = 3, 60          # per request: attempts, seconds
+MAX_AGE_HOURS = 24                # the data is checked again once the last check is older than this
+_sink = None                      # where log() writes instead of the console (see set_log)
+
+
 def log(msg: str) -> None:
-    print(msg, flush=True)
+    if _sink:
+        _sink(msg)
+    else:
+        print(msg, flush=True)
+
+
+def set_log(sink) -> None:
+    """Send the progress messages to sink(message) (None: back to the console)."""
+    global _sink
+    _sink = sink
 
 
 def slug(text: str, max_len: int = 60) -> str:
@@ -108,11 +125,12 @@ def write_json(path: Path, data) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def fetch(url: str, retries: int = 3) -> bytes | None:
+def fetch(url: str, retries: int | None = None) -> bytes | None:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    retries = retries or RETRIES
     for attempt in range(1, retries + 1):
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
                 return r.read()
         except urllib.error.HTTPError as e:
             if e.code == 404:
@@ -143,7 +161,7 @@ def download(edition_dir: Path, base_url: str, force: bool, from_dir: Path | Non
     else:
         stamp_blob = fetch(base_url + "Last_update.csv")
         if stamp_blob is None:
-            sys.exit(f"Last_update.csv not found at {base_url} - is the edition name right?")
+            raise RuntimeError(f"Last_update.csv not found at {base_url} - is the edition name right?")
         stamp = last_update_stamp(stamp_blob)
         if not force and stamp and stamp == old_manifest.get("last_update") and raw_dir.exists():
             log(f"Already up to date (Wahapedia last update {stamp}). Use --force to rebuild.")
@@ -161,7 +179,7 @@ def download(edition_dir: Path, base_url: str, force: bool, from_dir: Path | Non
 
     missing = REQUIRED - set(blobs)
     if missing:
-        sys.exit(f"Missing required tables: {', '.join(sorted(missing))}")
+        raise RuntimeError(f"Missing required tables: {', '.join(sorted(missing))}")
 
     # archive the previous raw set before overwriting
     if raw_dir.exists() and any(raw_dir.iterdir()):
@@ -367,18 +385,58 @@ def main(argv=None) -> None:
             log(f"Rebuilt missions/json: {counts}" if counts else "No saved mission deck page to rebuild.")
             n = layouts.rebuild_layouts(edition_dir)
             log(f"Rebuilt missions/json/layouts.json: {n} layouts" if n else "No saved layout data to rebuild.")
+        build_csv_tree(edition_dir, base_url, missions_url, a.edition, blobs)
     else:
         try:
-            blobs = download(edition_dir, base_url, a.force, a.from_dir)
+            update(edition_dir, a.edition, a.force, a.from_dir, not a.no_missions)
         except RuntimeError as e:
             sys.exit(f"{e}\nIf Wahapedia blocks scripted downloads, save the CSVs from "
                      f"{base_url}  (links on its 'Data Export' page) into a folder and rerun with --from-dir.")
-        if not a.no_missions:
-            update_missions_step(edition_dir, missions_url, a.force, a.from_dir)
-        if blobs is None:
-            return
 
-    build_csv_tree(edition_dir, base_url, missions_url, a.edition, blobs)
+
+def update(edition_dir: Path, edition: str = DEFAULT_EDITION, force: bool = False, from_dir: Path | None = None,
+           with_missions: bool = True) -> bool:
+    """Bring the data tree up to date: download what changed (or read it from `from_dir`) and rebuild.
+    Returns whether the CSV data changed. RuntimeError when Wahapedia can't be reached or a required
+    table is missing: nothing is then changed, and the missions are not checked either.
+    A check against the site is noted in the manifest (checked_at): see is_stale()."""
+    edition_dir.mkdir(parents=True, exist_ok=True)
+    base_url = BASE_URL.format(edition=edition)
+    missions_url = config.MISSION_DECK_URL.format(edition=edition)
+    blobs = download(edition_dir, base_url, force, from_dir)
+    if with_missions:
+        update_missions_step(edition_dir, missions_url, force, from_dir)
+    if blobs is not None:
+        build_csv_tree(edition_dir, base_url, missions_url, edition, blobs)
+    if not from_dir:
+        mark_checked(edition_dir)
+    return blobs is not None
+
+
+def mark_checked(edition_dir: Path, when: datetime | None = None) -> None:
+    """Note in the manifest that the data was checked against the site (now, unless `when`)."""
+    manifest_path = edition_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
+    manifest["checked_at"] = (when or datetime.now(timezone.utc)).isoformat(timespec="seconds")
+    write_json(manifest_path, manifest)
+
+
+def last_checked(edition_dir: Path) -> datetime | None:
+    """When the data was last checked against the site (or, failing that, last built); None if never."""
+    try:
+        manifest = json.loads((edition_dir / "manifest.json").read_text(encoding="utf-8"))
+        stamp = datetime.fromisoformat(manifest.get("checked_at") or manifest["fetched_at"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return stamp if stamp.tzinfo else stamp.replace(tzinfo=timezone.utc)
+
+
+def is_stale(edition_dir: Path, max_age_hours: float = MAX_AGE_HOURS, now: datetime | None = None) -> bool:
+    """The data is due for a check: never checked, or more than `max_age_hours` ago."""
+    checked = last_checked(edition_dir)
+    if checked is None:
+        return True
+    return ((now or datetime.now(timezone.utc)) - checked).total_seconds() > max_age_hours * 3600
 
 
 def update_missions_step(edition_dir: Path, url: str, force: bool, from_dir: Path | None) -> None:
@@ -423,6 +481,7 @@ def build_csv_tree(edition_dir: Path, base_url: str, missions_url: str, edition:
         "edition": edition,
         "last_update": stamp,
         "fetched_at": fetched,
+        **({"checked_at": old_manifest["checked_at"]} if "checked_at" in old_manifest else {}),
         "tables": {t: {"rows": counts.get(t, 0), "sha256": hashlib.sha256(blobs[t]).hexdigest()}
                    for t in sorted(blobs)},
         "missing_tables": [t for t in TABLES if t not in blobs],
