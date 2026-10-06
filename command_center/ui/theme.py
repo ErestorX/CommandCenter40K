@@ -195,6 +195,16 @@ def setup_style(root: tk.Tk) -> None:
         style.configure(f"Panel.{name}", background=C["panel"], focuscolor=C["panel"])
         style.map(f"Panel.{name}", background=[("active", C["panel"])])
 
+    # a switch: radio buttons shaped as buttons, side by side, the chosen one pressed in and in red
+    style.layout("Switch.TRadiobutton", style.layout("TButton"))
+    style.configure("Switch.TRadiobutton", background=C["raised"], foreground=C["muted"], font=root.fonts["accent"],
+                    padding=(18, 7), relief="raised", anchor="center", **bevel)
+    style.map("Switch.TRadiobutton",
+              background=[("selected", C["field"]), ("pressed", C["field"]), ("active", C["hover"])],
+              foreground=[("selected", C["accent"]), ("active", C["ink"])],
+              relief=[("selected", "sunken"), ("pressed", "sunken")],
+              lightcolor=[("selected", "#08080a")], darkcolor=[("selected", "#4a4a55")])
+
     # fields
     style.configure("TEntry", foreground=C["ink"], fieldbackground=C["field"], insertcolor=C["ink"], **flat)
     style.configure("TSpinbox", foreground=C["ink"], fieldbackground=C["field"], background=C["raised"],

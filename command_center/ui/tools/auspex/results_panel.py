@@ -31,8 +31,8 @@ class ResultsPanel(ttk.Frame):
         ph.pack(fill="x", pady=(10, 2))
         ttk.Label(ph, text="Phase", style="H2.TLabel").pack(side="left", padx=(0, 10))
         for text, val in (("Shooting", "shooting"), ("Fight", "fight")):
-            ttk.Radiobutton(ph, text=text, value=val, variable=win.phase, style="Panel.TRadiobutton",
-                            command=win.on_phase).pack(side="left", padx=4)
+            ttk.Radiobutton(ph, text=text, value=val, variable=win.phase, style="Switch.TRadiobutton", width=10,
+                            command=win.on_phase).pack(side="left")
 
         self.title_lbl = ttk.Label(self, text="", style="H2.TLabel", wraplength=440, justify="center")
         self.title_lbl.pack(fill="x", pady=(8, 8))
