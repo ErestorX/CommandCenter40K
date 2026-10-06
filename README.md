@@ -73,8 +73,9 @@ rather than just an average.
 ![Armies Auspex](assets/screenshots/armies-auspex.png)
 
 - Add the Leader or Support character that joins the unit, switch between Shooting and Fight.
-- Tick the situation (stood still, half range, in cover...) and any buff or debuff: +1 to hit,
-  re-rolls, Lethal Hits, Feel No Pain... The numbers update as you tick.
+- Tick any buff or debuff on either side: +1 to hit, re-rolls, Lethal Hits, cover, Feel No
+  Pain... and give the distance to the target, which decides which weapons are in range and
+  whether Rapid Fire or Melta apply. The numbers update as you tick.
 - Untick weapons you wouldn't fire, and drag the defender's models to change who takes the
   wounds first.
 - The little eye icons open the army's rules and stratagems, or a unit's abilities.

@@ -1,4 +1,4 @@
-"""Middle third of the Armies Auspex window: phase/situation controls and the simulation results."""
+"""Middle third of the Armies Auspex window: the phase and the simulation results."""
 from __future__ import annotations
 
 import tkinter as tk
@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from command_center.config import ATTRIBUTION_SHORT as ATTRIBUTION
-from command_center.core import Modifiers, SimResult
+from command_center.core import SimResult
 from command_center.ui.theme import C
 from command_center.ui.widgets import make_tree, pct
 
@@ -34,30 +34,8 @@ class ResultsPanel(ttk.Frame):
             ttk.Radiobutton(ph, text=text, value=val, variable=win.phase, style="Panel.TRadiobutton",
                             command=win.on_phase).pack(side="left", padx=4)
 
-        sit = ttk.LabelFrame(self, text="Situation", style="Panel.TLabelframe", padding=6)
-        sit.pack(fill="x", pady=(6, 8))
-        self.sit_vars = {}
-        layout = [  # (row, column, key, label)
-            (0, 0, "stationary", "Remained stationary (Heavy +1 to hit)"),
-            (0, 1, "plunging_fire", "Plunging Fire (+1 BS)"),
-            (1, 0, "half_range", "Within half range (Melta, Rapid Fire)"),
-            (1, 1, "charged", "Charged this turn (Lance)"),
-            (2, 0, "beyond_12", "Target beyond 12\" (Conversion)"),
-            (3, 0, "not_visible", "Target not visible (Indirect Fire, 6s)"),
-            (3, 1, "spotted", "Spotted (fixed 4+)"),
-        ]
-        self._sit_checks = {}
-        for r, c, key, label in layout:
-            v = tk.BooleanVar(value=False)
-            cb = ttk.Checkbutton(sit, text=label, variable=v, style="Panel.TCheckbutton",
-                                 command=lambda k=key: self._on_situation(k))
-            cb.grid(row=r, column=c, sticky="w", padx=(0, 12), pady=1)
-            self.sit_vars[key] = v
-            self._sit_checks[key] = cb
-        self._sit_checks["spotted"].state(["disabled"])
-
         self.title_lbl = ttk.Label(self, text="", style="H2.TLabel", wraplength=440, justify="center")
-        self.title_lbl.pack(fill="x", pady=(2, 8))
+        self.title_lbl.pack(fill="x", pady=(8, 8))
 
         cards = ttk.Frame(self, style="Flat.TFrame")
         cards.pack(fill="x")
@@ -89,19 +67,6 @@ class ResultsPanel(ttk.Frame):
         self.status.pack(anchor="w")
         ttk.Label(self, text=ATTRIBUTION, style="Muted.TLabel").pack(anchor="w")
         self.result: SimResult | None = None
-
-    def _on_situation(self, key: str):
-        if key == "not_visible":      # "Spotted" only means something for a non-visible target
-            if self.sit_vars["not_visible"].get():
-                self._sit_checks["spotted"].state(["!disabled"])
-            else:
-                self.sit_vars["spotted"].set(False)
-                self._sit_checks["spotted"].state(["disabled"])
-        self.win.schedule()
-
-    def apply_mods(self, m: Modifiers):
-        for k, v in self.sit_vars.items():
-            setattr(m, k, bool(v.get()))
 
     def busy(self, title: str):
         self.title_lbl.configure(text=title)

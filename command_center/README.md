@@ -165,8 +165,15 @@ a future web front end) without tkinter.
 
 One unit (with its Leader and Support characters) against another, simulated again at every
 change: `command_center.core.simulate()` with the trials of `ctx.settings` (20,000). The
-situation (stationary, half range, cover...), the attacker's and defender's modifiers and the
-weapons ticked make one `Modifiers` set; the defender's wound allocation order is the list on
+attacker's and defender's modifiers and the weapons ticked make one `Modifiers` set. Maluses
+can be ignored per kind (Skill, hit roll, wound roll): each one is dropped, the bonuses stay.
+Distance rules only come into play with the attacker's **effective range** (`∞` by default:
+every weapon shoots): out-of-range weapons don't shoot, below 2" only [CLOSE-QUARTERS] ones
+do, Rapid Fire and Melta apply within half the weapon's range, Conversion beyond 12", and a
+Hidden defender is not visible from further than its distance (15" unless typed), except to
+attacks that ignore cover. A target
+that is not visible is only shot at by [INDIRECT FIRE] weapons. The defender's additional
+invulnerable save never replaces a better one of its own. The wound allocation order is the list on
 the right (drag to reorder; Precision attacks go to the chosen character). Results: expected
 damage, models slain and the chance to destroy the unit, the distribution of models slain,
 and a line per weapon (attacks, hits, wounds, unsaved, damage).
@@ -210,7 +217,14 @@ some modifiers and press **Add test**. All ticked modifiers are applied **togeth
 as one test; add as many tests as you like. An attacker test also says which phases
 it runs in (Shooting, Fight or both); a modifier that means nothing in a phase (cover
 in the Fight phase) is dropped there. Ticking a unit gives it a "No modifiers" test;
-unticking it deletes all its tests.
+unticking it deletes all its tests. The modifiers are those of the Armies Auspex
+(`analysis/variants.py`). The ones that take a value (crit rolls, Sustained Hits, Attacks,
+Strength, AP, Damage, Blast / Cleave, Rapid Fire, Effective range; Hidden distance, Feel No
+Pain and what it is against, additional invulnerable save, Toughness, Save) show it in the
+**Value** column: click it to pick another from the drop-down or type one, which also ticks
+the modifier. In a test such a modifier is written `key=value` (`sustained=D3`, `range=12"`),
+always with the same spelling for the same value. A saved test has the fixed-value modifiers
+of earlier versions rewritten, and loses those that no longer exist.
 
 Every attacker test (in each of its phases) is run against every defender test: an
 attacker with {No modifiers: both phases} and {+1 to hit, Re-roll failed wounds: Shooting}

@@ -91,7 +91,6 @@ class AuspexWindow(ToolWindow):
         mods = Modifiers()
         att.apply_mods(mods)
         dfn.apply_mods(mods)
-        self.results.apply_mods(mods)
         self._gen += 1
         gen = self._gen
         self.results.busy(title)

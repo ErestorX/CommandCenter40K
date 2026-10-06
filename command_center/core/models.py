@@ -29,6 +29,12 @@ class Weapon:
         return self.type.lower() == "melee"
 
     @property
+    def max_range(self) -> float | None:
+        """Range in inches ('24"' -> 24.0); None when it has none written (Melee, N/A)."""
+        m = re.search(r"\d+(?:\.\d+)?", self.range)
+        return float(m.group()) if m else None
+
+    @property
     def base_name(self) -> str:
         """'Plasma decimator – supercharge' -> 'Plasma decimator'."""
         return re.split(r"\s+[–—-]\s+", self.name, maxsplit=1)[0]

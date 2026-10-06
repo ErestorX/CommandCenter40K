@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 from command_center import config
-from command_center.analysis.variants import MELEE, PHASES
+from command_center.analysis.variants import ATTACKER_VARIANTS, DEFENDER_VARIANTS, MELEE, PHASES, known
 from command_center.core.models import WeaponLoad
 from command_center.data.wahapedia import Wahapedia
 from command_center.lists import ArmyList, ListUnit, target_for, weapon_loads
@@ -93,8 +93,13 @@ class PlanStore:
                 p = UnitPlan.from_dict(d)
             except (TypeError, AttributeError):
                 continue            # unreadable entry: ignore it
+            role = k.split("|")[1]
+            tests, p.tests = p.tests, []
+            for t in tests:                      # modifiers that no longer exist are dropped from their tests
+                t.mods = known(t.mods, ATTACKER_VARIANTS if role == ATTACKER else DEFENDER_VARIANTS)
+                p.add_test(t)
             if p.included and not p.tests:       # saved by the one-scenario-at-a-time version
-                p.set_included(True, k.split("|")[1])
+                p.set_included(True, role)
             self._plans[k] = p
 
     def save(self) -> None:

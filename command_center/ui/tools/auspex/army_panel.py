@@ -45,7 +45,7 @@ class ArmyPanel(ttk.Frame):
         ttk.Label(head, text=sub, style="Muted.TLabel", wraplength=400).pack(side="left", anchor="w")
 
         f, self.units_tree = make_tree(self, [("unit", "Unit"), ("n", "Models"), ("pts", "Pts")],
-                                       [-200, 60, 50], height=6)
+                                       [-200, 60, 50], height=5 if attacker else 6)   # room for the weapons
         f.pack(fill="both", expand=True)
         for u in army.units:
             mark = "☆ " if u.is_support else "★ " if u.is_character else ""
@@ -188,6 +188,10 @@ class ArmyPanel(ttk.Frame):
     IF_WEAKER = {"never": "none", "always": "always", "S < T": "lt", "S <= T": "le"}      # +1 to wound
     IF_STRONGER = {"never": "none", "always": "always", "S > T": "gt", "S >= T": "ge"}   # -1 to be wounded
     FNP_AGAINST = {"all": "all", "psychic": "psychic", "mortal": "mortal", "psychic/mortal": "psychic_mortal"}
+    SKILL = {"-1": -1, "none": 0, "+1": 1}
+    RANGE_ANY = "∞"
+    RANGES = [RANGE_ANY, '<2"', '6"', '9"', '12"', '18"', '24"', '36"', '48"']
+    HIDDEN_DISTANCE = 15        # inches, unless another distance is typed
 
     def _build_mods(self, attacker: bool):
         box = ttk.LabelFrame(self, text="Attacker modifiers" if attacker else "Defender modifiers",
@@ -198,62 +202,152 @@ class ArmyPanel(ttk.Frame):
         self.vars: dict[str, tk.Variable] = {}
         self.fields: dict[str, tuple[tk.StringVar, str, tk.Entry]] = {}
 
-        def combo(r, c, label, key, values, default, width=7):
+        def combo(r, c, label, key, values, default, width=7, tip=""):
             ttk.Label(box, text=label, style="Panel.TLabel").grid(row=r, column=c, sticky="w", padx=(0, 4), pady=2)
             v = tk.StringVar(value=default)
             cb = ttk.Combobox(box, textvariable=v, values=values, state="readonly", width=width)
             cb.grid(row=r, column=c + 1, sticky="w", padx=(0, 10), pady=2)
             cb.bind("<<ComboboxSelected>>", lambda e: self.win.schedule())
+            if tip:
+                Tooltip(cb, tip)
             self.vars[key] = v
+            return cb
 
-        def check(r, c, label, key):
+        def check(r, c, label, key, tip="", parent=None):
             v = tk.BooleanVar(value=False)
-            ttk.Checkbutton(box, text=label, variable=v, style="Panel.TCheckbutton",
-                            command=self.win.schedule).grid(row=r, column=c, columnspan=2, sticky="w", pady=2)
+            cb = ttk.Checkbutton(parent or box, text=label, variable=v, style="Panel.TCheckbutton",
+                                 command=self.win.schedule)
+            if parent:
+                cb.pack(side="left", padx=(0, 8))
+            else:
+                cb.grid(row=r, column=c, columnspan=2, sticky="w", pady=2)
+            if tip:
+                Tooltip(cb, tip)
             self.vars[key] = v
+            return cb
+
+        def checks(r, specs, title=""):
+            """A row of tick boxes: (label, key, tooltip)."""
+            row = ttk.Frame(box, style="Flat.TFrame")
+            row.grid(row=r, column=0, columnspan=4, sticky="w", pady=2)
+            if title:
+                ttk.Label(row, text=title, style="Panel.TLabel").pack(side="left", padx=(0, 6))
+            return [check(r, 0, label, key, tip, parent=row) for label, key, tip in specs]
+
+        def entry(row, key, kind, tip, default=""):
+            v = tk.StringVar(value=default)
+            e = tk.Entry(row, textvariable=v, width=5, relief="solid", borderwidth=1, highlightthickness=0,
+                         bg=C["field"], justify="center")
+            e.pack(side="left", padx=(0, 10))
+            Tooltip(e, tip)
+            v.trace_add("write", lambda *_a, k=key: self._on_field(k))
+            self.fields[key] = (v, kind, e)
 
         def fields(r, specs):
-            """A row of small free-text fields: (label, key, 'dice'|'amount'|'int', tooltip)."""
+            """A row of small free-text fields: (label, key, 'dice'|'amount'|'int'|'inches', tooltip)."""
             row = ttk.Frame(box, style="Flat.TFrame")
             row.grid(row=r, column=0, columnspan=4, sticky="w", pady=(4, 2))
             for label, key, kind, tip in specs:
                 ttk.Label(row, text=label, style="Panel.TLabel").pack(side="left", padx=(0, 4))
-                v = tk.StringVar(value="")
-                e = tk.Entry(row, textvariable=v, width=5, relief="solid", borderwidth=1, highlightthickness=0,
-                             bg=C["field"], justify="center")
-                e.pack(side="left", padx=(0, 10))
-                Tooltip(e, tip)
-                v.trace_add("write", lambda *_a, k=key: self._on_field(k))
-                self.fields[key] = (v, kind, e)
+                entry(row, key, kind, tip)
 
         if attacker:
             combo(0, 0, "Hit roll", "hit_mod", ["-1", "0", "+1"], "0")
             combo(0, 2, "+1 to wound", "wound_plus", list(self.IF_WEAKER), "never")
-            combo(1, 0, "Re-roll hits", "reroll_hits", list(self.REROLLS), "none")
-            combo(1, 2, "Re-roll wounds", "reroll_wounds", list(self.REROLLS), "none")
-            combo(2, 0, "Crit hits on", "crit_hit_on", ["6+", "5+", "4+", "3+", "2+"], "6+")
-            combo(2, 2, "Crit wounds on", "crit_wound_on", ["6+", "5+", "4+", "3+", "2+"], "6+")
-            check(3, 0, "Lethal Hits", "add_lethal_hits")
-            check(3, 2, "Devastating Wounds", "add_devastating_wounds")
-            check(4, 0, "Precision", "add_precision")
-            fields(5, [("Sustained Hits", "add_sustained_hits", "amount",
-                        "Grants [SUSTAINED HITS X]: 1, 2, D3. A weapon that already has it keeps the bigger one")])
-            fields(6, [("Attacks", "extra_attacks", "dice", "Added to each model's Attacks: +1, -1, D3, +D3"),
+            combo(1, 0, "Skill", "skill_mod", list(self.SKILL), "none",
+                  tip="Modifier to the BS / WS: +1 improves it (4+ becomes 3+), -1 worsens it")
+            rng = combo(1, 2, "Effective range", "effective_range", self.RANGES, self.RANGE_ANY,
+                        tip="Distance to the target, in inches (any number can be typed).\n"
+                            "∞: every weapon shoots and no distance rule comes into play.\n"
+                            '<2": only [CLOSE-QUARTERS] weapons shoot.\n'
+                            "Otherwise weapons out of range don't shoot, Rapid Fire and Melta apply within half "
+                            'range, Conversion beyond 12", and a Hidden target is seen from close enough only.')
+            rng.configure(state="normal")
+            self._range_box = rng
+            self.vars["effective_range"].trace_add("write", lambda *_a: self._on_range())
+            combo(2, 0, "Re-roll hits", "reroll_hits", list(self.REROLLS), "none")
+            combo(2, 2, "Re-roll wounds", "reroll_wounds", list(self.REROLLS), "none")
+            combo(3, 0, "Crit hits on", "crit_hit_on", ["6+", "5+", "4+", "3+", "2+"], "6+")
+            combo(3, 2, "Crit wounds on", "crit_wound_on", ["6+", "5+", "4+", "3+", "2+"], "6+")
+            checks(4, [("Lethal Hits", "add_lethal_hits", ""),
+                       ("Devastating Wounds", "add_devastating_wounds", ""),
+                       ("Precision", "add_precision", "")])
+            checks(5, [("cover", "ignores_cover", "Ranged attacks ignore the Benefit of Cover, and a Hidden target is visible to them"),
+                       ("Skill mods", "ignores_skill_maluses",
+                        "Whatever worsens the BS / WS is ignored (cover, -1 Skill); bonuses still apply"),
+                       ("hit mods", "ignores_hit_maluses",
+                        "Negative modifiers to the hit roll are ignored; bonuses still apply"),
+                       ("wound mods", "ignores_wound_maluses",
+                        "Negative modifiers to the wound roll are ignored; bonuses still apply")], title="Ignores")
+            _, not_visible, self._spotted = checks(6, [
+                ("Plunging Fire", "plunging_fire", "Improves the BS of ranged attacks by 1"),
+                ("Target not visible", "not_visible", "Only [INDIRECT FIRE] weapons shoot, and only unmodified 6s hit"),
+                ("Spotted", "spotted", "A target that is not visible but spotted is hit on a fixed 4+")])
+            not_visible.configure(command=self._on_not_visible)
+            self._spotted.state(["disabled"])
+            fields(7, [("Sustained Hits", "add_sustained_hits", "amount",
+                        "Grants [SUSTAINED HITS X]: 1, 2, D3. A weapon that already has it keeps the bigger one"),
+                       ("Blast / Cleave", "add_blast", "int",
+                        "Grants [BLAST X] / [CLEAVE X]: +X attacks for each full 5 models in the target. "
+                        "A weapon that already has it keeps the bigger one"),
+                       ("Rapid Fire", "add_rapid_fire", "amount",
+                        "Grants [RAPID FIRE X] to ranged weapons: 1, 2, D3. It applies within half the weapon's "
+                        "range, so it needs an effective range")])
+            fields(8, [("Attacks", "extra_attacks", "dice", "Added to each model's Attacks: +1, -1, D3, +D3"),
                        ("S", "extra_strength", "int", "Added to the weapons' Strength: +1, -1"),
                        ("AP", "extra_ap", "int", "+1 improves AP (AP-1 becomes AP-2), -1 worsens it"),
                        ("Damage", "extra_damage", "dice", "Added to each attack's Damage: +1, -1, D3")])
         else:
             check(0, 0, "Cover (-1 BS)", "cover")
-            combo(0, 2, "Invuln (override)", "invuln_override", ["none", "6+", "5+", "4+", "3+"], "none")
-            check(1, 0, "-1 to be hit", "minus_hit")
-            combo(1, 2, "-1 to be wounded", "minus_wound", list(self.IF_STRONGER), "never")
-            check(2, 0, "-1 Damage", "damage_reduction")
-            check(2, 2, "Halve Damage", "halve_damage")
-            combo(3, 0, "Feel No Pain", "feel_no_pain", ["none", "6+", "5+", "4+", "3+"], "none")
-            combo(3, 2, "FNP against", "fnp_against", list(self.FNP_AGAINST), "all", width=13)
-            fields(4, [("Toughness", "toughness_mod", "int", "Added to the unit's Toughness: +1, -1"),
+            combo(0, 2, "Additional invuln", "extra_invuln", ["none", "6+", "5+", "4+", "3+"], "none",
+                  tip="An invulnerable save on top of the models' own: each model uses the better of the two")
+            row = ttk.Frame(box, style="Flat.TFrame")
+            row.grid(row=1, column=0, columnspan=2, sticky="w", pady=2)
+            check(1, 0, "Hidden beyond", "hidden", parent=row,
+                  tip="Not visible to attackers further away than this distance: only [INDIRECT FIRE] weapons "
+                      "shoot.\nIt needs the attacker's effective range, and attacks that ignore cover see through it")
+            row.winfo_children()[-1].pack_configure(padx=(0, 4))
+            entry(row, "hidden_beyond", "inches", "Distance in inches (15 if left empty)", str(self.HIDDEN_DISTANCE))
+            row.winfo_children()[-1].pack_configure(padx=(0, 2))
+            ttk.Label(row, text='"', style="Panel.TLabel").pack(side="left", padx=(0, 10))
+            combo(1, 2, "Skill", "enemy_skill_mod", list(self.SKILL), "none",
+                  tip="Modifier to the attackers' BS / WS: -1 worsens it (3+ becomes 4+)")
+            check(2, 0, "-1 to be hit", "minus_hit")
+            combo(2, 2, "-1 to be wounded", "minus_wound", list(self.IF_STRONGER), "never")
+            check(3, 0, "-1 Damage", "damage_reduction")
+            check(3, 2, "Halve Damage", "halve_damage")
+            combo(4, 0, "Feel No Pain", "feel_no_pain", ["none", "6+", "5+", "4+", "3+"], "none")
+            combo(4, 2, "FNP against", "fnp_against", list(self.FNP_AGAINST), "all", width=13)
+            fields(5, [("Toughness", "toughness_mod", "int", "Added to the unit's Toughness: +1, -1"),
                        ("Save", "save_char_mod", "int", "+1 improves the Save characteristic (3+ becomes 2+)"),
                        ("AP", "ap_mod", "int", "Change to incoming AP: -1 worsens it (AP-2 becomes AP-1)")])
+
+    def _on_not_visible(self):
+        if self.vars["not_visible"].get():       # "Spotted" only means something for a non-visible target
+            self._spotted.state(["!disabled"])
+        else:
+            self.vars["spotted"].set(False)
+            self._spotted.state(["disabled"])
+        self.win.schedule()
+
+    def _on_range(self):
+        try:
+            self._parse_range(self.vars["effective_range"].get())
+            self._range_box.configure(foreground=C["ink"])
+        except ValueError:
+            self._range_box.configure(foreground=C["warn"])     # not a distance: ignored in the simulation
+        self.win.schedule()
+
+    @classmethod
+    def _parse_range(cls, text: str) -> float | None:
+        """'∞' or nothing: None (no distance rule); '<2"': just under 2; '18"' or '18': 18.0. Else ValueError."""
+        t = text.strip().rstrip('"').strip().replace(",", ".")
+        if t in ("", cls.RANGE_ANY):
+            return None
+        d = float(t[1:]) - 0.5 if t.startswith("<") else float(t)
+        if d < 0:
+            raise ValueError(text)
+        return d
 
     @staticmethod
     def _parse_field(text: str, kind: str):
@@ -265,6 +359,8 @@ class ArmyPanel(ttk.Frame):
             return Dice.parse(t)
         if t in ("", "+", "-"):
             return 0
+        if kind == "inches":
+            return float(t.rstrip('"').replace(",", "."))
         return int(t.replace(" ", ""))
 
     def _on_field(self, key: str):
@@ -288,6 +384,17 @@ class ArmyPanel(ttk.Frame):
         num = lambda s: int(str(s).rstrip("+")) if s not in ("none", "") else None
         if self.role == "attacker":
             m.hit_mod += int(v["hit_mod"])
+            m.skill_mod += self.SKILL[v["skill_mod"]]
+            try:
+                m.effective_range = self._parse_range(v["effective_range"])
+            except ValueError:
+                pass                             # not a distance: no distance rule
+            m.plunging_fire, m.ignores_cover = v["plunging_fire"], v["ignores_cover"]
+            m.ignores_skill_maluses, m.ignores_hit_maluses = v["ignores_skill_maluses"], v["ignores_hit_maluses"]
+            m.ignores_wound_maluses = v["ignores_wound_maluses"]
+            m.not_visible, m.spotted = v["not_visible"], v["spotted"]
+            m.add_blast = max(0, self.field_value("add_blast"))
+            m.add_rapid_fire = self.field_value("add_rapid_fire")
             m.reroll_hits = self.REROLLS[v["reroll_hits"]]
             m.reroll_wounds = self.REROLLS[v["reroll_wounds"]]
             wound_plus = self.IF_WEAKER[v["wound_plus"]]
@@ -311,10 +418,13 @@ class ArmyPanel(ttk.Frame):
             m.to_be_hit_mod -= int(v["minus_hit"])
             m.damage_reduction = int(v["damage_reduction"])
             m.halve_damage = v["halve_damage"]
-            m.invuln_override = num(v["invuln_override"])
+            m.extra_invuln = num(v["extra_invuln"])
+            if v["hidden"]:
+                m.hidden_beyond = self.field_value("hidden_beyond") or self.HIDDEN_DISTANCE
+            m.enemy_skill_mod += self.SKILL[v["enemy_skill_mod"]]
             minus_wound = self.IF_STRONGER[v["minus_wound"]]
             if minus_wound == "always":
-                m.wound_mod -= 1
+                m.to_be_wounded_mod -= 1
             else:
                 m.wound_minus_if_stronger = minus_wound
             m.toughness_mod += self.field_value("toughness_mod")

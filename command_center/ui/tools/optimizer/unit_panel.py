@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from command_center.analysis.plan import (ATTACKER, DEFAULT, NONE, TestPackage, UnitPlan, all_loads, default_on,
                                           resolve_attached, test_count, weapon_key)
 from command_center.analysis.variants import (ATTACKER_VARIANTS, DEFENDER_VARIANTS, PHASE_LABEL, PHASES, package_label,
-                                              toggle)
+                                              split, toggle, with_value)
 from command_center.lists import ArmyList, ListUnit, target_for
 from command_center.ui.theme import C
 from command_center.ui.views.rules import show_army_rules, show_unit_abilities
@@ -222,21 +222,26 @@ class UnitPlanPanel(ttk.Frame):
         self.nb.add(tab, text="Tests")
         self.catalogue = ATTACKER_VARIANTS if attacker else DEFENDER_VARIANTS
         self.draft: list[str] = []            # modifiers ticked for the next test (kept across units)
+        # the value each modifier that takes one would be ticked with (kept across units)
+        self.values: dict[str, str] = {k: v.param.default for k, v in self.catalogue.items() if v.param}
+        self._editor: ttk.Combobox | None = None
         ttk.Label(tab, text="Tick modifiers, then Add test: they are applied together, as one test. "
-                            "Unticking the unit deletes its tests.",
+                            "Click a value to pick or type another. Unticking the unit deletes its tests.",
                   style="Muted.TLabel", wraplength=380, justify="left").pack(anchor="w")
-        f, self.mods_tree = make_tree(tab, [("on", "✓"), ("mod", "Modifier"), ("note", "")], [30, -190, 90],
-                                      height=9)
+        f, self.mods_tree = make_tree(tab, [("on", "✓"), ("mod", "Modifier"), ("value", "Value ▾"), ("note", "")],
+                                      [30, -150, 70, 86], height=9)
         f.pack(fill="both", expand=True, pady=(4, 0))
         self.mods_tree.tag_configure("group", foreground=C["muted"])
         self.mods_tree.bind("<ButtonRelease-1>", self._toggle_mod)
+        self.mods_tree.bind("<MouseWheel>", lambda e: self._close_editor(), add="+")
         group = None
         for v in self.catalogue.values():
             if v.group != group:
                 group = v.group
-                self.mods_tree.insert("", "end", iid=f"g:{group}", tags=("group",), values=("", group.upper(), ""))
+                self.mods_tree.insert("", "end", iid=f"g:{group}", tags=("group",),
+                                      values=("", group.upper(), "", ""))
             note = "" if set(v.phases) == set(PHASES) else f"{PHASE_LABEL[v.phases[0]].lower()} only"
-            self.mods_tree.insert("", "end", iid=f"v:{v.key}", values=(OFF, v.label, note))
+            self.mods_tree.insert("", "end", iid=f"v:{v.key}", values=(OFF, v.name, self.values.get(v.key, ""), note))
 
         bar = ttk.Frame(tab, style="Flat.TFrame")
         bar.pack(fill="x", pady=(4, 2))
@@ -263,21 +268,74 @@ class UnitPlanPanel(ttk.Frame):
 
     def _toggle_mod(self, e):
         row = self.mods_tree.identify_row(e.y)
+        self._close_editor()
         if not row.startswith("v:"):
             return
-        self.draft = toggle(self.draft, row[2:], self.catalogue)
+        v = self.catalogue[row[2:]]
+        if v.param and self.mods_tree.identify_column(e.x) == "#3":
+            self._edit_value(v.key)
+            return
+        self.draft = toggle(self.draft, v.mod(self.values.get(v.key, "")), self.catalogue)
         self._refresh_draft()
 
+    def _edit_value(self, key: str):
+        """A drop-down over the modifier's value cell: pick a value or type one."""
+        tree, param = self.mods_tree, self.catalogue[key].param
+        box = tree.bbox(f"v:{key}", "value")
+        if not box:
+            return
+        cb = ttk.Combobox(tree, values=param.choices, state="readonly" if param.kind == "choice" else "normal")
+        cb.set(self.values[key])
+        cb.place(x=box[0], y=box[1], width=box[2], height=box[3])
+        cb.focus_set()
+        cb.selection_range(0, "end")
+        self._editor = cb
+
+        def focus_out(_e):
+            if "popdown" not in str(cb.tk.call("focus")):        # its own drop-down list taking the focus
+                self._close_editor()
+        cb.bind("<<ComboboxSelected>>", lambda e: self._close_editor())
+        cb.bind("<Return>", lambda e: self._close_editor())
+        cb.bind("<Escape>", lambda e: self._close_editor(keep=False))
+        cb.bind("<FocusOut>", focus_out)
+        cb.key = key
+
+    def _close_editor(self, keep: bool = True):
+        """Take the edited value (one the modifier can't read is dropped), and tick its modifier."""
+        cb, self._editor = self._editor, None
+        if cb is None or not cb.winfo_exists():
+            return
+        key, text = cb.key, cb.get()
+        cb.destroy()
+        if keep:
+            self.set_value(key, text)
+
+    def set_value(self, key: str, text: str) -> bool:
+        """Give a modifier its value and tick it for the next test. False for a value it can't take."""
+        try:
+            mod = self.catalogue[key].mod(text)
+        except ValueError:
+            return False
+        self.values[key] = split(mod)[1]
+        self.mods_tree.set(f"v:{key}", "value", self.values[key])
+        ticked = {split(m)[0] for m in self.draft}
+        self.draft = with_value(self.draft, mod) if key in ticked else toggle(self.draft, mod, self.catalogue)
+        self._refresh_draft()
+        return True
+
     def _clear_draft(self):
+        self._close_editor(keep=False)
         self.draft = []
         self._refresh_draft()
 
     def _refresh_draft(self, message: str = ""):
+        ticked = {split(m)[0] for m in self.draft}
         for k in self.catalogue:
-            self.mods_tree.set(f"v:{k}", "on", ON if k in self.draft else OFF)
+            self.mods_tree.set(f"v:{k}", "on", ON if k in ticked else OFF)
         self.draft_label.configure(text=message or f"Next test: {package_label(self.draft, self.catalogue)}")
 
     def _add_test(self):
+        self._close_editor()
         if not self.unit or not self.unit.datasheet:
             return
         phases = [ph for ph, v in self.phase_vars.items() if v.get()]

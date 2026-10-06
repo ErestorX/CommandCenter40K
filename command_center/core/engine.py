@@ -15,6 +15,11 @@ Rules applied (11th edition):
 - A qualified ability such as "LETHAL HITS: non-MONSTER/VEHICLE" only applies when the target matches.
 - A [PSYCHIC] weapon ignores every malus to its hit rolls and its Skill (e.g. -1 to be hit, cover);
   bonuses still apply.
+- Distance rules need Modifiers.effective_range: a ranged weapon out of range doesn't shoot, below 2"
+  only [CLOSE-QUARTERS] weapons do, [RAPID FIRE] and [MELTA] apply within half the weapon's range,
+  [CONVERSION] beyond 12", and a Hidden target is not visible from further than its distance,
+  except to attacks that ignore cover.
+- A target that is not visible can only be shot at by [INDIRECT FIRE] weapons.
 """
 from __future__ import annotations
 
@@ -45,14 +50,18 @@ def _clamp(m: int) -> int:
     return max(-1, min(1, m))
 
 
-def _s_vs_t_wound_mod(S: int, T: int, mods: Modifiers) -> int:
+def _no_maluses(mods: list[int]) -> list[int]:
+    return [max(0, m) for m in mods]
+
+
+def _s_vs_t_wound_mods(S: int, T: int, mods: Modifiers) -> list[int]:
     """Wound roll modifiers that depend on Strength vs Toughness (both after modifiers)."""
-    m = 0
+    out = []
     if (mods.wound_plus_if_weaker == "lt" and S < T) or (mods.wound_plus_if_weaker == "le" and S <= T):
-        m += 1
+        out.append(1)
     if (mods.wound_minus_if_stronger == "gt" and S > T) or (mods.wound_minus_if_stronger == "ge" and S >= T):
-        m -= 1
-    return m
+        out.append(-1)
+    return out
 
 
 def _fnp_applies(against: str, psychic: bool, mortal: bool) -> bool:
@@ -164,16 +173,28 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
 
     for wi, ld in enumerate(loads):
         w, kw = ld.weapon, ld.weapon.keywords
+        # ---------- distance and visibility (ranged weapons) ----------
+        dist, reach = (None, None) if w.melee else (mods.effective_range, w.max_range)
+        ignores_cover = kw.ignores_cover or mods.ignores_cover             # which also sees a Hidden target
+        hidden = (dist is not None and mods.hidden_beyond is not None and dist > mods.hidden_beyond
+                  and not ignores_cover)
+        not_visible = not w.melee and (mods.not_visible or hidden)
+        shoots = kw.indirect_fire or not not_visible
+        if dist is not None:
+            shoots = shoots and (kw.close_quarters if dist < 2 else reach is None or dist <= reach)
+        half_range = dist is not None and reach is not None and dist <= reach / 2
+
         # ---------- attacks ----------
         attacks = np.zeros(trials, dtype=np.int64)
-        bonus_dice = (kw.blast + kw.cleave) * (n_target // 5)
-        for _ in range(ld.count):
+        bonus_dice = max(kw.blast + kw.cleave, mods.add_blast) * (n_target // 5)   # never both: keep the bigger
+        rapid_fire = Dice() if w.melee else max(kw.rapid_fire, mods.add_rapid_fire, key=lambda d: d.mean)
+        for _ in range(ld.count if shoots else 0):
             a = w.A.roll(rng, trials)
             if mods.extra_attacks:
                 a = np.maximum(1, a + mods.extra_attacks.roll(rng, trials))   # Attacks can't drop below 1
             attacks += a + bonus_dice
-            if mods.half_range and kw.rapid_fire:
-                attacks += kw.rapid_fire.roll(rng, trials)
+            if half_range and rapid_fire:
+                attacks += rapid_fire.roll(rng, trials)
         idx = np.repeat(np.arange(trials), attacks)
 
         # ---------- hits ----------
@@ -184,20 +205,22 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
             crit = np.zeros(idx.size, bool)
             normal_hit = np.ones(idx.size, bool)
         else:
-            indirect = kw.indirect_fire and mods.not_visible
-            skill = w.skill
+            indirect = kw.indirect_fire and not_visible
+            skill_mods = [mods.skill_mod, mods.enemy_skill_mod]     # +1 improves the Skill
             if not w.melee:
-                if (mods.cover or indirect) and not kw.ignores_cover and not kw.psychic:
-                    skill += 1                  # Benefit of Cover: worsen BS by 1
+                if (mods.cover or indirect) and not ignores_cover:
+                    skill_mods.append(-1)       # Benefit of Cover: worsen BS by 1
                 if mods.plunging_fire:
-                    skill -= 1                  # Plunging Fire: improve BS by 1
-                skill = max(2, skill)           # a characteristic can't be better than 2+
-            hit_mods = [mods.hit_mod, mods.to_be_hit_mod, 1 if kw.heavy and mods.stationary else 0]
-            if kw.psychic:
-                hit_mods = [max(0, m) for m in hit_mods]     # [PSYCHIC]: maluses are ignored
+                    skill_mods.append(1)        # Plunging Fire: improve BS by 1
+            if kw.psychic or mods.ignores_skill_maluses:            # [PSYCHIC]: maluses are ignored
+                skill_mods = _no_maluses(skill_mods)
+            skill = max(2, w.skill - sum(skill_mods))               # a characteristic can't be better than 2+
+            hit_mods = [mods.hit_mod, mods.to_be_hit_mod]
+            if kw.psychic or mods.ignores_hit_maluses:
+                hit_mods = _no_maluses(hit_mods)
             need = skill - _clamp(sum(hit_mods))
             crit_on = mods.crit_hit_on
-            if kw.conversion and mods.beyond_12:
+            if kw.conversion and dist is not None and dist > 12:
                 crit_on = min(crit_on, 4)
 
             if indirect:
@@ -222,8 +245,10 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
 
         # ---------- wounds ----------
         S = max(1, w.S + mods.extra_strength)
-        wmod = _clamp(mods.wound_mod + (1 if kw.lance and mods.charged else 0) + _s_vs_t_wound_mod(S, T, mods))
-        need_w = wound_target(S, T) - wmod
+        wound_mods = [mods.wound_mod, mods.to_be_wounded_mod] + _s_vs_t_wound_mods(S, T, mods)
+        if mods.ignores_wound_maluses:
+            wound_mods = _no_maluses(wound_mods)
+        need_w = wound_target(S, T) - _clamp(sum(wound_mods))
         crit_w = mods.crit_wound_on
         for cond, v in kw.anti:
             if target_matches(cond, tkw):
@@ -244,7 +269,7 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
         fnp_dev = _fnp_applies(mods.fnp_against, kw.psychic, mortal=True)
 
         def dmg(k, fnp):
-            d = w.D.roll(rng, k) + (kw.melta if mods.half_range else 0)
+            d = w.D.roll(rng, k) + (kw.melta if half_range else 0)
             if mods.extra_damage:
                 d = d + mods.extra_damage.roll(rng, k)
             if mods.halve_damage:
@@ -264,7 +289,7 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
             p = g.profile
             sv = max(2, p.Sv - mods.save_char_mod)
             armour_ok = (sr != 1) & (sr - ap + min(1, mods.save_mod) >= sv)
-            inv = mods.invuln_override or p.inv
+            inv = min((i for i in (p.inv, mods.extra_invuln) if i), default=None)
             inv_ok = (sr >= inv) if inv else np.zeros(sr.size, bool)
             unsaved[:, gi] = ~(armour_ok | inv_ok)
 
