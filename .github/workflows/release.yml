@@ -47,8 +47,8 @@ jobs:
         run: |
           Set-Content version.txt $env:GITHUB_REF_NAME -Encoding ascii
           python -m PyInstaller main.py --name "$env:APP_NAME" --windowed --noconfirm `
-            --collect-submodules command_center `
-            --add-data "assets/fonts:assets/fonts" --add-data "version.txt:."
+            --collect-submodules command_center --icon assets/icon/icon.ico `
+            --add-data "assets/fonts:assets/fonts" --add-data "assets/icon:assets/icon" --add-data "version.txt:."
 
       # A build that cannot start shows PyInstaller's "Unhandled exception" window, or nothing at all.
       - name: Start the built app (Windows)
@@ -72,20 +72,28 @@ jobs:
 
       # macOS: a .app, with the lists inside it: the app copies them to the user's folder at its first
       # start (~/Library/Application Support/<the app's name>), where its data and saved work go too.
+      # certifi: the certificates HTTPS is checked against (command_center.release.use_bundled_certificates).
       - name: Build (macOS)
         if: runner.os == 'macOS'
         run: |
           echo "$GITHUB_REF_NAME" > version.txt
+          python -m pip install certifi
           python -m PyInstaller main.py --name "$APP_NAME" --windowed --noconfirm \
-            --collect-submodules command_center \
+            --collect-submodules command_center --collect-data certifi --icon assets/icon/icon.icns \
             --osx-bundle-identifier com.erestorx.commandcenter40k \
-            --add-data "assets/fonts:assets/fonts" --add-data "version.txt:." --add-data "lists:lists"
+            --add-data "assets/fonts:assets/fonts" --add-data "assets/icon:assets/icon" \
+            --add-data "version.txt:." --add-data "lists:lists"
 
-      # Started: still running once its data is fetched (or after two minutes), and its first start has
-      # put the lists in place. A picture of the screen is kept with the run, to see what came up.
+      # Started: still running once its data is fetched (or after two minutes), its first start has put
+      # the lists in place, and the data is there. As on a Mac without Python: this runner's Python has
+      # certificates of its own, which the app would find and use (v1.0.2 could not download anything
+      # anywhere else). A picture of the screen is kept with the run, to see what came up.
       - name: Start the built app (macOS)
         if: runner.os == 'macOS'
         run: |
+          cafile=$(python -c "import ssl; print(ssl.get_default_verify_paths().openssl_cafile)")
+          echo "Hiding $cafile"; ls -l "$cafile" || true
+          sudo mv "$cafile" "$cafile.hidden"
           home="$HOME/Library/Application Support/$APP_NAME"
           "dist/$APP_NAME.app/Contents/MacOS/$APP_NAME" &
           pid=$!
@@ -97,6 +105,7 @@ jobs:
           kill $pid 2>/dev/null || true
           [ "$alive" = yes ] || { echo "The built app did not stay up"; exit 1; }
           ls "$home/lists"/*.txt > /dev/null || { echo "The built app did not install its lists"; exit 1; }
+          [ -f "$home/wahapedia_data/wh40k11ed/manifest.json" ] || { echo "The built app did not fetch its data"; exit 1; }
 
       # ditto: a zip that keeps the .app's links and permissions (and what the app unpacks an update with).
       - name: Zip (macOS)

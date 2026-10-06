@@ -11,6 +11,7 @@ from tkinter import messagebox
 
 from command_center.context import AppContext
 from command_center.lists.library import install_bundled_lists
+from command_center.release import use_bundled_certificates
 from command_center.ui.appupdate import update_app
 from command_center.ui.launcher import Launcher
 from command_center.ui.registry import Selection, discover, get_tool
@@ -25,6 +26,10 @@ def dpi_aware() -> None:
             import ctypes
             ctypes.windll.shcore.SetProcessDpiAwareness(1)
         except Exception:  # noqa: BLE001 - older Windows, or already set: keep the scaling there is
+            pass
+        try:        # an app of its own in the taskbar, with its windows' icon: not grouped under Python's
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ErestorX.CommandCenter40K")
+        except Exception:  # noqa: BLE001 - cosmetic only
             pass
 
 
@@ -59,6 +64,7 @@ def main(data_dir: str | None = None) -> None:
     """data_dir: a folder of Wahapedia CSVs to use as it is; without one, the app's own data, which is
     fetched again first when its last check is more than a day old."""
     discover()
+    use_bundled_certificates()
     install_bundled_lists()
     if data_dir is None:
         dpi_aware()

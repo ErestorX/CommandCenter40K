@@ -144,6 +144,8 @@ command_center/
                           score_oracle.py: the floating Score Oracle window, with the score sheet
   README.md               this file
 tests/                    unit tests + small fixtures
+assets/icon/              the app's icon: skull_icon.png and what is made from it (icon.ico for Windows,
+                          icon.icns for the macOS .app, icon.png for windows elsewhere); set by theme.set_icon
 assets/fonts/             the display font (Caliban Angelus), loaded by the app itself: no install needed
 assets/screenshots/       the screenshots of the root README
 lists/                    your army lists

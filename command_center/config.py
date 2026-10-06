@@ -47,6 +47,9 @@ FONTS_DIR = BUNDLE_ROOT / "assets" / "fonts"     # the display font (see command
 GITHUB_REPO = "ErestorX/CommandCenter40K"
 RELEASE_ASSET = "CommandCenter40K-macos.zip" if MACOS else "CommandCenter40K-windows.zip"
 
+# The app's icon, made from skull_icon.png: icon.ico (Windows), icon.icns (the macOS .app), icon.png (windows elsewhere)
+ICON_DIR = BUNDLE_ROOT / "assets" / "icon"
+
 ATTRIBUTION = "Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are (c) Games Workshop."
 ATTRIBUTION_SHORT = "Powered by Wahapedia · rules and stats © Games Workshop"
 

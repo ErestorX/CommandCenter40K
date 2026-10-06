@@ -30,6 +30,19 @@ TIMEOUT = 5                       # seconds, for the check at start-up; the down
 BUNDLE_DIR = "_internal"          # PyInstaller's folder next to the .exe: everything that ships with the app
 
 
+def use_bundled_certificates() -> None:
+    """The packaged macOS app: check HTTPS against the certificates it carries (certifi). Python looks
+    for its own where it was installed on the machine that built the app; on a Mac without that Python
+    there are none, and every download fails. Nothing where certifi isn't bundled (Windows has its own store)."""
+    if not config.FROZEN:
+        return
+    try:
+        import certifi
+        os.environ["SSL_CERT_FILE"] = certifi.where()
+    except ImportError:
+        pass
+
+
 def current_version() -> str:
     """The tag the running app was built from; "" from the source."""
     if not config.FROZEN:

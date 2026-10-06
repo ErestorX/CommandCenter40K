@@ -86,6 +86,18 @@ def load_fonts() -> None:
         pass
 
 
+def set_icon(root: tk.Tk) -> None:
+    """The app's icon on this root's window and on every window opened from it (and so in the taskbar)."""
+    try:
+        if sys.platform == "win32":
+            root.iconbitmap(default=str(config.ICON_DIR / "icon.ico"))      # every size, sharp in the title bar
+        else:
+            root._icon = tk.PhotoImage(master=root, file=str(config.ICON_DIR / "icon.png"))
+            root.iconphoto(True, root._icon)
+    except Exception:  # noqa: BLE001 - cosmetic only: Tk's own icon
+        pass
+
+
 def dark_title_bar(win: tk.Misc) -> None:
     """Ask Windows for a dark title bar on a top-level window (ignored where it can't be done).
     To call once the window is set up: making it transient gives it a new frame, a plain one."""
@@ -125,6 +137,7 @@ def setup_style(root: tk.Tk) -> None:
         "accent": tkfont.Font(family=dis, size=11, weight="bold"),
     }
     root.configure(bg=C["bg"])
+    set_icon(root)
     dark_title_bar(root)
     # plain Tk widgets that are given no colours of their own
     for pattern, value in (("*Entry.background", C["field"]), ("*Entry.foreground", C["ink"]),
