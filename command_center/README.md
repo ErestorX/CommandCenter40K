@@ -136,7 +136,7 @@ command_center/
     launcher.py           choose attacker/defender lists, then a tool (list-free tools: apart, on the left)
     theme.py, widgets.py  the dark theme (colours, fonts, ttk styles), shared widgets
     translucent.py        see-through fills on a canvas: stipples, or images where Tk ignores them (macOS)
-    charts.py             canvas heatmap and bar chart with tooltips
+    charts.py             canvas heatmap, bar chart and stem chart with tooltips
     richtext.py           Wahapedia HTML -> text window, stratagem cards
     views/rules.py        army-rules and unit-abilities windows (reusable)
     views/scoresheet.py   score sheet parts: two players face to face, the rows of a primary mission
@@ -256,8 +256,11 @@ simulated separately, so a total doesn't account for Shooting casualties before 
   (any unit of a group finds it), and `subscribe(callback)` to hear about changes.
 - **Matrix** - attackers x defenders heatmap; click a cell for every test behind it,
   right-click to hide the pairing.
-- **Best attackers into... / Best targets for...** - ranked bars; click a bar to hide
-  that scenario and let the unit's next best one take its place.
+- **Best attackers into... / Best targets for...** - ranked stems, lined up on a horizontal
+  baseline with the best on the left (`charts.StemChart`); click a stem to hide
+  that scenario and let the unit's next best one take its place. The **Tests** drop-down picks
+  what a unit's stem is: its Best, its Worst or the Average of its tests (the top bar's
+  "Attacker tests", which it sets and follows), or All of them, each with a stem of its own.
 - **All tests** - sortable table; tick / untick rows to hide them.
 - Filters on the left (attackers, defenders, phase, scenarios), metric
   (damage, models slain, % wounds, wipe chance, points removed, points per 100 pts),

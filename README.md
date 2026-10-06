@@ -104,7 +104,7 @@ The results window then answers the practical questions:
   wounds or about points removed.
 - **Matrix**: your units down the side, theirs across the top, one glance for the good and the
   bad matchups. Click a cell for the detail.
-- **Best attackers into... / Best targets for...**: the rankings, as bars.
+- **Best attackers into... / Best targets for...**: the rankings, as stems side by side, the best on the left.
 
 ![The army plan](assets/screenshots/optimizer-army-plan.png)
 

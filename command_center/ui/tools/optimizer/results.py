@@ -11,7 +11,7 @@ from command_center.analysis.army_plans import PlanEntry, PlanTarget, SavedPlan,
 from command_center.analysis.assign import plan_army
 from command_center.analysis.results import ATT_MODES, DEF_MODES, DIMS, METRICS, PHASE_VIEWS, TOTAL, Agg, ResultSet
 from command_center.analysis.sweep import TestRecord, to_csv
-from command_center.ui.charts import INK_3, SLOTS, BarChart, BarItem, Heatmap
+from command_center.ui.charts import INK_3, SLOTS, BarChart, BarItem, Heatmap, StemChart
 from command_center.ui.screen import screen_height
 from command_center.ui.theme import C, dark_title_bar
 from command_center.ui.widgets import make_tree
@@ -180,9 +180,10 @@ class ResultsWindow(tk.Toplevel):
         bar = ttk.Frame(tab, style="Flat.TFrame")
         bar.pack(fill="x", pady=(0, 4))
         ttk.Label(bar, text="Guide by:  points removed per 100 pts", style="Panel.TLabel").pack(side="left")
-        self.plan_weight = tk.DoubleVar(value=100 * self._saved.get("weight", 0.5))
+        self._weight_shown = self._weight_step(100 * self._saved.get("weight", 0.5))
+        self.plan_weight = tk.DoubleVar(value=self._weight_shown)
         ttk.Scale(bar, from_=0, to=100, orient="horizontal", length=260, variable=self.plan_weight,
-                  command=lambda v: self._schedule_plan()).pack(side="left", padx=8)
+                  command=self._on_weight).pack(side="left", padx=8)
         ttk.Label(bar, text="share of the unit's wounds", style="Panel.TLabel").pack(side="left")
         self.weight_lbl = ttk.Label(bar, text="", style="Muted.TLabel")
         self.weight_lbl.pack(side="left", padx=12)
@@ -209,6 +210,21 @@ class ResultsWindow(tk.Toplevel):
         self.plan_defs.tag_configure("overkill", foreground=C["warn"])
         pw.add(bottom, weight=1)
         self._plan_job = None
+
+    WEIGHT_STEP = 10        # the "Guide by" slider moves by this many percent
+
+    @classmethod
+    def _weight_step(cls, value) -> int:
+        """The slider's position, on its nearest step."""
+        return cls.WEIGHT_STEP * round(float(value) / cls.WEIGHT_STEP)
+
+    def _on_weight(self, value):
+        """The slider was moved: it goes to the nearest step, and the plan is made again if that is another one."""
+        step, was = self._weight_step(value), self._weight_shown
+        self.plan_weight.set(step)
+        self._weight_shown = step
+        if step != was:
+            self._schedule_plan()
 
     def _schedule_plan(self):
         self.weight_lbl.configure(text=self._weight_text())
@@ -410,19 +426,41 @@ class ResultsWindow(tk.Toplevel):
         cb = ttk.Combobox(bar, textvariable=var, state="readonly", width=44)
         cb.pack(side="left", padx=6)
         cb.bind("<<ComboboxSelected>>", lambda e: self.refresh())
-        expand = tk.BooleanVar(value=False)
-        ttk.Checkbutton(bar, text="Every test (not just each unit's best)", variable=expand,
-                        style="Panel.TCheckbutton", command=self.refresh).pack(side="left", padx=12)
-        hint = ttk.Label(tab, text="Click a bar to hide it: the unit's next best test takes its place. "
-                                   "Totals are stacked Shooting + Fight. Whiskers: 90% of games (one test only).",
+        # the tests shown for each unit: its best, its worst, their average (the "Attacker tests" choice of
+        # the top bar, which this sets and follows), or every one of them
+        ttk.Label(bar, text="Tests", style="Panel.TLabel").pack(side="left", padx=(18, 0))
+        shown = tk.StringVar(value=self._tests_shown())
+        pick = ttk.Combobox(bar, textvariable=shown, values=list(self.TESTS_SHOWN), state="readonly", width=12)
+        pick.pack(side="left", padx=6)
+        pick.bind("<<ComboboxSelected>>", lambda e, shown=shown: self._on_tests_shown(shown.get()))
+        hint = ttk.Label(tab, text="Best first, from the left. Click a stem to hide it: the unit's next best test "
+                                   "takes its place. Totals are stacked Shooting + Fight. Whiskers: 90% of games "
+                                   "(one test only).",
                          style="Muted.TLabel")
         hint.pack(anchor="w", pady=(4, 2))
-        chart = BarChart(tab, on_click=lambda key, m=mode: self._rank_hide(m, key))
+        chart = StemChart(tab, on_click=lambda key, m=mode: self._rank_hide(m, key))
         chart.pack(fill="both", expand=True)
-        setattr(self, f"rank_{mode}", (var, cb, expand, chart))
+        setattr(self, f"rank_{mode}", (var, cb, shown, chart))
+
+    TESTS_SHOWN = {"Best": "best", "Worst": "worst", "All": None, "Average": "mean"}     # None: every test
+
+    def _tests_shown(self) -> str:
+        """The "Attacker tests" choice of the top bar, as the ranking tabs name it."""
+        return _inv(self.TESTS_SHOWN)[self.am]
+
+    def _on_tests_shown(self, choice: str):
+        """A ranking tab's choice of tests. Best, Worst and Average are the top bar's "Attacker tests": set
+        there, for every view; All only spreads this tab's units into their tests."""
+        mode = self.TESTS_SHOWN[choice]
+        if mode:
+            self.att_mode.set(ATT_MODES[mode])
+        self.refresh()
 
     def _refresh_rank(self, mode: str):
-        var, cb, expand, chart = getattr(self, f"rank_{mode}")
+        var, cb, shown, chart = getattr(self, f"rank_{mode}")
+        every = self.TESTS_SHOWN.get(shown.get(), "best") is None
+        if not every:
+            shown.set(self._tests_shown())      # follows the top bar
         m = METRICS[self.metric_key]
         vis = self.rs.visible()
         pivots = list(dict.fromkeys((r.defender if mode == "into" else r.attacker) for r in vis))
@@ -438,7 +476,7 @@ class ResultsWindow(tk.Toplevel):
             recs = groups.get((a, d))
             if not recs:
                 continue
-            if expand.get():
+            if every:
                 for ph, test, agg in self.rs.scenarios(a, d, m.key, self.dm, recs, self.phase):
                     items.append(self._agg_bar(agg, m, o, f"{ph} · {test}", ("records", tuple(agg.records))))
             else:

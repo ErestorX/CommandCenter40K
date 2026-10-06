@@ -1,5 +1,5 @@
-"""Canvas charts for tkinter: a heatmap and a horizontal bar chart with whiskers, both with hover
-tooltips and click callbacks. Colours follow one rule each: magnitude = one blue ramp, identity =
+"""Canvas charts for tkinter: a heatmap, a horizontal bar chart and a stem chart (the last two with
+whiskers), all with hover tooltips and click callbacks. Colours follow one rule each: magnitude = one blue ramp, identity =
 fixed categorical slots, text = ink colours (never the series colour)."""
 from __future__ import annotations
 
@@ -301,6 +301,149 @@ class BarChart(ttk.Frame):
         y = self.cv.canvasy(e.y)
         for y0, y1, it in self._rows:
             if y0 <= y < y1:
+                return it
+        return None
+
+    def _hover(self, key):
+        if key is not self._hovered:
+            self._hovered = key
+            self.draw()
+
+    def _motion(self, e):
+        it = self._item_at(e)
+        self._hover(it.key if it else None)
+        if it:
+            self.tip.show(e.x, e.y, it.tip)
+        else:
+            self.tip.hide()
+
+    def _click(self, e):
+        it = self._item_at(e)
+        if it and self.on_click:
+            self.tip.hide()
+            self.on_click(it.key)
+
+
+# =============================================================================
+# stems lined up along a baseline, with whiskers
+# =============================================================================
+class StemChart(ttk.Frame):
+    """A stem per item (BarItem), side by side on a horizontal baseline, in the order given: a line as
+    tall as the value with a dot at its tip, the value above, the item's label and sublabel under the
+    baseline. Stacked segments colour the stem from the baseline up. Click a stem -> on_click(key).
+    Scrolls horizontally when the stems don't fit."""
+
+    COLUMN = 104          # the least width of an item's column
+    TICKS = 4
+
+    def __init__(self, master, on_click: Callable[[object], None] | None = None):
+        super().__init__(master, style="Flat.TFrame")
+        self.cv = tk.Canvas(self, bg=SURFACE, highlightthickness=0)
+        xs = ttk.Scrollbar(self, orient="horizontal", command=self.cv.xview)
+        self.cv.configure(xscrollcommand=xs.set)
+        xs.pack(side="bottom", fill="x")
+        self.cv.pack(side="top", fill="both", expand=True)
+        self.tip = _Tip(self.cv)
+        self.on_click = on_click
+        self.items: list[BarItem] = []
+        self.fmt: Callable[[float], str] = lambda v: f"{v:.1f}"
+        self.legend: list[tuple[str, str]] = []
+        self.empty_text = "Nothing to show."
+        self._columns: list[tuple[float, float, BarItem]] = []
+        self._hovered = None
+        self.cv.bind("<Configure>", lambda e: self.draw())
+        self.cv.bind("<Motion>", self._motion)
+        self.cv.bind("<Leave>", lambda e: (self.tip.hide(), self._hover(None)))
+        self.cv.bind("<Button-1>", self._click)
+        self.cv.bind("<MouseWheel>", lambda e: self.cv.xview_scroll(int(-e.delta / 120) or (-1 if e.delta > 0 else 1),
+                                                                     "units"))
+        self.cv.bind("<Button-4>", lambda e: self.cv.xview_scroll(-3, "units"))
+        self.cv.bind("<Button-5>", lambda e: self.cv.xview_scroll(3, "units"))
+
+    def set_data(self, items: list[BarItem], fmt=None, legend=None, empty_text: str = ""):
+        self.items = items
+        if fmt:
+            self.fmt = fmt
+        self.legend = legend or []
+        if empty_text:
+            self.empty_text = empty_text
+        self.cv.xview_moveto(0)
+        self.draw()
+
+    def draw(self):
+        cv = self.cv
+        cv.delete("all")
+        self.tip.items = []
+        fam = font_family()
+        self._columns = []
+        if not self.items:
+            cv.create_text(20, 20, text=self.empty_text, anchor="nw", fill=INK_2, font=(fam, 10))
+            cv.configure(scrollregion=(0, 0, 10, 10))
+            return
+        W, H = max(cv.winfo_width(), 300), max(cv.winfo_height(), 240)
+        axis_w = 52                                           # the value scale, left of the first stem
+        cw = max(self.COLUMN, min(240, (W - axis_w - 12) / len(self.items)))
+        # the labels first: the room they take under the baseline decides the height left for the stems
+        labels = []
+        for it in self.items:
+            lb = cv.create_text(0, 0, text=it.label, anchor="n", width=cw - 10, justify="center", fill=INK,
+                                font=(fam, 9))
+            sub = cv.create_text(0, 0, text=it.sublabel, anchor="n", width=cw - 10, justify="center", fill=INK_2,
+                                 font=(fam, 8)) if it.sublabel else None
+            labels.append((lb, sub))
+
+        def height(item) -> int:
+            return cv.bbox(item)[3] - cv.bbox(item)[1] if item else 0
+        label_h = max(height(lb) for lb, _ in labels)
+        below = label_h + max(height(sub) for _, sub in labels) + 16
+        top = (30 if self.legend else 10) + 22                # room for the value above the tallest stem
+        base = max(top + 80, H - below - 4)                   # the baseline
+        vmax = max(max(it.value, it.hi if it.hi is not None else it.value) for it in self.items) or 1.0
+        scale = (base - top) / vmax
+        right = axis_w + len(self.items) * cw
+
+        lx = axis_w
+        for name, color in self.legend:                       # identity is never colour alone: stems are labelled
+            cv.create_rectangle(lx, 8, lx + 10, 18, fill=color, outline="")
+            t = cv.create_text(lx + 14, 13, text=name, anchor="w", fill=INK_2, font=(fam, 9))
+            lx = cv.bbox(t)[2] + 16
+        for k in range(self.TICKS + 1):                       # a recessive grid, with the scale's values
+            gy = base - (base - top) * k / self.TICKS
+            if k:
+                cv.create_line(axis_w, gy, right, gy, fill=GRID)
+            cv.create_text(axis_w - 6, gy, text=self.fmt(vmax * k / self.TICKS), anchor="e", fill=INK_2,
+                           font=(fam, 8))
+        for n, (it, (lb, sub)) in enumerate(zip(self.items, labels)):
+            x0 = axis_w + n * cw
+            x = x0 + cw / 2
+            if self._hovered is not None and self._hovered is it.key:
+                cv.tag_lower(cv.create_rectangle(x0, top - 22, x0 + cw, base + below, fill=GRID, outline=""))
+            tip_y = base - max(1.0, it.value * scale)
+            head = tip_y
+            if it.lo is not None and it.hi is not None and it.hi > it.lo:     # the whisker, behind the stem
+                lo, hi = base - it.lo * scale, base - it.hi * scale
+                cv.create_line(x, lo, x, hi, fill=INK_2, width=1)
+                cv.create_line(x - 5, lo, x + 5, lo, fill=INK_2)
+                cv.create_line(x - 5, hi, x + 5, hi, fill=INK_2)
+                head = min(head, hi)
+            color, sy = it.color, base
+            for share, color in it.segments or [(1.0, it.color)]:
+                ey = sy - (base - tip_y) * share
+                cv.create_line(x, sy, x, ey, fill=color, width=3, capstyle="butt")
+                sy = ey
+            cv.create_oval(x - 5, tip_y - 5, x + 5, tip_y + 5, fill=color, outline=SURFACE)
+            cv.create_text(x, head - 8, text=self.fmt(it.value), anchor="s", fill=INK, font=(fam, 9, "bold"))
+            cv.coords(lb, x, base + 8)
+            if sub:
+                cv.coords(sub, x, base + 10 + label_h)
+            self._columns.append((x0, x0 + cw, it))
+        cv.create_line(axis_w, base, right, base, fill=INK_3)
+        cv.configure(scrollregion=(0, 0, max(W, right + 12), base + below + 4))
+
+    def _item_at(self, e) -> BarItem | None:
+        x = self.cv.canvasx(e.x)
+        for x0, x1, it in self._columns:
+            if x0 <= x < x1:
                 return it
         return None
 
