@@ -1,9 +1,14 @@
 """Project-wide paths and constants. Change locations here, not in individual modules."""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# The packaged app (PyInstaller, see .github/workflows/release.yml): what the user owns (lists, data,
+# saved work) lives next to the .exe, what ships with the app (fonts) inside the bundle.
+FROZEN = getattr(sys, "frozen", False)
+PROJECT_ROOT = Path(sys.executable).resolve().parent if FROZEN else Path(__file__).resolve().parent.parent
+BUNDLE_ROOT = Path(getattr(sys, "_MEIPASS", PROJECT_ROOT)) if FROZEN else PROJECT_ROOT
 LISTS_DIR = PROJECT_ROOT / "lists"
 
 EDITION = "wh40k11ed"
@@ -21,7 +26,7 @@ DATA_ROOT_CANDIDATES = [DATA_ROOT, PROJECT_ROOT / "data"]
 
 # Per-user state that isn't part of the code (saved test plans, ...). Git-ignored.
 USER_DATA_DIR = PROJECT_ROOT / "user_data"
-FONTS_DIR = PROJECT_ROOT / "assets" / "fonts"        # the display font (see command_center.ui.theme)
+FONTS_DIR = BUNDLE_ROOT / "assets" / "fonts"     # the display font (see command_center.ui.theme)
 
 ATTRIBUTION = "Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are (c) Games Workshop."
 ATTRIBUTION_SHORT = "Powered by Wahapedia · rules and stats © Games Workshop"

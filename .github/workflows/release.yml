@@ -1,0 +1,59 @@
+# Builds the Windows app (Python, tkinter and numpy included: nothing to install) as a zip.
+#   - push a tag  vX.Y.Z   -> the zip is attached to a GitHub Release of that name
+#   - "Run workflow" by hand -> the zip is an artifact of the run (to try a build without releasing)
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write          # to create the release
+
+env:
+  APP_NAME: Command Center 40K
+  ZIP_NAME: CommandCenter40K-windows.zip
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install
+        run: python -m pip install -r requirements.txt pyinstaller
+
+      - name: Tests
+        run: python -m unittest discover -s tests -t .
+
+      # One folder, not one file: starts faster and trips fewer antivirus. The tools are imported by
+      # name at run time (command_center.ui.registry.discover), hence --collect-submodules.
+      - name: Build
+        run: >
+          pyinstaller main.py --name "$env:APP_NAME" --windowed --noconfirm
+          --collect-submodules command_center
+          --add-data "assets/fonts;assets/fonts"
+
+      # Next to the .exe: what the user owns (command_center/config.py). Data is fetched at first start.
+      - name: Add the lists
+        run: Copy-Item lists "dist/$env:APP_NAME/lists" -Recurse
+
+      - name: Zip
+        run: Compress-Archive -Path "dist/$env:APP_NAME" -DestinationPath $env:ZIP_NAME
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CommandCenter40K-windows
+          path: ${{ env.ZIP_NAME }}
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create $env:GITHUB_REF_NAME $env:ZIP_NAME --title $env:GITHUB_REF_NAME --generate-notes

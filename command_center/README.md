@@ -40,6 +40,12 @@ Tests (standard library `unittest`, no extra packages; run_tests.bat writes test
 python -m unittest discover -s tests -t .
 ```
 
+Packaged app: `.github/workflows/release.yml` builds it on Windows with PyInstaller (Python,
+tkinter and numpy included) and zips it with `lists/`. Push a tag `vX.Y.Z` and the zip is
+attached to a GitHub Release of that name; run the workflow by hand to get it as an artifact
+of the run instead. In the packaged app `config.PROJECT_ROOT` is the folder of the .exe
+(lists, data and saved work are written there) and `config.BUNDLE_ROOT` the bundle (fonts).
+
 Saved state, all in `user_data/` (git-ignored): `test_plans.json` (the Engagement Optimizer's
 tests, per list file, side and unit), `army_plans.json` (its army plans, per pair of lists),
 `estimates.json` (the Disposition Cogitator's Estimates, per pairing and first player).

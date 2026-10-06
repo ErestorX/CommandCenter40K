@@ -4,6 +4,11 @@ __pycache__/
 .venv/
 venv/
 
+# Packaged app (PyInstaller, built by .github/workflows/release.yml)
+/build/
+/dist/
+*.spec
+
 # IDE
 .idea/
 

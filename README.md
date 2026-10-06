@@ -12,7 +12,14 @@ your work between sessions.
 
 ## Getting started
 
-You need a recent Python 3 (it is developed on 3.14; tkinter, which it uses, ships with Python on Windows).
+**On Windows, nothing to install:** download `CommandCenter40K-windows.zip` from the
+[latest release](https://github.com/ErestorX/CommandCenter40K/releases/latest), unzip it where
+you like and double-click `Command Center 40K.exe`. Windows may warn about an unknown
+publisher the first time: **More info**, then **Run anyway**. Your lists and saved work stay in
+that folder; to update, unzip the new version and copy your `lists` and `user_data` folders over.
+
+**From the source:** you need a recent Python 3 (it is developed on 3.14; tkinter, which it
+uses, ships with Python on Windows).
 
 ```bash
 pip install -r requirements.txt
