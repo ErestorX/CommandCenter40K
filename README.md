@@ -5,6 +5,16 @@ answer the questions that come up before and during a game: *what does this unit
 that one? Who should shoot what? Where do I deploy? How is this mission going to score? And
 what's the score right now?*
 
+- **Know how your disposition scores.** Every Force Disposition against every other, with the
+  primary mission each side plays. Tick how you expect a game to go, round by round, and see at
+  a glance which matchups are your hardest and which your easiest, going first or second.
+- **Know the attrition of your matchup.** Any unit against any other, or your whole army
+  against theirs: the damage to expect, the models it kills, the odds of wiping a unit out, and
+  from there who should be sent at what.
+- **Bring it all to the table.** The matchup's battlefield layouts, with your units to drag
+  into their deployment zones: their moves and charges, their lines of sight, the targets your
+  plan gave them, and a score sheet that follows the game.
+
 It runs on your own computer, fetches its rules data from Wahapedia by itself, and remembers
 your work between sessions.
 
@@ -24,8 +34,7 @@ isn't signed with an Apple developer certificate, so macOS refuses to open it th
 open **System Settings › Privacy & Security**, scroll down and click **Open Anyway**. Your lists
 and saved work are in `~/Library/Application Support/Command Center 40K`.
 
-On both, when a new version is out, the app offers to install it at start-up (it checks once a
-day): say yes and it comes back updated, with your lists and saved work as they were.
+On both, when a new version is out, the app offers to install it at start-up: say yes and it comes back updated, with your lists and saved work as they were.
 
 **From the source:** you need a recent Python 3 (it is developed on 3.14; tkinter, which it
 uses, ships with Python on Windows).

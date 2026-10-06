@@ -72,7 +72,8 @@ Caliban Angelus (`assets/fonts/`, loaded for the process, no install) is the dis
 titles, headings, buttons, tabs and badges; numbers and body text stay in the system font
 (`BODY_IN_DISPLAY_FONT` puts everything in it). The battlefield boards keep a light palette of
 their own (`command_center/ui/tools/holomap/map_view.py`). The screenshots of the root README are in
-`assets/screenshots/`.
+`assets/screenshots/`; `python scripts/readme_screenshots.py` takes them again from the real app
+(Windows; on the demonstration lists and a temporary copy of their saved work).
 
 ## Layout
 
