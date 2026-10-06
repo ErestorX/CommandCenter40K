@@ -10,6 +10,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 from command_center.context import AppContext
+from command_center.lists.library import install_bundled_lists
 from command_center.ui.appupdate import update_app
 from command_center.ui.launcher import Launcher
 from command_center.ui.registry import Selection, discover, get_tool
@@ -58,6 +59,7 @@ def main(data_dir: str | None = None) -> None:
     """data_dir: a folder of Wahapedia CSVs to use as it is; without one, the app's own data, which is
     fetched again first when its last check is more than a day old."""
     discover()
+    install_bundled_lists()
     if data_dir is None:
         dpi_aware()
         if update_app():                   # the packaged app is installing its new version: it comes back

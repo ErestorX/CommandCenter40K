@@ -40,19 +40,27 @@ Tests (standard library `unittest`, no extra packages; run_tests.bat writes test
 python -m unittest discover -s tests -t .
 ```
 
-Packaged app: `.github/workflows/release.yml` builds it on Windows with PyInstaller (Python,
-tkinter and numpy included) and zips it with `lists/`. Push a tag `vX.Y.Z` and the zip is
-attached to a GitHub Release of that name; run the workflow by hand to get it as an artifact
-of the run instead. In the packaged app `config.PROJECT_ROOT` is the folder of the .exe
-(lists, data and saved work are written there) and `config.BUNDLE_ROOT` the bundle (fonts).
-The workflow starts the built app before zipping it, and fails if it doesn't come up.
+Packaged app: `.github/workflows/release.yml` builds it with PyInstaller (Python, tkinter and
+numpy included) on Windows and on macOS (Apple Silicon), a zip each. Push a tag `vX.Y.Z` and
+both zips are attached to a GitHub Release of that name; run the workflow by hand to get them
+as artifacts of the run instead. Each build is started before it is zipped, and nothing is
+released unless both come up. Where things are in the packaged app (`command_center/config.py`):
+
+- Windows: a folder with the .exe. `config.PROJECT_ROOT` is that folder: lists (zipped with
+  it), data and saved work are written there. `config.BUNDLE_ROOT` (fonts) is its `_internal`.
+- macOS: a .app, which nothing is written in. `config.PROJECT_ROOT` is
+  `~/Library/Application Support/Command Center 40K`; the lists ship inside the .app and are
+  copied there at the first start (`lists.library.install_bundled_lists`). The .app is not
+  signed with a Developer ID nor notarized: Gatekeeper has to be told to open it.
 
 The packaged app updates itself (`command_center/release.py`, `command_center/ui/appupdate.py`):
 it carries the tag it was built from (`version.txt` in the bundle) and, once a day at start-up
 (`user_data/app_update.json`), asks GitHub for the latest release. When that one is newer it
-offers to install it: the zip is downloaded and unpacked in a temporary folder, the app closes,
-and a batch file replaces the .exe and its `_internal` folder, nothing else, then starts the
-app again. From the source there is no version and nothing is checked.
+offers to install it: its platform's zip is downloaded and unpacked in a temporary folder, the
+app closes, and a script replaces the .exe and its `_internal` folder (Windows) or the .app
+(macOS), nothing else, then starts the app again. Nothing is offered where the app can't be
+replaced: a macOS app still running from its download folder (macOS runs it from a read-only
+copy until it is moved). From the source there is no version and nothing is checked.
 
 Saved state, all in `user_data/` (git-ignored): `test_plans.json` (the Engagement Optimizer's
 tests, per list file, side and unit), `army_plans.json` (its army plans, per pair of lists),

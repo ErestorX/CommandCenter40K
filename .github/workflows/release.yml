@@ -1,6 +1,8 @@
-# Builds the Windows app (Python, tkinter and numpy included: nothing to install) as a zip.
-#   - push a tag  vX.Y.Z   -> the zip is attached to a GitHub Release of that name
-#   - "Run workflow" by hand -> the zip is an artifact of the run (to try a build without releasing)
+# Builds the app for Windows and for macOS (Python, tkinter and numpy included: nothing to install),
+# each as a zip.
+#   - push a tag  vX.Y.Z   -> the two zips are attached to a GitHub Release of that name
+#   - "Run workflow" by hand -> the zips are artifacts of the run (to try a build without releasing)
+# The release is made once both are built and have started: one that fails, and nothing is released.
 name: Release
 
 on:
@@ -8,16 +10,19 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
-permissions:
-  contents: write          # to create the release
-
 env:
-  APP_NAME: Command Center 40K
-  ZIP_NAME: CommandCenter40K-windows.zip
+  APP_NAME: Command Center 40K        # also command_center/config.py
 
 jobs:
-  windows:
-    runs-on: windows-latest
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            zip: CommandCenter40K-windows.zip
+          - os: macos-latest             # Apple Silicon
+            zip: CommandCenter40K-macos.zip
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,15 +42,17 @@ jobs:
       # "python -m PyInstaller", not the "pyinstaller" command: only the first has this folder on its path,
       # and without it --collect-submodules finds nothing (v1.0.0 shipped without its tools).
       # The tag is the app's version: it compares it with the latest release's (command_center/release.py).
-      - name: Build
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
         run: |
           Set-Content version.txt $env:GITHUB_REF_NAME -Encoding ascii
           python -m PyInstaller main.py --name "$env:APP_NAME" --windowed --noconfirm `
             --collect-submodules command_center `
-            --add-data "assets/fonts;assets/fonts" --add-data "version.txt;."
+            --add-data "assets/fonts:assets/fonts" --add-data "version.txt:."
 
       # A build that cannot start shows PyInstaller's "Unhandled exception" window, or nothing at all.
-      - name: Start the built app
+      - name: Start the built app (Windows)
+        if: runner.os == 'Windows'
         run: |
           $app = "dist/$env:APP_NAME"
           $p = Start-Process "$app/$env:APP_NAME.exe" -PassThru
@@ -57,19 +64,61 @@ jobs:
           if ($title -ne $env:APP_NAME) { throw "The built app did not start (window: '$title')" }
 
       # Next to the .exe: what the user owns (command_center/config.py). Data is fetched at first start.
-      - name: Add the lists
-        run: Copy-Item lists "dist/$env:APP_NAME/lists" -Recurse
+      - name: Zip (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Copy-Item lists "dist/$env:APP_NAME/lists" -Recurse
+          Compress-Archive -Path "dist/$env:APP_NAME" -DestinationPath "${{ matrix.zip }}"
 
-      - name: Zip
-        run: Compress-Archive -Path "dist/$env:APP_NAME" -DestinationPath $env:ZIP_NAME
+      # macOS: a .app, with the lists inside it: the app copies them to the user's folder at its first
+      # start (~/Library/Application Support/<the app's name>), where its data and saved work go too.
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          echo "$GITHUB_REF_NAME" > version.txt
+          python -m PyInstaller main.py --name "$APP_NAME" --windowed --noconfirm \
+            --collect-submodules command_center \
+            --osx-bundle-identifier com.erestorx.commandcenter40k \
+            --add-data "assets/fonts:assets/fonts" --add-data "version.txt:." --add-data "lists:lists"
+
+      # Started: still running after half a minute, and its first start has put the lists in place.
+      - name: Start the built app (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          home="$HOME/Library/Application Support/$APP_NAME"
+          "dist/$APP_NAME.app/Contents/MacOS/$APP_NAME" &
+          pid=$!
+          sleep 30
+          ls -R "$home" | head -40 || true
+          alive=no; kill -0 $pid 2>/dev/null && alive=yes
+          kill $pid 2>/dev/null || true
+          [ "$alive" = yes ] || { echo "The built app did not stay up"; exit 1; }
+          ls "$home/lists"/*.txt > /dev/null || { echo "The built app did not install its lists"; exit 1; }
+
+      # ditto: a zip that keeps the .app's links and permissions (and what the app unpacks an update with).
+      - name: Zip (macOS)
+        if: runner.os == 'macOS'
+        run: ditto -c -k --sequesterRsrc --keepParent "dist/$APP_NAME.app" "${{ matrix.zip }}"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: CommandCenter40K-windows
-          path: ${{ env.ZIP_NAME }}
+          name: ${{ matrix.zip }}
+          path: ${{ matrix.zip }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # to create the release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: zips
+          merge-multiple: true
 
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create $env:GITHUB_REF_NAME $env:ZIP_NAME --title $env:GITHUB_REF_NAME --generate-notes
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "$GITHUB_REF_NAME" zips/*.zip --title "$GITHUB_REF_NAME" --generate-notes

@@ -16,8 +16,16 @@ your work between sessions.
 [latest release](https://github.com/ErestorX/CommandCenter40K/releases/latest), unzip it where
 you like and double-click `Command Center 40K.exe`. Windows may warn about an unknown
 publisher the first time: **More info**, then **Run anyway**. Your lists and saved work stay in
-that folder. When a new version is out, the app offers to install it at start-up (it checks once
-a day): say yes and it comes back updated, with your lists and saved work as they were.
+that folder.
+
+**On a Mac (Apple Silicon), nothing to install either:** download `CommandCenter40K-macos.zip`
+from the same page, unzip it and move `Command Center 40K` to your Applications folder. The app
+isn't signed with an Apple developer certificate, so macOS refuses to open it the first time:
+open **System Settings › Privacy & Security**, scroll down and click **Open Anyway**. Your lists
+and saved work are in `~/Library/Application Support/Command Center 40K`.
+
+On both, when a new version is out, the app offers to install it at start-up (it checks once a
+day): say yes and it comes back updated, with your lists and saved work as they were.
 
 **From the source:** you need a recent Python 3 (it is developed on 3.14; tkinter, which it
 uses, ships with Python on Windows).
@@ -143,7 +151,8 @@ tick how you expect the game to go round by round, above the three layouts of th
 
 ## Good to know
 
-- Nothing leaves your computer: lists are in `lists/`, your saved work in `user_data/`.
+- Nothing leaves your computer: lists are in `lists/`, your saved work in `user_data/` (on a Mac,
+  both in `~/Library/Application Support/Command Center 40K`).
 - The numbers come from a simulation (thousands of dice rolls per matchup), so they are very
   close to the true odds but can move by a decimal from one run to the next.
 - Not every special rule is simulated: when a unit has an ability the app doesn't model, the

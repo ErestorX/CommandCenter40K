@@ -5,9 +5,11 @@
 """
 from __future__ import annotations
 
+import shutil
 import tempfile
 from pathlib import Path
 
+from command_center import config
 from command_center.data.wahapedia import Wahapedia
 
 FORBIDDEN = '\\/:*?"<>|'          # not allowed in a file name
@@ -49,6 +51,20 @@ def text_problem(text: str, wd: Wahapedia) -> str | None:
     if not army.units:
         return "No unit found in this text: is it NewRecruit's text export, in the NR format?"
     return None
+
+
+def install_bundled_lists(source: Path | None = None, lists_dir: Path | None = None) -> bool:
+    """First start of an app that carries its lists inside itself (macOS): copy them to the user's
+    lists folder. Nothing once that folder is there: what is in it is the user's. True when copied."""
+    source, lists_dir = Path(source or config.BUNDLED_LISTS_DIR), Path(lists_dir or config.LISTS_DIR)
+    if lists_dir.exists() or not source.is_dir():
+        return False
+    try:
+        lists_dir.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(source, lists_dir)
+    except OSError:                # no lists to start with: they can still be added from the launcher
+        return False
+    return True
 
 
 def save_list(text: str, name: str, lists_dir: Path) -> Path:

@@ -55,16 +55,33 @@ def disposition_colors(name: str) -> tuple[str, str]:
 
 
 def load_fonts() -> None:
-    """Make the fonts of assets/fonts usable by this process (Windows; elsewhere they must be installed).
-    To call before the Tk root is created; once is enough, more calls do nothing."""
+    """Make the fonts of assets/fonts usable by this process (Windows and macOS; elsewhere they must be
+    installed). To call before the Tk root is created; once is enough, more calls do nothing."""
     global _fonts_loaded
-    if sys.platform != "win32" or _fonts_loaded:
+    if sys.platform not in ("win32", "darwin") or _fonts_loaded:
         return
     _fonts_loaded = True
     try:
         import ctypes
-        for path in sorted(config.FONTS_DIR.glob("*.ttf")):
-            ctypes.windll.gdi32.AddFontResourceExW(str(path), 0x10, 0)      # FR_PRIVATE: not installed, ours only
+        paths = sorted(config.FONTS_DIR.glob("*.ttf"))
+        if sys.platform == "win32":
+            for path in paths:
+                ctypes.windll.gdi32.AddFontResourceExW(str(path), 0x10, 0)  # FR_PRIVATE: not installed, ours only
+            return
+        from ctypes.util import find_library
+        cf, ct = ctypes.CDLL(find_library("CoreFoundation")), ctypes.CDLL(find_library("CoreText"))
+        cf.CFURLCreateFromFileSystemRepresentation.restype = ctypes.c_void_p
+        cf.CFURLCreateFromFileSystemRepresentation.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_long,
+                                                               ctypes.c_bool]
+        cf.CFRelease.argtypes = [ctypes.c_void_p]
+        ct.CTFontManagerRegisterFontsForURL.restype = ctypes.c_bool
+        ct.CTFontManagerRegisterFontsForURL.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
+        for path in paths:
+            raw = str(path).encode("utf-8")
+            url = cf.CFURLCreateFromFileSystemRepresentation(None, raw, len(raw), False)
+            if url:
+                ct.CTFontManagerRegisterFontsForURL(url, 1, None)           # kCTFontManagerScopeProcess: ours only
+                cf.CFRelease(url)
     except Exception:  # noqa: BLE001 - no font: the system's is used
         pass
 

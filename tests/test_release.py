@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from command_center import release
 
@@ -46,6 +46,32 @@ class SwapScriptTest(unittest.TestCase):
         self.assertIn(f'start "" "{app / "App.exe"}"', script)
         for kept in ("lists", "user_data", "wahapedia_data"):
             self.assertNotIn(kept, script)
+
+    def test_macos_replaces_the_app_and_puts_it_back_on_failure(self):
+        new = PurePosixPath("/tmp/cc40k-update-x/new/My App.app")
+        app = PurePosixPath("/Applications/My App.app")
+        script = release.swap_script_macos(new, app, 4242, PurePosixPath("/tmp/cc40k-update-x"))
+        self.assertIn("while kill -0 4242", script)                 # waits for the app to close
+        self.assertIn("if mv '/Applications/My App.app' '/Applications/My App.app.old'; then", script)
+        self.assertIn("if mv '/tmp/cc40k-update-x/new/My App.app' '/Applications/My App.app'; then", script)
+        self.assertIn("else mv '/Applications/My App.app.old' '/Applications/My App.app'; fi", script)
+        self.assertIn("open '/Applications/My App.app'", script)
+        self.assertNotIn("Application Support", script)             # where the user's folders are
+
+
+class BundledListsTest(unittest.TestCase):
+    def test_copied_once(self):
+        from command_center.lists.library import install_bundled_lists
+        with tempfile.TemporaryDirectory() as d:
+            source, lists = Path(d) / "app" / "lists", Path(d) / "user" / "lists"
+            self.assertFalse(install_bundled_lists(source, lists))      # an app without lists inside
+            source.mkdir(parents=True)
+            (source / "Example.txt").write_text("a list", encoding="utf-8")
+            self.assertTrue(install_bundled_lists(source, lists))
+            self.assertEqual((lists / "Example.txt").read_text(encoding="utf-8"), "a list")
+            (lists / "Example.txt").unlink()                            # the user removes it: it stays removed
+            self.assertFalse(install_bundled_lists(source, lists))
+            self.assertEqual(list(lists.iterdir()), [])
 
 
 if __name__ == "__main__":

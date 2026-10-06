@@ -3,7 +3,8 @@
 The app built by .github/workflows/release.yml carries the tag it was built from (version.txt). Once a
 day it asks GitHub for the latest release; when that one is newer, its zip is downloaded and unpacked
 aside, and a small script takes over once the app has closed: it replaces the .exe and its _internal
-folder, then starts the app again. Lists, data and saved work, next to the .exe, are not touched.
+folder (Windows) or the .app (macOS), then starts the app again. Lists, data and saved work are
+outside what is replaced (command_center.config) and are not touched.
 
 From the source there is no version: nothing is checked (git pull is the update)."""
 from __future__ import annotations
@@ -11,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -93,12 +95,18 @@ def download(url: str, log=None) -> Path:
                 log(f"Downloading: {got / 1e6:.0f} MB" + (f" of {total / 1e6:.0f} MB" if total else ""))
     if log:
         log("Unpacking")
-    with zipfile.ZipFile(archive) as z:
-        z.extractall(tmp / "new")
-    archive.unlink()
-    for bundle in (tmp / "new").rglob(BUNDLE_DIR):
-        if bundle.is_dir() and any(bundle.parent.glob("*.exe")):
-            return bundle.parent
+    if config.MACOS:               # ditto, as the zip was made: zipfile would lose the .app's links and permissions
+        subprocess.run(["ditto", "-x", "-k", str(archive), str(tmp / "new")], check=True)
+        archive.unlink()
+        for app in (tmp / "new").glob("*.app"):
+            return app
+    else:
+        with zipfile.ZipFile(archive) as z:
+            z.extractall(tmp / "new")
+        archive.unlink()
+        for bundle in (tmp / "new").rglob(BUNDLE_DIR):
+            if bundle.is_dir() and any(bundle.parent.glob("*.exe")):
+                return bundle.parent
     raise FileNotFoundError(f"No app in {config.RELEASE_ASSET}")
 
 
@@ -120,19 +128,49 @@ def swap_script(new_dir: Path, app_dir: Path, exe_name: str, pid: int, tmp: Path
         ""])
 
 
+def swap_script_macos(new_app: Path, app: Path, pid: int, tmp: Path) -> str:
+    """The same for macOS, as a shell script: the whole .app is replaced (the user's folders aren't in
+    it), and put back if the new one can't take its place."""
+    new, cur, old, tmp_ = (shlex.quote(str(p)) for p in (new_app, app, f"{app}.old", tmp))
+    return "\n".join([
+        "#!/bin/sh",
+        f"while kill -0 {pid} 2>/dev/null; do sleep 1; done",
+        f"rm -rf {old}",
+        f"if mv {cur} {old}; then",
+        f"  if mv {new} {cur}; then rm -rf {old}; else mv {old} {cur}; fi",
+        "fi",
+        f"open {cur}",
+        f"rm -rf {tmp_}",
+        ""])
+
+
+def can_install() -> bool:
+    """Whether the running app can be replaced where it is. Not a macOS app opened straight from its
+    download: macOS runs it from a read-only copy until it is moved (to Applications, say)."""
+    target = config.APP_DIR.parent if config.MACOS else config.APP_DIR
+    return "AppTranslocation" not in config.APP_DIR.parts and os.access(target, os.W_OK)
+
+
 def install(new_dir: Path, app_dir: Path | None = None, exe_name: str | None = None, pid: int | None = None) -> None:
     """Hand over to the script that installs the app unpacked by download(). The caller must then exit:
     the script waits for this process to be over."""
-    app_dir = Path(app_dir or config.PROJECT_ROOT)
+    app_dir = Path(app_dir or config.APP_DIR)
     exe_name = exe_name or Path(sys.executable).name
-    if not (new_dir / exe_name).is_file() or not (new_dir / BUNDLE_DIR).is_dir():
-        raise FileNotFoundError(f"{exe_name} is not in the downloaded app")
     tmp = next(p for p in new_dir.parents if p.name.startswith("cc40k-update-"))
-    script = tmp / "install.bat"
-    script.write_text(swap_script(new_dir, app_dir, exe_name, pid or os.getpid(), tmp), encoding="utf-8")
     # Not the packaged app's own environment (PyInstaller's variables): the app starts afresh.
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith(("_PYI", "_MEI"))}
     env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
-    subprocess.Popen(["cmd", "/c", str(script)], cwd=tempfile.gettempdir(), env=env, close_fds=True,
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    quiet = dict(env=env, close_fds=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if config.MACOS:
+        if not (new_dir / "Contents" / "MacOS" / exe_name).is_file():
+            raise FileNotFoundError(f"{exe_name} is not in the downloaded app")
+        script = tmp / "install.sh"
+        script.write_text(swap_script_macos(new_dir, app_dir, pid or os.getpid(), tmp), encoding="utf-8")
+        subprocess.Popen(["/bin/sh", str(script)], cwd="/", start_new_session=True, **quiet)
+        return
+    if not (new_dir / exe_name).is_file() or not (new_dir / BUNDLE_DIR).is_dir():
+        raise FileNotFoundError(f"{exe_name} is not in the downloaded app")
+    script = tmp / "install.bat"
+    script.write_text(swap_script(new_dir, app_dir, exe_name, pid or os.getpid(), tmp), encoding="utf-8")
+    subprocess.Popen(["cmd", "/c", str(script)], cwd=tempfile.gettempdir(), **quiet,
                      creationflags=subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP)

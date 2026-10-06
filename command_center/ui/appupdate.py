@@ -31,7 +31,7 @@ def update_app() -> bool:
     """Offer the latest release when it is newer than the running app, and start its installation.
     True: the installation is under way and the app must exit now. From the source: nothing, False."""
     current = release.current_version()
-    if not current or not release.is_due():
+    if not current or not release.can_install() or not release.is_due():
         return False
     try:
         found = release.latest_release()
