@@ -1,7 +1,8 @@
 """The packaged app's own updates (no UI here: see command_center.ui.appupdate).
 
-The app built by .github/workflows/release.yml carries the tag it was built from (version.txt). Once a
-day it asks GitHub for the latest release; when that one is newer, its zip is downloaded and unpacked
+The app built by .github/workflows/release.yml carries the tag it was built from (version.txt). At
+every start it asks GitHub for the latest release; when that one is newer it is offered (a release
+that was declined isn't offered again for a day), its zip is downloaded and unpacked
 aside, and a small script takes over once the app has closed: it replaces the .exe and its _internal
 folder (Windows) or the .app (macOS), then starts the app again. Lists, data and saved work are
 outside what is replaced (command_center.config) and are not touched.
@@ -25,7 +26,7 @@ from command_center import config
 
 LATEST_URL = f"https://api.github.com/repos/{config.GITHUB_REPO}/releases/latest"
 USER_AGENT = "CommandCenter40K (app update check)"
-MAX_AGE_HOURS = 24                # GitHub is asked again once the last check is older than this
+DECLINED_HOURS = 24               # a release that was declined is offered again once this has passed
 TIMEOUT = 5                       # seconds, for the check at start-up; the download takes what it takes
 BUNDLE_DIR = "_internal"          # PyInstaller's folder next to the .exe: everything that ships with the app
 
@@ -68,18 +69,22 @@ def _state_path() -> Path:
     return config.USER_DATA_DIR / "app_update.json"
 
 
-def is_due(max_age_hours: float = MAX_AGE_HOURS, now: datetime | None = None, path: Path | None = None) -> bool:
+def was_declined(tag: str, hours: float = DECLINED_HOURS, now: datetime | None = None,
+                 path: Path | None = None) -> bool:
+    """Whether this release was declined less than `hours` ago. A newer one is another release: offered."""
     try:
-        last = datetime.fromisoformat(json.loads((path or _state_path()).read_text(encoding="utf-8"))["checked_at"])
+        state = json.loads((path or _state_path()).read_text(encoding="utf-8"))
+        when = datetime.fromisoformat(state["declined_at"])
     except (OSError, ValueError, KeyError, TypeError):
-        return True
-    return (now or datetime.now(timezone.utc)) - last > timedelta(hours=max_age_hours)
+        return False
+    return state.get("declined") == tag and (now or datetime.now(timezone.utc)) - when <= timedelta(hours=hours)
 
 
-def mark_checked(when: datetime | None = None, path: Path | None = None) -> None:
+def mark_declined(tag: str, when: datetime | None = None, path: Path | None = None) -> None:
     path = path or _state_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"checked_at": (when or datetime.now(timezone.utc)).isoformat()}), encoding="utf-8")
+    path.write_text(json.dumps({"declined": tag, "declined_at": (when or datetime.now(timezone.utc)).isoformat()}),
+                    encoding="utf-8")
 
 
 def latest_release(timeout: float = TIMEOUT) -> tuple[str, str] | None:

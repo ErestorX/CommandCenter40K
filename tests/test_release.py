@@ -23,17 +23,21 @@ class VersionTest(unittest.TestCase):
         self.assertEqual(release.current_version(), "")
 
 
-class CheckedTest(unittest.TestCase):
-    def test_due_once_a_day(self):
+class DeclinedTest(unittest.TestCase):
+    def test_a_declined_release_is_not_offered_again_for_a_day(self):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / "user_data" / "app_update.json"
             now = datetime(2026, 10, 6, 12, tzinfo=timezone.utc)
-            self.assertTrue(release.is_due(now=now, path=path))     # never checked
-            release.mark_checked(now, path)
-            self.assertFalse(release.is_due(now=now + timedelta(hours=23), path=path))
-            self.assertTrue(release.is_due(now=now + timedelta(hours=25), path=path))
+            self.assertFalse(release.was_declined("v1.0.6", now=now, path=path))     # nothing declined yet
+            release.mark_declined("v1.0.6", now, path)
+            self.assertTrue(release.was_declined("v1.0.6", now=now + timedelta(hours=23), path=path))
+            self.assertFalse(release.was_declined("v1.0.6", now=now + timedelta(hours=25), path=path))
+            self.assertFalse(release.was_declined("v1.0.7", now=now, path=path))     # a newer release: offered
             path.write_text("not json", encoding="utf-8")
-            self.assertTrue(release.is_due(now=now, path=path))
+            self.assertFalse(release.was_declined("v1.0.6", now=now, path=path))
+            # what the once-a-day versions left there: no reason to wait
+            path.write_text('{"checked_at": "2026-10-06T04:59:47+00:00"}', encoding="utf-8")
+            self.assertFalse(release.was_declined("v1.0.6", now=now, path=path))
 
 
 class SwapScriptTest(unittest.TestCase):

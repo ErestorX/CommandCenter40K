@@ -54,9 +54,10 @@ released unless both come up. Where things are in the packaged app (`command_cen
   signed with a Developer ID nor notarized: Gatekeeper has to be told to open it.
 
 The packaged app updates itself (`command_center/release.py`, `command_center/ui/appupdate.py`):
-it carries the tag it was built from (`version.txt` in the bundle) and, once a day at start-up
-(`user_data/app_update.json`), asks GitHub for the latest release. When that one is newer it
-offers to install it: its platform's zip is downloaded and unpacked in a temporary folder, the
+it carries the tag it was built from (`version.txt` in the bundle) and, at every start-up,
+asks GitHub for the latest release (5 seconds at most; nothing happens offline). When that one
+is newer it offers to install it, unless that same release was declined in the last 24 hours
+(`user_data/app_update.json`): its platform's zip is downloaded and unpacked in a temporary folder, the
 app closes, and a script replaces the .exe and its `_internal` folder (Windows) or the .app
 (macOS), nothing else, then starts the app again. Nothing is offered where the app can't be
 replaced: a macOS app still running from its download folder (macOS runs it from a read-only
