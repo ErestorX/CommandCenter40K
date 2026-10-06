@@ -131,6 +131,7 @@ command_center/
     appupdate.py          the packaged app's update at start-up: the offer, the download window
     launcher.py           choose attacker/defender lists, then a tool (list-free tools: apart, on the left)
     theme.py, widgets.py  the dark theme (colours, fonts, ttk styles), shared widgets
+    translucent.py        see-through fills on a canvas: stipples, or images where Tk ignores them (macOS)
     charts.py             canvas heatmap and bar chart with tooltips
     richtext.py           Wahapedia HTML -> text window, stratagem cards
     views/rules.py        army-rules and unit-abilities windows (reusable)

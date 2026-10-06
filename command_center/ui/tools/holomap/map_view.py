@@ -3,7 +3,7 @@ the units placed on it. Scales to the space it gets, keeping the board's 60" x 4
 
 Units are tokens (a base, or the ellipse of a whole unit) that start at a random spot in their
 side's deployment zone and can be dragged anywhere on the board, stopping at its edges. They are
-half see-through (a stippled fill, Tk has no transparency) so terrain shows underneath. A click
+half see-through (command_center.ui.translucent: Tk has no transparency) so terrain shows underneath. A click
 selects a token, a double click turns it 30 degrees clockwise, a right click releases the selection.
 
 For the selected unit the map can also draw its movement rings (move, advance, charge: lines at that
@@ -33,6 +33,7 @@ from command_center.deploy.placement import clamp, ellipse_polygon, extent, offs
 from command_center.deploy.sight import GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, cast, fans, reaching_fans
 from command_center.deploy.territory import territory_line
 from command_center.ui.theme import C, font_family
+from command_center.ui.translucent import STIPPLES, shade
 
 BOARD_W, BOARD_H = 60.0, 44.0
 ZONE_FILL = {"attacker": "#f1d3d3", "defender": "#d3dff0"}
@@ -322,10 +323,10 @@ class LayoutMap(ttk.Frame):
             if self.overlays["hidden"]:
                 hidden = GO_TO_GROUND_RANGE if self.overlays["ground"] else HIDDEN_RANGE
             rays = cast(outline, max(t.ranges), self.obstacles, hidden=hidden)
-            for fan in fans(rays):                                             # union: what it sees
-                cv.create_polygon([c for p in fan for c in self._to_px(*p)], fill=SIGHT_FILL,
-                                  stipple=SIGHT_STIPPLE, outline="", tags=tags)
+            shade(cv, [[c for p in fan for c in self._to_px(*p)] for fan in fans(rays)],     # union: what it sees
+                  SIGHT_FILL, SIGHT_STIPPLE, tags)
             if rays is not None and self.overlays["plan"]:      # what of it reaches its targets: green
+                reaching = []
                 for a_key, d_key, rank in self.plan_links:
                     d = self.tokens.get(d_key)
                     if a_key != t.key or not d or (rank == "secondary" and not self.overlays["plan2"]):
@@ -334,9 +335,10 @@ class LayoutMap(ttk.Frame):
                     for fan in reaching_fans(rays, target):
                         pts = [c for p in fan for c in self._to_px(*p)]
                         if len(fan) > 2:
-                            cv.create_polygon(pts, fill=TARGET_FILL, stipple=TARGET_STIPPLE, outline="", tags=tags)
+                            reaching.append(pts)
                         else:                                 # a lone ray
                             cv.create_line(pts, fill=TARGET_FILL, stipple=TARGET_STIPPLE, tags=tags)
+                shade(cv, reaching, TARGET_FILL, TARGET_STIPPLE, tags)
             # each circle's distance written where it faces the board centre: on the board, spread out
             cx, cy = BOARD_W / 2 - t.x, BOARD_H / 2 - t.y
             norm = (cx * cx + cy * cy) ** 0.5 or 1.0
@@ -396,8 +398,10 @@ class LayoutMap(ttk.Frame):
                        for c in self._to_px(*p)]
             if chosen:
                 cv.create_polygon(outline, fill="", outline=SELECTED, width=5, smooth=True, tags=tags)
-            cv.create_polygon(outline, fill=fill, stipple=TOKEN_STIPPLE, outline=line, width=1.5, smooth=True,
-                              dash=(4, 2) if t.footprint.estimated else "", tags=tags)
+            if not STIPPLES:                     # macOS: the fill as an image, under an outline of its own
+                shade(cv, [outline], fill, TOKEN_STIPPLE, tags)
+            cv.create_polygon(outline, fill=fill if STIPPLES else "", stipple=TOKEN_STIPPLE, outline=line, width=1.5,
+                              smooth=True, dash=(4, 2) if t.footprint.estimated else "", tags=tags)
             bw, bh = (d * k for d in t.box)
             label = cv.create_text(x, y, text=compact_label(t.label), fill=line, font=(fam, 8, "bold"),
                                    width=max(LABEL_WIDTH, bw), tags=tags)
