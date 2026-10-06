@@ -34,11 +34,27 @@ jobs:
 
       # One folder, not one file: starts faster and trips fewer antivirus. The tools are imported by
       # name at run time (command_center.ui.registry.discover), hence --collect-submodules.
+      # "python -m PyInstaller", not the "pyinstaller" command: only the first has this folder on its path,
+      # and without it --collect-submodules finds nothing (v1.0.0 shipped without its tools).
+      # The tag is the app's version: it compares it with the latest release's (command_center/release.py).
       - name: Build
-        run: >
-          pyinstaller main.py --name "$env:APP_NAME" --windowed --noconfirm
-          --collect-submodules command_center
-          --add-data "assets/fonts;assets/fonts"
+        run: |
+          Set-Content version.txt $env:GITHUB_REF_NAME -Encoding ascii
+          python -m PyInstaller main.py --name "$env:APP_NAME" --windowed --noconfirm `
+            --collect-submodules command_center `
+            --add-data "assets/fonts;assets/fonts" --add-data "version.txt;."
+
+      # A build that cannot start shows PyInstaller's "Unhandled exception" window, or nothing at all.
+      - name: Start the built app
+        run: |
+          $app = "dist/$env:APP_NAME"
+          $p = Start-Process "$app/$env:APP_NAME.exe" -PassThru
+          Start-Sleep 30
+          $title = (Get-Process -Id $p.Id -ErrorAction SilentlyContinue).MainWindowTitle
+          Get-Process -Id $p.Id -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep 2
+          Remove-Item "$app/wahapedia_data", "$app/user_data" -Recurse -Force -ErrorAction SilentlyContinue
+          if ($title -ne $env:APP_NAME) { throw "The built app did not start (window: '$title')" }
 
       # Next to the .exe: what the user owns (command_center/config.py). Data is fetched at first start.
       - name: Add the lists

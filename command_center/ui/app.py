@@ -10,6 +10,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 from command_center.context import AppContext
+from command_center.ui.appupdate import update_app
 from command_center.ui.launcher import Launcher
 from command_center.ui.registry import Selection, discover, get_tool
 from command_center.ui.theme import load_fonts, setup_style
@@ -59,6 +60,8 @@ def main(data_dir: str | None = None) -> None:
     discover()
     if data_dir is None:
         dpi_aware()
+        if update_app():                   # the packaged app is installing its new version: it comes back
+            raise SystemExit(0)
         refresh_data()
     try:
         ctx = AppContext(data_dir)

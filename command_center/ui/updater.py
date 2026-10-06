@@ -28,7 +28,10 @@ def edition_dir() -> Path:
 class UpdateWindow(tk.Tk):
     """Runs the update on a thread; closes itself when it is over."""
 
-    def __init__(self, target: Path):
+    headline = "Checking Wahapedia for new data (done once a day)"
+    failed = "Wahapedia could not be checked: starting with the data on disk."
+
+    def __init__(self, target):
         load_fonts()
         super().__init__()
         self.title("Command Center 40K")
@@ -41,7 +44,7 @@ class UpdateWindow(tk.Tk):
         body = ttk.Frame(self, style="Panel.TFrame", padding=18)
         body.pack(fill="both", expand=True, padx=8, pady=8)
         ttk.Label(body, text="Command Center 40K", style="H1.TLabel", background=C["panel"]).pack(anchor="w")
-        ttk.Label(body, text="Checking Wahapedia for new data (done once a day)", style="Panel.TLabel").pack(
+        ttk.Label(body, text=self.headline, style="Panel.TLabel").pack(
             anchor="w", pady=(6, 10))
         self.bar = ttk.Progressbar(body, mode="indeterminate")
         self.bar.pack(fill="x")
@@ -81,12 +84,14 @@ class UpdateWindow(tk.Tk):
         self.bar.stop()
         if self.error:
             self.bar.configure(mode="determinate", value=0)
-            self.status.configure(text=f"Wahapedia could not be checked: starting with the data on disk.\n{self.error}",
-                                  foreground=C["warn"])
+            self.status.configure(text=f"{self.failed}\n{self.error}", foreground=C["warn"])
         else:
             self.bar.configure(mode="determinate", value=100)
-            self.status.configure(text="New data downloaded." if self.changed else "The data is up to date.")
+            self.status.configure(text=self.done_text())
         self.after(FAILED_MS if self.error else DONE_MS, self.destroy)
+
+    def done_text(self) -> str:
+        return "New data downloaded." if self.changed else "The data is up to date."
 
 
 def refresh_data(target: Path | None = None, max_age_hours: float = fetch.MAX_AGE_HOURS) -> bool | None:

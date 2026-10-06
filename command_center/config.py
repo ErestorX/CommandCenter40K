@@ -28,6 +28,11 @@ DATA_ROOT_CANDIDATES = [DATA_ROOT, PROJECT_ROOT / "data"]
 USER_DATA_DIR = PROJECT_ROOT / "user_data"
 FONTS_DIR = BUNDLE_ROOT / "assets" / "fonts"     # the display font (see command_center.ui.theme)
 
+# Where the packaged app looks for its own updates (command_center.release): the repository's latest
+# release, and the zip attached to it by .github/workflows/release.yml.
+GITHUB_REPO = "ErestorX/CommandCenter40K"
+RELEASE_ASSET = "CommandCenter40K-windows.zip"
+
 ATTRIBUTION = "Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are (c) Games Workshop."
 ATTRIBUTION_SHORT = "Powered by Wahapedia · rules and stats © Games Workshop"
 

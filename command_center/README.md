@@ -45,6 +45,14 @@ tkinter and numpy included) and zips it with `lists/`. Push a tag `vX.Y.Z` and t
 attached to a GitHub Release of that name; run the workflow by hand to get it as an artifact
 of the run instead. In the packaged app `config.PROJECT_ROOT` is the folder of the .exe
 (lists, data and saved work are written there) and `config.BUNDLE_ROOT` the bundle (fonts).
+The workflow starts the built app before zipping it, and fails if it doesn't come up.
+
+The packaged app updates itself (`command_center/release.py`, `command_center/ui/appupdate.py`):
+it carries the tag it was built from (`version.txt` in the bundle) and, once a day at start-up
+(`user_data/app_update.json`), asks GitHub for the latest release. When that one is newer it
+offers to install it: the zip is downloaded and unpacked in a temporary folder, the app closes,
+and a batch file replaces the .exe and its `_internal` folder, nothing else, then starts the
+app again. From the source there is no version and nothing is checked.
 
 Saved state, all in `user_data/` (git-ignored): `test_plans.json` (the Engagement Optimizer's
 tests, per list file, side and unit), `army_plans.json` (its army plans, per pair of lists),
@@ -64,6 +72,7 @@ main.py                   start the app
 run_app.bat               start the app with .venv, errors -> run_log.txt
 command_center/
   config.py               paths (project, data, lists), edition, attribution
+  release.py              the packaged app's own updates: latest release, download, install script
   context.py              AppContext: loaded data + settings shared by every window
   cli.py, __main__.py     python -m command_center  ui | fetch | show | fight
   util.py                 text helpers (norm, strip_html, to_int, clean_glyphs)
@@ -111,6 +120,7 @@ command_center/
     registry.py           @register_tool + auto-discovery
     toolwindow.py         base class for tool windows
     updater.py            the data check at start-up (once a day), in a window of its own
+    appupdate.py          the packaged app's update at start-up: the offer, the download window
     launcher.py           choose attacker/defender lists, then a tool (list-free tools: apart, on the left)
     theme.py, widgets.py  the dark theme (colours, fonts, ttk styles), shared widgets
     charts.py             canvas heatmap and bar chart with tooltips
