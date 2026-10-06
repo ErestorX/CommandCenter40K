@@ -10,6 +10,7 @@ from tkinter import ttk
 import re
 
 from command_center.util import clean_glyphs
+from command_center.ui.screen import screen_height
 from command_center.ui.theme import C, dark_title_bar
 
 # =============================================================================
@@ -145,12 +146,12 @@ def _display_lines(t: tk.Text) -> int:
 class RichTextWindow(tk.Toplevel):
     """Scrollable, read-only rich text with headings, rendered HTML and card grids.
 
-    Build content with h1/h2/h3/meta/html/cards, then call done()."""
+    Build content with h1/h2/h3/meta/html/cards, then call done(). As tall as the screen."""
 
-    def __init__(self, master, title: str, width=760, height=820):
+    def __init__(self, master, title: str, width=760):
         super().__init__(master)
         self.title(title)
-        self.geometry(f"{width}x{height}")
+        screen_height(self, width)
         self.configure(bg=C["panel"])
         dark_title_bar(self)
         bar = ttk.Frame(self, padding=(10, 8, 10, 4))

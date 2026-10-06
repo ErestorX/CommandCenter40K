@@ -28,6 +28,7 @@ from command_center.deploy.estimates import difficulty, game_estimate
 from command_center.deploy.scoring import (BATTLE_READY, COLUMNS, PRIMARY_MAX, ROUND_MAX, ROUNDS, SECONDARY_CELLS,
                                            SECONDARY_MAX, SECONDARY_MISSION_MAX, PlayerScore, SecondaryRow,
                                            primary_options, wtc)
+from command_center.ui.screen import screen_height
 from command_center.ui.theme import C, DIFFICULTY_COLORS, NO_ESTIMATE, dark_title_bar, display_family, font_family
 from command_center.ui.views.scoresheet import (CELL_DONE, OVER_INK, FaceToFace, PrimaryRows, column_headers,
                                                 sheet_fonts, show_vp, summary_row)
@@ -45,9 +46,9 @@ class ScoreOracle(tk.Toplevel):
         self.holomap = holomap
         self.title("Command Center 40K — Score Oracle")
         self.configure(bg=C["bg"])
-        self.geometry("1240x860")
-        self.minsize(1000, 560)
+        self.minsize(1000, 1)
         self.transient(holomap)                   # floats above the Field Holomap, both usable
+        screen_height(self, 1240)
         dark_title_bar(self)
         fam = font_family()
         self.fonts = {"score": (fam, 30, "bold"), "name": (display_family(), 14, "bold"),

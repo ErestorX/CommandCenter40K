@@ -241,6 +241,8 @@ def setup_style(root: tk.Tk) -> None:
 
     # cells of a matrix: black boxes on the panel
     style.configure("Cell.TFrame", background=C["field"], relief="solid", borderwidth=1, bordercolor=C["line"])
+    style.configure("CellOn.TFrame", background=C["field"], relief="solid", borderwidth=1, bordercolor=C["accent"],
+                    lightcolor=C["accent"], darkcolor=C["accent"])           # the cell that is shown elsewhere
     style.configure("Cell.TLabel", background=C["field"])
     style.configure("CellMuted.TLabel", background=C["field"], foreground=C["muted"], font=root.fonts["small"])
     # badges: a value shown as a tinted tag, in its side's colours

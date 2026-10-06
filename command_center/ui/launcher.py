@@ -14,6 +14,7 @@ from command_center.config import ATTRIBUTION_SHORT as ATTRIBUTION, LISTS_DIR, P
 from command_center.lists import ArmyList, parse_list
 from command_center.lists.library import name_problem, save_list, text_problem
 from command_center.ui.registry import Selection, Tool, tools
+from command_center.ui.screen import screen_height
 from command_center.ui.theme import C, dark_title_bar
 from command_center.ui.widgets import Tooltip
 
@@ -143,9 +144,9 @@ class AddListDialog(tk.Toplevel):
         self.app, self.on_saved = app, on_saved
         self.title("Command Center 40K — add an army list")
         self.configure(bg=C["bg"])
-        self.geometry("720x680")
-        self.minsize(560, 520)
+        self.minsize(560, 1)
         self.transient(app)
+        screen_height(self, 720)
         dark_title_bar(self)
         body = ttk.Frame(self, style="Panel.TFrame", padding=14)
         body.pack(fill="both", expand=True, padx=8, pady=8)

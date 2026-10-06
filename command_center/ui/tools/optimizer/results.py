@@ -12,6 +12,7 @@ from command_center.analysis.assign import plan_army
 from command_center.analysis.results import ATT_MODES, DEF_MODES, DIMS, METRICS, PHASE_VIEWS, TOTAL, Agg, ResultSet
 from command_center.analysis.sweep import TestRecord, to_csv
 from command_center.ui.charts import INK_3, SLOTS, BarChart, BarItem, Heatmap
+from command_center.ui.screen import screen_height
 from command_center.ui.theme import C, dark_title_bar
 from command_center.ui.widgets import make_tree
 
@@ -32,9 +33,9 @@ class ResultsWindow(tk.Toplevel):
         super().__init__(master)
         self.title(f"Command Center 40K — Engagement Optimizer results ({len(records):,} tests)")
         self.configure(bg=C["bg"])
+        self.minsize(1100, 1)
+        screen_height(self, 1500)
         dark_title_bar(self)
-        self.geometry("1500x900")
-        self.minsize(1100, 700)
         self.rs = ResultSet(records)
         self.selection = selection
         self.plans = master.ctx.army_plans          # the army plan is saved there for other windows

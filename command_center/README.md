@@ -127,6 +127,8 @@ command_center/
     app.py                Tk root, launcher, opens tools
     registry.py           @register_tool + auto-discovery
     toolwindow.py         base class for tool windows
+    screen.py             window sizes: main windows fill the screen and stay so (fill_screen), the
+                          floating ones opened from them are as tall as it (screen_height)
     updater.py            the data check at start-up (once a day), in a window of its own
     appupdate.py          the packaged app's update at start-up: the offer, the download window
     launcher.py           choose attacker/defender lists, then a tool (list-free tools: apart, on the left)
@@ -138,7 +140,7 @@ command_center/
     views/scoresheet.py   score sheet parts: two players face to face, the rows of a primary mission
     tools/
       cogitator/          the Disposition Cogitator: the matrix of Force Dispositions (needs no list)
-                          estimate.py: a pairing's Estimate window (primaries to score | its three layouts)
+                          estimate.py: a pairing's Estimate panel (primaries to score | its three layouts)
       auspex/             the Armies Auspex: one unit against another (army panels | results)
       optimizer/          the Engagement Optimizer (test plans | run | results window)
       holomap/           the Field Holomap: missions + army summaries | the pairing's three layouts
@@ -181,18 +183,22 @@ and a line per weapon (attacks, hits, wounds, unsaved, damage).
 ## Disposition Cogitator
 
 Opens from the launcher without choosing any list (its button stands apart, left of the
-Armies Auspex's: it is registered with `needs_armies=False`). At its centre, a matrix of every
+Armies Auspex's: it is registered with `needs_armies=False`). In its left two fifths, a matrix of every
 Force Disposition against every other; each cell names the primary mission its row's
 disposition plays against its column's, and the one played in return. Dispositions have their
 colour code (`theme.DISPOSITION_COLORS`): Take and Hold green, Purge the Foe red, Disruption
 deep blue, Reconnaissance teal, Priority Assets yellow.
 
-Click a matchup to open its **Estimate**, a floating window (one per pairing, several can
-be open; the two cells of a pairing, either side of the diagonal, open the same one). Its
+Click a matchup to show its **Estimate** in the right three fifths, in place of the one that
+was there; the two cells of a pairing, either side of the diagonal, show the same one and are
+both outlined. The Cogitator opens on the Estimate of Battlefield Dominance (`FIRST_SHOWN`).
+The matrix's cells are as wide as its two fifths allow (170 px at most), and a heading too long
+for its cell is hyphenated. Its
 players are Player 1 and Player 2: Player 1 has the disposition of the upper cell's row,
 and the attacker's side of the layouts. Top half: the two primary missions face to face, as
 on the Score Oracle's sheet, to tick or count option by option and see the VP per battle
-round (15 VP a round, 45 over the game). Bottom half: the pairing's three layouts, with the
+round (15 VP a round, 45 over the game), and under them the mission's actions as its card
+writes them (starts, units, use limit, completes, effect). Bottom half: the pairing's three layouts, with the
 deployment zones and the line between the two territories (a territory is the half of the
 battlefield that includes a player's deployment zone; on diagonal deployments the line
 follows the diagonal: `command_center/deploy/territory.py`).

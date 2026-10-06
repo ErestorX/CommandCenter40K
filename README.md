@@ -143,12 +143,13 @@ primary mission each side plays.
 
 ![Disposition Cogitator](assets/screenshots/disposition-cogitator.png)
 
-Click a matchup to open its **Estimate**: the two primary missions side by side, where you
-tick how you expect the game to go round by round, above the three layouts of that matchup.
+Click a matchup to show its **Estimate** to the right of the matrix: the two primary missions
+side by side, where you tick how you expect the game to go round by round, above the three
+layouts of that matchup. Battlefield Dominance's is there when the Cogitator opens.
 
 ![An Estimate](assets/screenshots/estimate.png)
 
-- There is an Estimate for each player going first: switch at the top of the window.
+- There is an Estimate for each player going first: switch at the top of the Estimate.
 - Everything is saved as you go, and the circles on the matrix colour themselves from your
   Estimates, from red (your hardest matchups) to green (the easiest).
 - On game day, **Import Estimate** in the Score Oracle fills the score sheet with the Estimate

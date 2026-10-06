@@ -15,6 +15,7 @@ from command_center.release import use_bundled_certificates
 from command_center.ui.appupdate import update_app
 from command_center.ui.launcher import Launcher
 from command_center.ui.registry import Selection, discover, get_tool
+from command_center.ui.screen import fill_screen
 from command_center.ui.theme import load_fonts, setup_style
 from command_center.ui.updater import refresh_data
 
@@ -41,8 +42,7 @@ class App(tk.Tk):
         self.ctx = ctx
         self.title("Command Center 40K")
         setup_style(self)                  # also sets self.fonts
-        self.geometry("1040x600")
-        self.minsize(960, 520)
+        fill_screen(self)
         self.open_windows: list[tk.Toplevel] = []
         self.launcher = Launcher(self)
         self.launcher.pack(fill="both", expand=True)

@@ -1,9 +1,9 @@
-"""The Estimate: the Disposition Cogitator's floating window for one pairing of Force Dispositions,
-Player 1's against Player 2's.
+"""The Estimate: the Disposition Cogitator's panel for one pairing of Force Dispositions, Player 1's
+against Player 2's, to the right of its matrix.
 
 Top half, the two players face to face with the primary mission each plays in the pairing, as on the
 Score Oracle's sheet: a row per scoring option, to tick or count per battle round, and the VP it adds
-up to. Bottom half, the pairing's three battlefield layouts, with the deployment zones and the line
+up to; under them, the actions of the mission's card, in full. Bottom half, the pairing's three battlefield layouts, with the deployment zones and the line
 between the two territories; Player 1 has the layouts' attacker side, Player 2 the defender's.
 
 A pairing has two Estimates: one with Player 1 going first, one with Player 2. The header switches
@@ -18,8 +18,7 @@ from tkinter import ttk
 from typing import TYPE_CHECKING
 
 from command_center.deploy.estimates import PLAYERS, saved_scores
-from command_center.deploy.scoring import PlayerScore
-from command_center.ui.theme import C, dark_title_bar
+from command_center.deploy.scoring import COLUMNS, PlayerScore
 from command_center.ui.tools.holomap.map_view import LayoutMap
 from command_center.ui.views.scoresheet import FaceToFace, PrimaryRows, column_headers, sheet_fonts
 
@@ -29,16 +28,10 @@ if TYPE_CHECKING:
 SIDES = (("Att.TLabel", "AttBadge.TLabel"), ("Def.TLabel", "DefBadge.TLabel"))     # Player 1, Player 2
 
 
-class EstimateWindow(tk.Toplevel):
-    def __init__(self, cogitator: "CogitatorWindow", first: str, second: str):
+class EstimatePanel(ttk.Frame):
+    def __init__(self, master, cogitator: "CogitatorWindow", first: str, second: str):
         """first, second: Player 1's and Player 2's Force Dispositions."""
-        super().__init__(cogitator)
-        self.title(f"Command Center 40K — Estimate: {first} vs {second}")
-        self.configure(bg=C["bg"])
-        self.geometry("1280x900")
-        self.minsize(1000, 640)
-        self.transient(cogitator)                  # floats above the Cogitator, both usable
-        dark_title_bar(self)
+        super().__init__(master)
         book = cogitator.ctx.missions
         self.cogitator = cogitator
         self.store = cogitator.ctx.estimates
@@ -54,9 +47,10 @@ class EstimateWindow(tk.Toplevel):
         if first == second:                                     # mirror: one Estimate, its players swapped
             self.scores[1] = self.scores[0][::-1]
         self.goes_first = tk.IntVar(value=0)                    # the Estimate shown: the player going first
+        # the actions of each player's primary mission, as on its card
+        self.actions = [(book.primary_mission(*p) or {}).get("actions", []) for p in pairing]
 
-        body = ttk.Frame(self, padding=10)
-        body.pack(fill="both", expand=True)
+        body = self
         body.columnconfigure(0, weight=1)
         for row in (1, 2):                                      # the primaries above, the maps below: half each
             body.rowconfigure(row, weight=1, uniform="halves")
@@ -127,10 +121,28 @@ class EstimateWindow(tk.Toplevel):
                                                    on_change=lambda i=i: self._changed(i))
             self.faces.wide[i] += rows.wide
             self.faces.beside[i] += rows.beside
-            ttk.Frame(g, style="Flat.TFrame").grid(row=rows.next_row, column=0)
-            g.rowconfigure(rows.next_row, weight=1)             # space below, not between the rows
+            row = self._show_actions(g, rows.next_row, i)
+            ttk.Frame(g, style="Flat.TFrame").grid(row=row, column=0)
+            g.rowconfigure(row, weight=1)                       # space below, not between the rows
             rows.refresh()
             self.faces.wrap(i)
+
+    def _show_actions(self, g, row: int, i: int) -> int:
+        """The actions of a player's mission, from `row` down: each one's name and type, then its card's lines
+        (starts, units, use limit, completes, effect...). Returns the first free row under them."""
+        def line(text: str, style: str, pady, **kw):
+            nonlocal row
+            lb = ttk.Label(g, text=text, style=style, wraplength=400, justify="left", **kw)
+            lb.grid(row=row, column=0, columnspan=2 + COLUMNS, sticky="w", pady=pady)
+            self.faces.wide[i].append(lb)
+            row += 1
+        for a in self.actions[i]:
+            line(f"{a.get('name', '').title()}  ·  {a.get('type', '').capitalize()}", "Panel.TLabel", (12, 2),
+                 font=self.fonts["total"])
+            for key, text in a.items():
+                if key not in ("name", "type"):
+                    line(f"{key.replace('_', ' ').capitalize()}: {text}", "Muted.TLabel", (0, 2))
+        return row
 
     def _changed(self, i: int):
         """A player's scoring changed: its totals, the Estimate saved, and the matrix's difficulty colours."""

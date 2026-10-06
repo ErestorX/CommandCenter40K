@@ -19,7 +19,7 @@ def _strat_meta(s: dict) -> str:
 
 
 def show_army_rules(master, book: RulesBook, army) -> RichTextWindow:
-    w = RichTextWindow(master, f"{army.faction} — army & detachment rules", width=1120, height=860)
+    w = RichTextWindow(master, f"{army.faction} — army & detachment rules", width=1120)
     w.h1(army.faction)
     w.meta(f"{army.path.stem}  ·  {army.points} pts" + (f"  ·  {army.detachment}" if army.detachment else ""))
 
