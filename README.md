@@ -35,6 +35,10 @@ pip install -r requirements.txt
 python main.py                 # or double-click run_app.bat
 ```
 
+The app comes with two small demonstration lists, DemOrks and TestMarines, and with work
+already saved for them (Optimizer tests, an army plan, Estimates), so every tool has something
+to show straight away.
+
 The first time it starts, the app downloads what it needs from Wahapedia: give it a minute.
 After that it checks for new data once a day at start-up, and simply carries on with what it
 has if you are offline.

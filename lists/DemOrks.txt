@@ -1,0 +1,45 @@
+Xenos - Orks - DemOrks - [885 pts]
+
+# ++ Army Roster ++ [885 pts, 3 Detachment Points]
+## Configuration
+Battle Size: Strike Force (2000 Point limit)
+Detachment [3 Detachment Points]: War Horde [3 Detachment Points]
+Force Disposition: Take and Hold
+Show/Hide Options
+
+## Character [310 pts]
+Beastboss [85 pts]: Beast Snagga Klaw and Beastchoppa, Shoota
+  • Leading: Beast Snagga Boyz
+Big Mek with Shokk Attack Gun [110 pts]: Big Mek's Toolz, Shokk Attack Gun
+  • Leading: Tankbustas
+Warboss in Mega Armour [115 pts]: ’Uge Choppa, Big Shoota
+  • Leading: Meganobz
+
+## Battleline [80 pts]
+Beast Snagga Boyz [80 pts]:
+• 1x Nob: Power Snappa, Slugga
+• 8x Beast Snagga Boy: Choppa, Slugga
+• 1x Beast Snagga Boy w/ Thump gun: Choppa, Slugga, Thump Gun
+  • Leader: Beastboss
+
+## Infantry [350 pts]
+Meganobz [120 pts]:
+• 3x Meganob w/ Twin Killsaw [5 pts]: Twin Killsaw [5 pts]
+  • Leader: Warboss in Mega Armour
+Stormboyz [70 pts]:
+• 1x Nob: Slugga, Power Klaw
+• 4x Stormboy: Choppa, Slugga
+Tankbustas [160 pts]:
+• 1x Nob: Choppa, 2x Rokkit Pistol
+• 1x Tankbusta w/ Two Busta Rokkit Launchas: 2x Busta Rokkit Launcha, Gitstikka
+• 4x Tankbusta w/ Busta Rokkit Launcha: Busta Rokkit Launcha, Gitstikka
+  • Leader: Big Mek with Shokk Attack Gun
+
+## Mounted [85 pts]
+Deffkoptas [85 pts]:
+• 3x Deffkopta: Choppa, Rokkit Launcha, Slugga, Spinnin’ Blades
+
+## Dedicated Transport [60 pts]
+Trukk [60 pts]: Spiked Ram, Dual Big Shoota, Grabbin' Klaw
+
+Created with newrecruit.eu v36.42

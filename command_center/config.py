@@ -40,6 +40,8 @@ DATA_ROOT_CANDIDATES = [DATA_ROOT, PROJECT_ROOT / "data"]
 
 # Per-user state that isn't part of the code (saved test plans, ...). Git-ignored.
 USER_DATA_DIR = PROJECT_ROOT / "user_data"
+# The work saved for the demonstration lists (lists/), copied to USER_DATA_DIR at the first start.
+DEMO_USER_DATA_DIR = BUNDLE_ROOT / "assets" / "demo" / "user_data"
 FONTS_DIR = BUNDLE_ROOT / "assets" / "fonts"     # the display font (see command_center.ui.theme)
 
 # Where the packaged app looks for its own updates (command_center.release): the repository's latest

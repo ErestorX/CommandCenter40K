@@ -48,7 +48,8 @@ jobs:
           Set-Content version.txt $env:GITHUB_REF_NAME -Encoding ascii
           python -m PyInstaller main.py --name "$env:APP_NAME" --windowed --noconfirm `
             --collect-submodules command_center --icon assets/icon/icon.ico `
-            --add-data "assets/fonts:assets/fonts" --add-data "assets/icon:assets/icon" --add-data "version.txt:."
+            --add-data "assets/fonts:assets/fonts" --add-data "assets/icon:assets/icon" `
+            --add-data "assets/demo:assets/demo" --add-data "version.txt:."
 
       # A build that cannot start shows PyInstaller's "Unhandled exception" window, or nothing at all.
       - name: Start the built app (Windows)
@@ -82,7 +83,7 @@ jobs:
             --collect-submodules command_center --collect-data certifi --icon assets/icon/icon.icns \
             --osx-bundle-identifier com.erestorx.commandcenter40k \
             --add-data "assets/fonts:assets/fonts" --add-data "assets/icon:assets/icon" \
-            --add-data "version.txt:." --add-data "lists:lists"
+            --add-data "assets/demo:assets/demo" --add-data "version.txt:." --add-data "lists:lists"
 
       # Started: still running once its data is fetched (or after two minutes), its first start has put
       # the lists in place, and the data is there. As on a Mac without Python: this runner's Python has
@@ -105,6 +106,7 @@ jobs:
           kill $pid 2>/dev/null || true
           [ "$alive" = yes ] || { echo "The built app did not stay up"; exit 1; }
           ls "$home/lists"/*.txt > /dev/null || { echo "The built app did not install its lists"; exit 1; }
+          [ -f "$home/user_data/test_plans.json" ] || { echo "The built app did not install its demonstration work"; exit 1; }
           [ -f "$home/wahapedia_data/wh40k11ed/manifest.json" ] || { echo "The built app did not fetch its data"; exit 1; }
 
       # ditto: a zip that keeps the .app's links and permissions (and what the app unpacks an update with).

@@ -1,7 +1,7 @@
 """Army lists: parse any registered format, then link units to Wahapedia datasheets.
 
     from command_center.lists import parse_list
-    army = parse_list("lists/Drukhari.txt", wd)
+    army = parse_list("lists/DemOrks.txt", wd)
 """
 from __future__ import annotations
 

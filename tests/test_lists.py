@@ -120,7 +120,7 @@ class LedByReferencesTest(unittest.TestCase):
         self.assertEqual(t.models, 5)
 
 
-@unittest.skipUnless(config.find_data_dir() and (config.LISTS_DIR / "Drukhari.txt").exists(),
+@unittest.skipUnless(config.find_data_dir() and any(config.LISTS_DIR.glob("*.txt")),
                      "needs downloaded Wahapedia data and the lists/ folder")
 class RealDataTest(unittest.TestCase):
     def test_every_unit_in_every_list_has_a_datasheet(self):

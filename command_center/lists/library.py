@@ -53,18 +53,26 @@ def text_problem(text: str, wd: Wahapedia) -> str | None:
     return None
 
 
-def install_bundled_lists(source: Path | None = None, lists_dir: Path | None = None) -> bool:
-    """First start of an app that carries its lists inside itself (macOS): copy them to the user's
-    lists folder. Nothing once that folder is there: what is in it is the user's. True when copied."""
-    source, lists_dir = Path(source or config.BUNDLED_LISTS_DIR), Path(lists_dir or config.LISTS_DIR)
-    if lists_dir.exists() or not source.is_dir():
+def install_folder(source: Path, target: Path) -> bool:
+    """Copy a folder the app comes with to its place among the user's, if it isn't there yet. Nothing
+    once it is there: what is in it is the user's. True when copied."""
+    source, target = Path(source), Path(target)
+    if target.exists() or not source.is_dir():
         return False
     try:
-        lists_dir.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(source, lists_dir)
-    except OSError:                # no lists to start with: they can still be added from the launcher
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(source, target)
+    except OSError:                # nothing to start with: lists can still be added from the launcher
         return False
     return True
+
+
+def install_demo() -> None:
+    """First start: put in place what the app comes with to try it out. The demonstration lists, for an
+    app that carries them inside itself (macOS), and the work saved for them (tests, army plan,
+    Estimates: assets/demo/user_data), for as long as the user has no saved work of their own."""
+    install_folder(config.BUNDLED_LISTS_DIR, config.LISTS_DIR)
+    install_folder(config.DEMO_USER_DATA_DIR, config.USER_DATA_DIR)
 
 
 def save_list(text: str, name: str, lists_dir: Path) -> Path:

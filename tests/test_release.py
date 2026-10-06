@@ -61,17 +61,30 @@ class SwapScriptTest(unittest.TestCase):
 
 class BundledListsTest(unittest.TestCase):
     def test_copied_once(self):
-        from command_center.lists.library import install_bundled_lists
+        from command_center.lists.library import install_folder
         with tempfile.TemporaryDirectory() as d:
             source, lists = Path(d) / "app" / "lists", Path(d) / "user" / "lists"
-            self.assertFalse(install_bundled_lists(source, lists))      # an app without lists inside
+            self.assertFalse(install_folder(source, lists))             # an app without lists inside
             source.mkdir(parents=True)
             (source / "Example.txt").write_text("a list", encoding="utf-8")
-            self.assertTrue(install_bundled_lists(source, lists))
+            self.assertTrue(install_folder(source, lists))
             self.assertEqual((lists / "Example.txt").read_text(encoding="utf-8"), "a list")
             (lists / "Example.txt").unlink()                            # the user removes it: it stays removed
-            self.assertFalse(install_bundled_lists(source, lists))
+            self.assertFalse(install_folder(source, lists))
             self.assertEqual(list(lists.iterdir()), [])
+
+    def test_the_demonstration_work_is_for_lists_the_app_comes_with(self):
+        import json
+
+        from command_center import config
+        lists = {p.name for p in config.LISTS_DIR.glob("*.txt")}
+        if not config.DEMO_USER_DATA_DIR.is_dir() or not lists:
+            self.skipTest("no demonstration data here")
+        plans = json.loads((config.DEMO_USER_DATA_DIR / "army_plans.json").read_text(encoding="utf-8"))
+        tests = json.loads((config.DEMO_USER_DATA_DIR / "test_plans.json").read_text(encoding="utf-8"))
+        named = {name for key in plans for name in key.split("|")} | {key.split("|")[0] for key in tests}
+        self.assertTrue(named)
+        self.assertLessEqual(named, lists)
 
 
 if __name__ == "__main__":

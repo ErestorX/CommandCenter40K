@@ -10,7 +10,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 from command_center.context import AppContext
-from command_center.lists.library import install_bundled_lists
+from command_center.lists.library import install_demo
 from command_center.release import use_bundled_certificates
 from command_center.ui.appupdate import update_app
 from command_center.ui.launcher import Launcher
@@ -65,7 +65,7 @@ def main(data_dir: str | None = None) -> None:
     fetched again first when its last check is more than a day old."""
     discover()
     use_bundled_certificates()
-    install_bundled_lists()
+    install_demo()
     if data_dir is None:
         dpi_aware()
         if update_app():                   # the packaged app is installing its new version: it comes back

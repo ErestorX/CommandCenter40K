@@ -149,7 +149,10 @@ assets/icon/              the app's icon: skull_icon.png and what is made from i
                           icon.icns for the macOS .app, icon.png for windows elsewhere); set by theme.set_icon
 assets/fonts/             the display font (Caliban Angelus), loaded by the app itself: no install needed
 assets/screenshots/       the screenshots of the root README
-lists/                    your army lists
+assets/demo/user_data/    the work saved for the demonstration lists (tests, army plan, Estimates): a copy
+                          of user_data/ made by hand, put in place at the first start while there is no
+                          user_data/ yet (lists.library.install_demo)
+lists/                    your army lists; the ones in the repository are the demonstration lists the app ships with
 user_data/                saved test plans, army plans and Estimates (git-ignored)
 wahapedia_data/           downloaded data (git-ignored)
 ```
