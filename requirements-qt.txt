@@ -1,0 +1,2 @@
+-r requirements.txt
+PySide6-Essentials>=6.8      # the Qt front end, under way (docs/qt_migration.md): python main_qt.py

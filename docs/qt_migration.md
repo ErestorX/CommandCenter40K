@@ -142,6 +142,44 @@ tkinter windows are left in place until the last stage.
 To do alongside, from stage 1: a test that opens each window without a screen. It is what the
 rewrite lacks most, and Qt is what makes it possible.
 
+## Progress
+
+Stages 1 and 2 are done, in `command_center/qt/`, next to the tkinter front end, which is untouched
+but for its colours moving to `command_center/ui/palette.py` so that both read the same ones.
+
+```bash
+pip install -r requirements-qt.txt
+python main_qt.py                 # or: python -m command_center qt
+```
+
+The Qt launcher offers the tools it has: the Disposition Cogitator so far. `main.py`, `run_app.bat`
+and the release still start the tkinter app.
+
+What the two stages showed:
+
+- Nothing platform-specific is left in the shell but one call for the Windows taskbar. Fonts, dark
+  title bars, DPI and window sizes are Qt's.
+- One Qt application serves the update windows and the app. tkinter needed a root for each.
+- The score sheet's texts wrap by themselves. The code that measured them and the layout that
+  "chased" them are gone.
+- The boards are drawn once and scaled by their view (`qt/views/board.py`). Stage 6 adds the units
+  and overlays to it.
+- Tick boxes and radio buttons had to be drawn by hand (`qt/widgets.py`): Qt's own are dark on dark
+  with this palette.
+- `tests/test_qt_windows.py` opens every Qt window without a screen, on the fixtures. It is skipped
+  where PySide6 is not installed, as on the release workflow today.
+
+The real app, built for Windows with the options of `release.yml` (`main_qt.py`, tkinter left out):
+
+| | tkinter (today) | Qt, as built | Qt, without software OpenGL and translations |
+|---|---|---|---|
+| App folder | 63 MB | 134 MB | 107 MB |
+| Zip to download | 27.6 MB | | 46.5 MB |
+
+It starts and shows the launcher. The trimmed build was started too.
+
+Left for the decision point: the macOS build, which needs the workflow. Not done here.
+
 ## Alternatives
 
 - Stay on tkinter. Costs nothing. Right if no more drawing features are planned.
