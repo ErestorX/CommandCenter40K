@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from typing import Callable
 
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt
-from PySide6.QtGui import QColor, QPainter, QPen
-from PySide6.QtWidgets import QCheckBox, QFrame, QLabel, QPushButton, QRadioButton, QWidget
+from PySide6.QtCore import QPointF, QRectF, QSize, Qt, Signal
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
+from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFrame, QHeaderView, QLabel, QPushButton,
+                               QRadioButton, QStyle, QStyleOptionComboBox, QTreeWidget, QTreeWidgetItem, QWidget)
 
 from command_center.ui.palette import C
 
@@ -110,6 +111,159 @@ class Choice(_Marked, QRadioButton):
     """A radio button: one of a group is chosen."""
 
     round_box = True
+
+
+def pct(x: float) -> str:
+    return f"{x:.0%}" if x < 0.995 or x == 1 else ">99%"
+
+
+class Table(QTreeWidget):
+    """A table with headings. columns: (key, title) pairs; widths: a column's width in pixels, negative for
+    one that takes the room left (at least that wide). rows: how many it shows; `fixed`: no more, no less.
+    A row may be given a key, to find it by (keys, selected_key, select). `reordered` is emitted after the
+    user dragged a row to another place (allow_reorder)."""
+
+    reordered = Signal()
+
+    def __init__(self, columns, widths, rows: int = 6, fixed: bool = False, selectable: bool = True):
+        super().__init__()
+        self.setColumnCount(len(columns))
+        self.setHeaderLabels([title for _, title in columns])
+        self.setRootIsDecorated(False)
+        self.setUniformRowHeights(True)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setSelectionMode(QAbstractItemView.SingleSelection if selectable else QAbstractItemView.NoSelection)
+        self.setFocusPolicy(Qt.NoFocus)
+        head = self.header()
+        head.setStretchLastSection(False)
+        head.setSectionsMovable(False)
+        head.setSectionsClickable(False)
+        head.setMinimumSectionSize(16)
+        self.centred = []
+        for i, w in enumerate(widths):
+            head.setSectionResizeMode(i, QHeaderView.Stretch if w < 0 else QHeaderView.Fixed)
+            if w > 0:
+                self.setColumnWidth(i, w)
+            self.centred.append(i > 0 and w > 0)
+            head.model().setHeaderData(i, Qt.Horizontal, int(Qt.AlignCenter if self.centred[i] else Qt.AlignLeft | Qt.AlignVCenter),
+                                       Qt.TextAlignmentRole)
+        self.setMinimumWidth(sum(abs(w) for w in widths) // 2)
+        self.fixed = fixed
+        self.set_rows(rows)
+
+    def set_rows(self, rows: int):
+        """Show `rows` rows: exactly, for a fixed table; at least, for one that grows with its room."""
+        height = self.header().sizeHint().height() + rows * self.row_height + 2 * self.frameWidth()
+        if self.fixed:
+            self.setFixedHeight(height)
+        else:
+            self.setMinimumHeight(height)
+
+    @property
+    def row_height(self) -> int:
+        return self.fontMetrics().height() + 6
+
+    def clear_rows(self):
+        self.clear()
+
+    def add_row(self, values, key=None, color: str | None = None) -> QTreeWidgetItem:
+        item = QTreeWidgetItem([str(v) for v in values])
+        item.setData(0, Qt.UserRole, key)
+        item.setFlags(item.flags() & ~Qt.ItemIsDropEnabled)         # rows are moved between rows, not into one
+        for i, centred in enumerate(self.centred):
+            if centred:
+                item.setTextAlignment(i, Qt.AlignCenter)
+            elif len(item.text(i)) > 20:
+                item.setToolTip(i, item.text(i))                    # in full, where its column may cut it short
+            if color:
+                item.setForeground(i, QColor(color))
+        self.addTopLevelItem(item)
+        return item
+
+    def keys(self) -> list:
+        return [self.topLevelItem(i).data(0, Qt.UserRole) for i in range(self.topLevelItemCount())]
+
+    def selected_key(self):
+        items = self.selectedItems()
+        return items[0].data(0, Qt.UserRole) if items else None
+
+    def select(self, key) -> None:
+        """Select the row with this key and bring it in view; no one is told."""
+        self.blockSignals(True)
+        self.clearSelection()
+        if key in self.keys():
+            item = self.topLevelItem(self.keys().index(key))
+            item.setSelected(True)
+            self.scrollToItem(item)
+        self.blockSignals(False)
+
+    def allow_reorder(self):
+        """Rows can be dragged to another place in the table."""
+        self.setDragDropMode(QAbstractItemView.InternalMove)
+        self.setDefaultDropAction(Qt.MoveAction)
+
+    def move_row(self, key, to: int):
+        """Put a row at another place, as a drag would."""
+        self.insertTopLevelItem(to, self.takeTopLevelItem(self.keys().index(key)))
+        self.reordered.emit()
+
+    def dropEvent(self, event):
+        super().dropEvent(event)
+        self.reordered.emit()
+
+
+class Combo(QComboBox):
+    """A drop-down in the theme's colours, with its arrow drawn (a styled one has none of its own)."""
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        option = QStyleOptionComboBox()
+        self.initStyleOption(option)
+        box = self.style().subControlRect(QStyle.CC_ComboBox, option, QStyle.SC_ComboBoxArrow, self)
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        c = QPointF(box.center()) + QPointF(0.5, 1)
+        arrow = QPainterPath()
+        arrow.moveTo(c.x() - 3.5, c.y() - 2)
+        arrow.lineTo(c.x() + 3.5, c.y() - 2)
+        arrow.lineTo(c.x(), c.y() + 2.5)
+        arrow.closeSubpath()
+        p.fillPath(arrow, QColor(C["ink"] if self.isEnabled() else C["dim"]))
+
+
+class EyeButton(QWidget):
+    """Small drawn 'eye' icon button (no emoji fonts needed)."""
+
+    def __init__(self, command: Callable[[], None], tip: str = ""):
+        super().__init__()
+        self.command = command
+        self.setFixedSize(24, 16)
+        self.setCursor(Qt.PointingHandCursor)
+        if tip:
+            self.setToolTip(tip)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setPen(QPen(QColor(C["att"] if self.underMouse() else C["muted"]), 1.6))
+        lid = QPainterPath()
+        lid.moveTo(2, 8)
+        lid.quadTo(12, -3, 22, 8)
+        lid.quadTo(12, 19, 2, 8)
+        p.drawPath(lid)
+        p.drawEllipse(QPointF(12, 8), 3.5, 3.5)
+        p.setBrush(p.pen().color())
+        p.drawEllipse(QPointF(12, 8), 1.5, 1.5)
+
+    def enterEvent(self, event):
+        self.update()
+
+    def leaveEvent(self, event):
+        self.update()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.command()
 
 
 def rule() -> QFrame:

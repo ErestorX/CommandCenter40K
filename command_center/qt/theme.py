@@ -36,6 +36,7 @@ QFrame[role="rule"] {{ background: {line}; border: none; }}
 
 QLabel[role="h1"] {{ font-family: "{display}"; font-size: 17pt; font-weight: bold; }}
 QLabel[role="h2"] {{ font-family: "{display}"; font-size: 12pt; font-weight: bold; }}
+QLabel[role="big"] {{ font-size: 22pt; font-weight: bold; }}
 QLabel[role="muted"] {{ color: {muted}; font-size: 9pt; }}
 QLabel[role="warn"] {{ color: {warn}; font-size: 9pt; }}
 QLabel[role="small"] {{ font-size: 9pt; }}
@@ -57,6 +58,24 @@ QPushButton[role="accent"] {{ color: {accent}; font-size: 11pt; padding: 6px 12p
 QPushButton[role="accent"]:hover {{ color: #ff5a4f; }}
 QPushButton[role="accent"]:disabled {{ color: {dim}; }}
 QPushButton[role="step"] {{ font-family: "{body}"; padding: 0px 5px; border: none; }}
+QPushButton[role="switch"] {{ color: {muted}; font-size: 11pt; padding: 7px 18px; min-width: 70px; }}
+QPushButton[role="switch"]:hover {{ color: {ink}; }}
+QPushButton[role="switch"]:checked {{ color: {accent}; background: {field}; border-color: {line};
+    border-top-color: #08080a; border-left-color: #08080a; }}
+
+QTreeWidget {{ background: {field}; color: {ink}; border: 1px solid {line}; outline: none; }}
+QTreeWidget::item {{ padding: 2px 3px; }}
+QTreeWidget::item:selected {{ background: {select}; color: white; }}
+QHeaderView::section {{ background: {raised}; color: {ink}; font-size: 9pt; padding: 3px 4px; border: none;
+    border-right: 1px solid {line}; border-bottom: 1px solid {line}; }}
+QGroupBox {{ border: 1px solid {line}; margin-top: 9px; padding-top: 4px; }}
+QGroupBox::title {{ subcontrol-origin: margin; left: 8px; padding: 0px 3px; color: {muted}; }}
+QComboBox {{ background: {field}; color: {ink}; border: 1px solid {line}; padding: 2px 6px; }}
+QComboBox:disabled {{ background: {grid}; color: {dim}; }}
+QComboBox::drop-down {{ background: {raised}; border-left: 1px solid {line}; width: 16px; }}
+QComboBox::drop-down:hover {{ background: {hover}; }}
+QComboBox QAbstractItemView {{ background: {field}; color: {ink}; border: 1px solid {line};
+    selection-background-color: {select}; selection-color: white; outline: none; }}
 
 QListWidget, QPlainTextEdit, QLineEdit {{ background: {field}; color: {ink}; border: 1px solid {line};
     selection-background-color: {select}; selection-color: white; }}

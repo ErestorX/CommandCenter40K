@@ -144,7 +144,7 @@ rewrite lacks most, and Qt is what makes it possible.
 
 ## Progress
 
-Stages 1 to 3 are done, in `command_center/qt/`, next to the tkinter front end, which is untouched
+Stages 1 to 4 are done, in `command_center/qt/`, next to the tkinter front end, which is untouched
 but for its colours moving to `command_center/ui/palette.py` so that both read the same ones.
 
 ```bash
@@ -152,7 +152,7 @@ pip install -r requirements-qt.txt
 python main_qt.py                 # or: python -m command_center qt
 ```
 
-The Qt launcher offers the tools it has: the Disposition Cogitator so far. `main.py`, `run_app.bat`
+The Qt launcher offers the tools it has: the Disposition Cogitator and the Armies Auspex so far. `main.py`, `run_app.bat`
 and the release still start the tkinter app.
 
 What stages 1 and 2 showed:
@@ -184,6 +184,19 @@ Stage 3 is what the next two tools share: the charts (`qt/charts.py`), the rules
   The charts' tooltips are Qt's.
 - `tests/test_qt_views.py` clicks on the charts, searches the rules text and opens both rules
   windows, without a screen.
+
+Stage 4 is the Armies Auspex (`qt/tools/auspex/`), the first tool on the charts' side of the app and
+the first with work on another thread. What it showed:
+
+- A simulation runs on a thread and comes back through a signal (`qt/worker.py`). The 25 ms poll and
+  the two `gc.collect()` calls that kept tkinter's objects off that thread are gone.
+- A result that is out of date is dropped as soon as something changes, not only when the next
+  simulation starts: after a swap, tkinter could show the old sides' result for a moment.
+- Tables are one widget (`widgets.Table`): the allocation order is dragged with Qt's own row
+  dragging, in place of three mouse handlers.
+- Drop-downs had to be given their arrow by hand (`widgets.Combo`), as tick boxes were.
+- Waiting for a worker thread in a test must go through Qt's event loop: `QTest.qWait` keeps
+  Python's lock, and the simulation took 6 s for 0.1 s.
 
 The real app, built for Windows with the options of `release.yml` (`main_qt.py`, tkinter left out):
 

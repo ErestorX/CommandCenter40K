@@ -76,8 +76,8 @@ their own (`command_center/ui/tools/holomap/map_view.py`). The screenshots of th
 (Windows; on the demonstration lists and a temporary copy of their saved work).
 
 Qt front end, under way (`docs/qt_migration.md`): `command_center/qt/` takes over from
-`command_center/ui/` tool by tool, and has the launcher and the Disposition Cogitator so far, with
-the charts and rules windows the next tools need.
+`command_center/ui/` tool by tool, and has the launcher, the Disposition Cogitator and the Armies Auspex so far,
+with the charts the Engagement Optimizer needs.
 `pip install -r requirements-qt.txt`, then `python main_qt.py` (or `python -m command_center qt`).
 Its windows are tested without a screen (`tests/test_qt_windows.py`, `tests/test_qt_views.py`, skipped
 without PySide6).
