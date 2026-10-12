@@ -179,8 +179,9 @@ Stage 3 is what the next two tools share: the charts (`qt/charts.py`), the rules
 - Stratagem cards are a table of that same document. The pass that sized each card to its text,
   and the wheel passed on from the cards to the window, are gone. The search covers the cards and
   marks every match.
-- The charts are painted as before, on a surface their scrolling area moves: 380 lines for 470.
-  Tooltips are Qt's.
+- The charts are painted as before, on a surface their scrolling area moves, and are no shorter. The
+  rules text window is: 190 lines for 320.
+  The charts' tooltips are Qt's.
 - `tests/test_qt_views.py` clicks on the charts, searches the rules text and opens both rules
   windows, without a screen.
 
