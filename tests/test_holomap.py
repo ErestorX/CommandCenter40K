@@ -150,6 +150,17 @@ class BasesTest(unittest.TestCase):
         self.assertAlmostEqual(three.h, d)
         self.assertGreater(by[LINE].h, d)                                    # ten don't fit in one row, even touching: two
         self.assertAlmostEqual(by[LINE].w, reach)
+        # 1" apart has the same limit: a unit it leaves alone, one it makes rounder, one whose gaps it narrows
+        short = math.sqrt(4 * (10 * math.pi * (d + 1) ** 2 / 4 / (math.pi / (2 * math.sqrt(3)))) / (math.pi * 1.5))
+        self.assertAlmostEqual(by[SPACED].w, 1.5 * short - 1)               # ten: within reach as they are
+        self.assertAlmostEqual(by[SPACED].h, short - 1)
+        twenty = unit_footprint([(parse_base("32mm"), 20)])
+        self.assertAlmostEqual(twenty.w, reach)                              # 12.0" long without the limit
+        self.assertLess(twenty.w / twenty.h, 1.5)
+        self.assertGreaterEqual(area(twenty) + 1e-6, area(unit_footprint([(parse_base("32mm"), 20)], COMPACT)))
+        sixty = unit_footprint([(parse_base("32mm"), 60)])
+        self.assertLessEqual(max(sixty.w, sixty.h), reach + 1e-9)
+        self.assertLessEqual(area(sixty), area(unit_footprint([(parse_base("32mm"), 60)], SPREAD)) + 1e-6)
         # a horde: too large to spread 2" apart within reach, so rounder, then closer; never past the reach
         horde = unit_footprint([(parse_base("25mm"), 30)], SPREAD)
         self.assertLessEqual(max(horde.w, horde.h), REACH + 2 * parse_base("25mm").w + 1e-9)

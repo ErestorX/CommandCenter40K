@@ -12,10 +12,12 @@ A unit of several models is drawn as one shape holding every base, in one of fou
            of a tight hexagonal packing, and the ellipse of that area (with ASPECT between its axes)
            loses the 0.5" margin again on its outside.
   compact  the same with no gap: every base touching its neighbours, as tight as bases pack.
-  spread   the same with up to COHERENCY (2") between neighbours, as far as the unit may spread: every
-           model within REACH (9") of every other, so no further across than REACH plus its two
-           largest bases. A unit that would be longer is rounder instead; one too large for that
-           even as a circle has its gaps narrowed until it fits.
+  spread   the same with up to COHERENCY (2") between neighbours, as far as the unit may spread.
+
+Whatever the gap, every model is within REACH (9") of every other, so a unit is no further across than
+REACH plus its two largest bases. One that would be longer is rounder instead; one too large for that
+even as a circle has its gaps narrowed until it fits (a compact one is as large as its bases make it).
+
   line     the same limits, in a tube (a rectangle with round ends): the models in a row, up to 2"
            apart, as long as REACH allows; those that don't fit in one row, even touching, make more
            rows, as few as it takes.
@@ -108,11 +110,10 @@ def _across(bases: list[tuple[Base, int]]) -> float:
     return REACH + sum(longest)
 
 
-def _spread(bases: list[tuple[Base, int]]) -> tuple[float, float]:
-    """The ellipse of a unit spread as far as it may: up to COHERENCY between neighbours, no further
-    across than _across. Too long for that, it is rounder; too large even as a circle, its gaps narrow."""
+def _within_reach(bases: list[tuple[Base, int]], gap: float) -> tuple[float, float]:
+    """The ellipse of a unit with up to `gap` between neighbours, no further across than _across. Too
+    long for that, it is rounder; too large even as a circle, its gaps narrow."""
     limit = _across(bases)
-    gap = COHERENCY
     while gap > 0:
         w, h = _ellipse(bases, gap)
         if w > limit:                                     # the same area, no longer than allowed
@@ -156,8 +157,8 @@ def unit_footprint(bases: list[tuple[Base, int]], formation: str = SPACED) -> Fo
     tight = _ellipse(bases, 0)
     if count == 2:                                        # two bases side by side: an ellipse of their area is too short
         tight = (sum(b.w * n for b, n in bases), max(b.h for b, _ in bases))
-    w, h = {COMPACT: lambda: tight, SPREAD: lambda: _spread(bases), LINE: lambda: _line(bases)}.get(
-        formation, lambda: _ellipse(bases, GAP))()
+    w, h = {COMPACT: lambda: tight, SPREAD: lambda: _within_reach(bases, COHERENCY), LINE: lambda: _line(bases)}.get(
+        formation, lambda: _within_reach(bases, GAP))()
     shape = TUBE if formation == LINE else ELLIPSE
     if shape == TUBE and math.pi * h * h / 4 + (w - h) * h < math.pi * tight[0] * tight[1] / 4:
         w, h, shape = *tight, ELLIPSE                     # too many models for a row within reach: as compact

@@ -315,12 +315,14 @@ shape of its token on that board (`deploy/bases.py`; the one it is in is ticked)
 
 - **Compact**: every base touching its neighbours, as tight as bases pack.
 - **1" space**: 1" between neighbours, the rule above; what every unit starts in.
-- **Max spread**: up to 2" between neighbours, and every model within 9" of every other:
-  the ellipse is no further across than 9" plus its two largest bases. A unit too long
-  for that is rounder instead; one too large even as a circle has its gaps narrowed.
-- **Line spread**: the same limits in a tube (a rectangle with round ends): the models
+- **Max spread**: up to 2" between neighbours.
+- **Line spread**: up to 2" between neighbours, in a tube (a rectangle with round ends): the models
   in a row, up to 2" apart, as long as the 9" allows; models that don't fit in one row,
   even touching, make more rows, as few as it takes.
+
+In the last three, every model is within 9" of every other: the token is no further
+across than 9" plus its two largest bases. A unit too long for that is rounder instead;
+one too large even as a circle has its gaps narrowed until it fits.
 
 Rings, distances, line of sight and target arrows follow the token's shape.
 
