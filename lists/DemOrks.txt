@@ -42,4 +42,4 @@ Deffkoptas [85 pts]:
 ## Dedicated Transport [60 pts]
 Trukk [60 pts]: Spiked Ram, Dual Big Shoota, Grabbin' Klaw
 
-Created with newrecruit.eu v36.42
+Created with newrecruit.eu v36.44

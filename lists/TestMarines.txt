@@ -1,37 +1,37 @@
-Imperium - Adeptus Astartes - Space Marines - TestMarines - [615 pts]
+Imperium - Adeptus Astartes - Space Marines - TestMarines - [645 pts]
 
-# ++ Army Roster ++ [615 pts, 3 Detachment Points]
+# ++ Army Roster ++ [645 pts, 3 Detachment Points]
 ## Configuration
 Battle Size: Strike Force (2000 Point limit)
 Detachment [3 Detachment Points]: Gladius Task Force [3 Detachment Points]
 Force Disposition: Priority Assets
 Show/Hide Options
 
-## Character [150 pts]
-Captain [80 pts]: Bolt Pistol, Master-crafted Bolter, Melee Weapon (Bolt pistol, Master-crafted bolter, Power fist)
+## Character [165 pts]
+Captain [90 pts]: Heavy Bolt Pistol, Master-crafted power weapon and 1 Relic Shield (Heavy Bolt Pistol, Master-crafted power weapon, Relic Shield)
   • Leading: Company Heroes
-Librarian [70 pts]: Bolt pistol, Force weapon, Smite
+Librarian [75 pts]: Bolt pistol, Force weapon, Smite
   • Leading: Intercessor Squad
 
-## Battleline [80 pts]
-Intercessor Squad [80 pts]:
-• 1x Intercessor Sergeant: Bolt pistol, Power fist, Bolt Rifle w/ Grenade Launcher (Astartes grenade launcher, Bolt Rifle)
-• 4x Intercessor: Bolt pistol, Bolt Rifle, Close combat weapon
+## Battleline [85 pts]
+Intercessor Squad [85 pts]:
+• 1x Intercessor Sergeant: Bolt pistol, Bolt Rifle, Thunder Hammer
+• 3x Intercessor: Bolt pistol, Bolt Rifle, Knives and Fists
+• 1x Intercessor w/ Grenade Launcher: Bolt pistol, Bolt Rifle, Grenade Launcher, Knives and Fists
   • Led by: Librarian
 
-## Infantry [190 pts]
-Company Heroes [105 pts]:
-• 1x Ancient: Bolt pistol, Bolt Rifle, Close combat weapon
-• 1x Company Champion: Bolt pistol, Master-crafted Power Weapon
-• 1x Company Veteran w/ Bolt Rifle: Bolt pistol, Close combat weapon, Master-crafted Bolt Rifle
-• 1x Company Veteran w/ Heavy Bolter: Bolt pistol, Close combat weapon, Master-crafted Heavy Bolter
+## Infantry [215 pts]
+Company Heroes [125 pts]:
+• 1x Ancient: Combat Knife, Master-crafted Bolt Pistol, Master-crafted Bolt Rifle
+• 1x Company Champion: Master-crafted Bolt Pistol, Master-crafted Power Weapon
+• 1x Company Veteran w/ Bolt Rifle: Combat Knife, Master-crafted Bolt Pistol, Master-crafted Bolt Rifle
+• 1x Company Veteran w/ Heavy Bolter: Combat Knife, Master-crafted Bolt Pistol, Master-crafted Heavy Bolter
   • Led by: Captain
-Incursor Squad [85 pts]:
-• 3x Incursor: Bolt pistol, Occulus Bolt Carbine, Paired Combat Blades
-• 1x Incursor: Bolt pistol, Occulus Bolt Carbine, Paired Combat Blades, Haywire Mine
+Incursor Squad [90 pts]:
+• 4x Incursor: Bolt pistol, Occulus Bolt Carbine, Paired Combat Blades
 • 1x Incursor Sergeant: Bolt pistol, Occulus Bolt Carbine, Paired Combat Blades
 
-## Vehicle [195 pts]
-Redemptor Dreadnought [195 pts]: Icarus Rocket Pod, Redemptor Fist, Heavy Onslaught Gatling Cannon, Heavy Flamer, Twin Fragstorm Grenade Launcher
+## Vehicle [180 pts]
+Redemptor Dreadnought [180 pts]: Redemptor Fist, Macro Plasma Incinerator [10 pts], Onslaught gatling cannon, Storm Bolters
 
-Created with newrecruit.eu v36.42
+Created with newrecruit.eu v36.44

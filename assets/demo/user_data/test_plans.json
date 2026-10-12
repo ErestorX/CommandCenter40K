@@ -1,338 +1,4 @@
 {
- "DemOrks.txt|attacker|Beastboss": {
-  "included": false,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [],
-  "weapons": {}
- },
- "DemOrks.txt|attacker|Big Mek with Shokk Attack Gun": {
-  "included": false,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [],
-  "weapons": {}
- },
- "DemOrks.txt|attacker|Warboss in Mega Armour": {
-  "included": false,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [],
-  "weapons": {}
- },
- "DemOrks.txt|attacker|Beast Snagga Boyz": {
-  "included": true,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [
-   {
-    "mods": [
-     "sustained_1",
-     "hit+1"
-    ],
-    "phases": [
-     "melee"
-    ]
-   },
-   {
-    "mods": [
-     "sustained_1",
-     "hit+1",
-     "lethal"
-    ],
-    "phases": [
-     "melee"
-    ]
-   }
-  ],
-  "weapons": {}
- },
- "DemOrks.txt|attacker|Meganobz": {
-  "included": true,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [
-   {
-    "mods": [
-     "sustained_1",
-     "hit+1"
-    ],
-    "phases": [
-     "melee"
-    ]
-   },
-   {
-    "mods": [
-     "sustained_1"
-    ],
-    "phases": [
-     "melee"
-    ]
-   },
-   {
-    "mods": [
-     "sustained_1",
-     "hit+1",
-     "lethal"
-    ],
-    "phases": [
-     "melee"
-    ]
-   }
-  ],
-  "weapons": {}
- },
- "DemOrks.txt|attacker|Stormboyz": {
-  "included": true,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [
-   {
-    "mods": [
-     "sustained_1"
-    ],
-    "phases": [
-     "melee"
-    ]
-   }
-  ],
-  "weapons": {}
- },
- "DemOrks.txt|attacker|Tankbustas": {
-  "included": true,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [
-   {
-    "mods": [
-     "sustained_1"
-    ],
-    "phases": [
-     "ranged"
-    ]
-   },
-   {
-    "mods": [
-     "sustained_1"
-    ],
-    "phases": [
-     "melee"
-    ]
-   },
-   {
-    "mods": [
-     "a+1",
-     "sustained_1"
-    ],
-    "phases": [
-     "ranged"
-    ]
-   }
-  ],
-  "weapons": {}
- },
- "DemOrks.txt|attacker|Deffkoptas": {
-  "included": true,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [
-   {
-    "mods": [],
-    "phases": [
-     "ranged"
-    ]
-   },
-   {
-    "mods": [
-     "hit+1"
-    ],
-    "phases": [
-     "ranged"
-    ]
-   },
-   {
-    "mods": [
-     "hit+1",
-     "a+1"
-    ],
-    "phases": [
-     "ranged"
-    ]
-   },
-   {
-    "mods": [
-     "a+1"
-    ],
-    "phases": [
-     "ranged"
-    ]
-   },
-   {
-    "mods": [
-     "sustained_1"
-    ],
-    "phases": [
-     "melee"
-    ]
-   }
-  ],
-  "weapons": {}
- },
- "DemOrks.txt|attacker|Trukk": {
-  "included": false,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [],
-  "weapons": {}
- },
- "TestMarines.txt|defender|Captain": {
-  "included": false,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [],
-  "weapons": {}
- },
- "TestMarines.txt|defender|Librarian": {
-  "included": false,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [],
-  "weapons": {}
- },
- "TestMarines.txt|defender|Intercessor Squad": {
-  "included": true,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [
-   {
-    "mods": [],
-    "phases": []
-   },
-   {
-    "mods": [
-     "cover"
-    ],
-    "phases": []
-   },
-   {
-    "mods": [
-     "cover",
-     "ap-1"
-    ],
-    "phases": []
-   },
-   {
-    "mods": [
-     "ap-1"
-    ],
-    "phases": []
-   }
-  ],
-  "weapons": {}
- },
- "TestMarines.txt|defender|Company Heroes": {
-  "included": true,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [
-   {
-    "mods": [
-     "cover",
-     "ap-1",
-     "wound-1"
-    ],
-    "phases": []
-   },
-   {
-    "mods": [
-     "wound-1"
-    ],
-    "phases": []
-   },
-   {
-    "mods": [
-     "wound-1",
-     "ap-1"
-    ],
-    "phases": []
-   },
-   {
-    "mods": [
-     "wound-1",
-     "cover"
-    ],
-    "phases": []
-   }
-  ],
-  "weapons": {}
- },
- "TestMarines.txt|defender|Incursor Squad": {
-  "included": true,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [
-   {
-    "mods": [],
-    "phases": []
-   },
-   {
-    "mods": [
-     "cover"
-    ],
-    "phases": []
-   },
-   {
-    "mods": [
-     "cover",
-     "ap-1"
-    ],
-    "phases": []
-   },
-   {
-    "mods": [
-     "ap-1"
-    ],
-    "phases": []
-   }
-  ],
-  "weapons": {}
- },
- "TestMarines.txt|defender|Redemptor Dreadnought": {
-  "included": true,
-  "leader": "(list default)",
-  "support": "(list default)",
-  "tests": [
-   {
-    "mods": [
-     "wound-1_stronger"
-    ],
-    "phases": []
-   },
-   {
-    "mods": [
-     "wound-1_stronger",
-     "cover"
-    ],
-    "phases": []
-   },
-   {
-    "mods": [
-     "wound-1_stronger",
-     "cover",
-     "ap-1"
-    ],
-    "phases": []
-   },
-   {
-    "mods": [
-     "wound-1_stronger",
-     "ap-1"
-    ],
-    "phases": []
-   }
-  ],
-  "weapons": {}
- },
  "TestMarines.txt|attacker|Captain": {
   "included": false,
   "leader": "(list default)",
@@ -361,14 +27,47 @@
    },
    {
     "mods": [
-     "ap+1"
+     "rr_hit_1"
+    ],
+    "phases": [
+     "ranged"
+    ]
+   },
+   {
+    "mods": [
+     "ignores_cover"
+    ],
+    "phases": [
+     "ranged"
+    ]
+   },
+   {
+    "mods": [
+     "range=12\""
+    ],
+    "phases": [
+     "ranged"
+    ]
+   },
+   {
+    "mods": [
+     "rr_hit_1",
+     "ignores_cover",
+     "range=12\""
     ],
     "phases": [
      "ranged"
     ]
    }
   ],
-  "weapons": {}
+  "weapons": {
+   "Intercessor Squad|Bolt Pistol": false,
+   "Intercessor Squad|Grenade Launcher - Krak": true,
+   "Intercessor Squad|Grenade Launcher - Frag": false,
+   "Librarian|Bolt Pistol": false,
+   "Intercessor Squad|Bolt Rifle - Saturation": true,
+   "Intercessor Squad|Bolt Rifle - Focused Fire": false
+  }
  },
  "TestMarines.txt|attacker|Company Heroes": {
   "included": true,
@@ -384,7 +83,9 @@
    },
    {
     "mods": [
-     "ap+1"
+     "rr_hit_1",
+     "ignores_cover",
+     "range=12\""
     ],
     "phases": [
      "ranged"
@@ -392,15 +93,25 @@
    },
    {
     "mods": [
-     "wound+1",
-     "ap+1"
+     "ignores_cover"
+    ],
+    "phases": [
+     "ranged"
+    ]
+   },
+   {
+    "mods": [
+     "wound+1"
     ],
     "phases": [
      "melee"
     ]
    }
   ],
-  "weapons": {}
+  "weapons": {
+   "Company Heroes|Master-crafted Bolt Pistol": false,
+   "Captain|Heavy Bolt Pistol": false
+  }
  },
  "TestMarines.txt|attacker|Incursor Squad": {
   "included": true,
@@ -410,11 +121,14 @@
    {
     "mods": [],
     "phases": [
-     "ranged"
+     "ranged",
+     "melee"
     ]
    }
   ],
-  "weapons": {}
+  "weapons": {
+   "Incursor Squad|Bolt Pistol": false
+  }
  },
  "TestMarines.txt|attacker|Redemptor Dreadnought": {
   "included": true,
@@ -430,7 +144,9 @@
    },
    {
     "mods": [
-     "ap+1"
+     "ignores_cover",
+     "range=12\"",
+     "rr_hit_1"
     ],
     "phases": [
      "ranged"
@@ -438,7 +154,15 @@
    },
    {
     "mods": [
-     "ap+1",
+     "ignores_cover",
+     "range=12\""
+    ],
+    "phases": [
+     "ranged"
+    ]
+   },
+   {
+    "mods": [
      "wound+1"
     ],
     "phases": [
@@ -483,6 +207,19 @@
      "cover"
     ],
     "phases": []
+   },
+   {
+    "mods": [
+     "inv=5+"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "inv=5+",
+     "cover"
+    ],
+    "phases": []
    }
   ],
   "weapons": {}
@@ -494,14 +231,29 @@
   "tests": [
    {
     "mods": [
-     "ap-1"
+     "ap=-1"
     ],
     "phases": []
    },
    {
     "mods": [
-     "ap-1",
+     "ap=-1",
      "cover"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "inv=5+",
+     "cover",
+     "ap=-1"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "inv=5+",
+     "ap=-1"
     ],
     "phases": []
    }
@@ -522,6 +274,19 @@
      "cover"
     ],
     "phases": []
+   },
+   {
+    "mods": [
+     "inv=5+",
+     "cover"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "inv=5+"
+    ],
+    "phases": []
    }
   ],
   "weapons": {}
@@ -537,6 +302,19 @@
    },
    {
     "mods": [
+     "cover"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "inv=5+"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "inv=5+",
      "cover"
     ],
     "phases": []
@@ -558,6 +336,19 @@
      "cover"
     ],
     "phases": []
+   },
+   {
+    "mods": [
+     "inv=5+",
+     "cover"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "inv=5+"
+    ],
+    "phases": []
    }
   ],
   "weapons": {}
@@ -574,6 +365,432 @@
    {
     "mods": [
      "cover"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "inv=5+",
+     "cover"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "inv=5+"
+    ],
+    "phases": []
+   }
+  ],
+  "weapons": {}
+ },
+ "DemOrks.txt|attacker|Beastboss": {
+  "included": false,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [],
+  "weapons": {}
+ },
+ "DemOrks.txt|attacker|Big Mek with Shokk Attack Gun": {
+  "included": false,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [],
+  "weapons": {}
+ },
+ "DemOrks.txt|attacker|Warboss in Mega Armour": {
+  "included": false,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [],
+  "weapons": {}
+ },
+ "DemOrks.txt|attacker|Beast Snagga Boyz": {
+  "included": true,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [
+   {
+    "mods": [],
+    "phases": [
+     "ranged",
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "sustained=1"
+    ],
+    "phases": [
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "lethal"
+    ],
+    "phases": [
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "lethal",
+     "sustained=1"
+    ],
+    "phases": [
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "sustained=1",
+     "blast=1"
+    ],
+    "phases": [
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "rapid_fire=1"
+    ],
+    "phases": [
+     "ranged"
+    ]
+   }
+  ],
+  "weapons": {}
+ },
+ "DemOrks.txt|attacker|Meganobz": {
+  "included": true,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [
+   {
+    "mods": [
+     "blast=1"
+    ],
+    "phases": [
+     "melee"
+    ]
+   },
+   {
+    "mods": [],
+    "phases": [
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "blast=1",
+     "sustained=1"
+    ],
+    "phases": [
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "sustained=1"
+    ],
+    "phases": [
+     "melee"
+    ]
+   }
+  ],
+  "weapons": {}
+ },
+ "DemOrks.txt|attacker|Stormboyz": {
+  "included": true,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [
+   {
+    "mods": [],
+    "phases": [
+     "ranged",
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "sustained=1"
+    ],
+    "phases": [
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "sustained=1",
+     "lethal"
+    ],
+    "phases": [
+     "melee"
+    ]
+   }
+  ],
+  "weapons": {}
+ },
+ "DemOrks.txt|attacker|Tankbustas": {
+  "included": true,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [
+   {
+    "mods": [],
+    "phases": [
+     "ranged",
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "ignores_cover"
+    ],
+    "phases": [
+     "ranged"
+    ]
+   },
+   {
+    "mods": [
+     "ignores_cover",
+     "sustained=1",
+     "lethal",
+     "ap=+1",
+     "rapid_fire=1"
+    ],
+    "phases": [
+     "ranged"
+    ]
+   },
+   {
+    "mods": [
+     "sustained=1"
+    ],
+    "phases": [
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "sustained=1",
+     "lethal"
+    ],
+    "phases": [
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "sustained=1",
+     "blast=1"
+    ],
+    "phases": [
+     "melee"
+    ]
+   }
+  ],
+  "weapons": {}
+ },
+ "DemOrks.txt|attacker|Deffkoptas": {
+  "included": true,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [
+   {
+    "mods": [],
+    "phases": [
+     "ranged",
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "hit+1"
+    ],
+    "phases": [
+     "ranged"
+    ]
+   },
+   {
+    "mods": [
+     "hit+1",
+     "rapid_fire=1"
+    ],
+    "phases": [
+     "ranged"
+    ]
+   }
+  ],
+  "weapons": {}
+ },
+ "DemOrks.txt|attacker|Trukk": {
+  "included": true,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [
+   {
+    "mods": [],
+    "phases": [
+     "ranged",
+     "melee"
+    ]
+   },
+   {
+    "mods": [
+     "sustained=1"
+    ],
+    "phases": [
+     "melee"
+    ]
+   }
+  ],
+  "weapons": {}
+ },
+ "TestMarines.txt|defender|Captain": {
+  "included": false,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [],
+  "weapons": {}
+ },
+ "TestMarines.txt|defender|Librarian": {
+  "included": false,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [],
+  "weapons": {}
+ },
+ "TestMarines.txt|defender|Intercessor Squad": {
+  "included": true,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [
+   {
+    "mods": [],
+    "phases": []
+   },
+   {
+    "mods": [
+     "cover",
+     "ap=-1"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "cover"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "ap=-1"
+    ],
+    "phases": []
+   }
+  ],
+  "weapons": {}
+ },
+ "TestMarines.txt|defender|Company Heroes": {
+  "included": true,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [
+   {
+    "mods": [
+     "wound-1"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "wound-1",
+     "cover"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "wound-1",
+     "cover",
+     "ap=-1"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "wound-1",
+     "ap=-1"
+    ],
+    "phases": []
+   }
+  ],
+  "weapons": {}
+ },
+ "TestMarines.txt|defender|Incursor Squad": {
+  "included": true,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [
+   {
+    "mods": [],
+    "phases": []
+   },
+   {
+    "mods": [
+     "ap=-1"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "ap=-1",
+     "cover"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "cover"
+    ],
+    "phases": []
+   }
+  ],
+  "weapons": {}
+ },
+ "TestMarines.txt|defender|Redemptor Dreadnought": {
+  "included": true,
+  "leader": "(list default)",
+  "support": "(list default)",
+  "tests": [
+   {
+    "mods": [
+     "cover",
+     "wound-1_stronger"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "cover",
+     "wound-1_stronger",
+     "ap=-1"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "wound-1_stronger",
+     "ap=-1"
+    ],
+    "phases": []
+   },
+   {
+    "mods": [
+     "wound-1_stronger"
     ],
     "phases": []
    }

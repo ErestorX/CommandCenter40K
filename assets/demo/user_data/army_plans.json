@@ -1,137 +1,4 @@
 {
- "DemOrks.txt|TestMarines.txt": {
-  "attacker_list": "DemOrks.txt",
-  "defender_list": "TestMarines.txt",
-  "entries": [
-   {
-    "attacker": "Beast Snagga Boyz + Beastboss",
-    "units": [
-     "Beast Snagga Boyz",
-     "Beastboss"
-    ],
-    "primary": {
-     "name": "Company Heroes + Captain",
-     "units": [
-      "Company Heroes",
-      "Captain"
-     ],
-     "frac_wounds": 0.635,
-     "pts_per_100": 68.16
-    },
-    "secondary": {
-     "name": "Intercessor Squad + Librarian",
-     "units": [
-      "Intercessor Squad",
-      "Librarian"
-     ],
-     "frac_wounds": 0.9318,
-     "pts_per_100": 85.63
-    }
-   },
-   {
-    "attacker": "Meganobz + Warboss in Mega Armour",
-    "units": [
-     "Meganobz",
-     "Warboss in Mega Armour"
-    ],
-    "primary": {
-     "name": "Redemptor Dreadnought",
-     "units": [
-      "Redemptor Dreadnought"
-     ],
-     "frac_wounds": 0.7659,
-     "pts_per_100": 41.72
-    },
-    "secondary": {
-     "name": "Company Heroes + Captain",
-     "units": [
-      "Company Heroes",
-      "Captain"
-     ],
-     "frac_wounds": 0.6599,
-     "pts_per_100": 49.08
-    }
-   },
-   {
-    "attacker": "Stormboyz",
-    "units": [
-     "Stormboyz"
-    ],
-    "primary": {
-     "name": "Intercessor Squad + Librarian",
-     "units": [
-      "Intercessor Squad",
-      "Librarian"
-     ],
-     "frac_wounds": 0.3725,
-     "pts_per_100": 83.67
-    },
-    "secondary": {
-     "name": "Incursor Squad",
-     "units": [
-      "Incursor Squad"
-     ],
-     "frac_wounds": 0.5165,
-     "pts_per_100": 56.97
-    }
-   },
-   {
-    "attacker": "Tankbustas + Big Mek with Shokk Attack Gun",
-    "units": [
-     "Tankbustas",
-     "Big Mek with Shokk Attack Gun"
-    ],
-    "primary": {
-     "name": "Redemptor Dreadnought",
-     "units": [
-      "Redemptor Dreadnought"
-     ],
-     "frac_wounds": 0.8088,
-     "pts_per_100": 36.82
-    },
-    "secondary": {
-     "name": "Company Heroes + Captain",
-     "units": [
-      "Company Heroes",
-      "Captain"
-     ],
-     "frac_wounds": 0.8088,
-     "pts_per_100": 49.93
-    }
-   },
-   {
-    "attacker": "Deffkoptas",
-    "units": [
-     "Deffkoptas"
-    ],
-    "primary": {
-     "name": "Incursor Squad",
-     "units": [
-      "Incursor Squad"
-     ],
-     "frac_wounds": 0.6727,
-     "pts_per_100": 57.55
-    },
-    "secondary": {
-     "name": "Intercessor Squad + Librarian",
-     "units": [
-      "Intercessor Squad",
-      "Librarian"
-     ],
-     "frac_wounds": 0.4831,
-     "pts_per_100": 84.77
-    }
-   }
-  ],
-  "uncovered": [],
-  "settings": {
-   "phase": "Total",
-   "attacker_tests": "best",
-   "defender_tests": "mean",
-   "weight": 0.5
-  },
-  "updated": "2026-10-06T04:46:56+00:00"
- },
  "TestMarines.txt|DemOrks.txt": {
   "attacker_list": "TestMarines.txt",
   "defender_list": "DemOrks.txt",
@@ -148,16 +15,17 @@
       "Beast Snagga Boyz",
       "Beastboss"
      ],
-     "frac_wounds": 0.4772,
-     "pts_per_100": 85.68
+     "frac_wounds": 0.7557,
+     "pts_per_100": 103.12
     },
     "secondary": {
-     "name": "Stormboyz",
+     "name": "Tankbustas + Big Mek with Shokk Attack Gun",
      "units": [
-      "Stormboyz"
+      "Tankbustas",
+      "Big Mek with Shokk Attack Gun"
      ],
-     "frac_wounds": 1.0,
-     "pts_per_100": 46.67
+     "frac_wounds": 0.8688,
+     "pts_per_100": 168.75
     }
    },
    {
@@ -167,22 +35,21 @@
      "Captain"
     ],
     "primary": {
+     "name": "Trukk",
+     "units": [
+      "Trukk"
+     ],
+     "frac_wounds": 1.0,
+     "pts_per_100": 19.43
+    },
+    "secondary": {
      "name": "Tankbustas + Big Mek with Shokk Attack Gun",
      "units": [
       "Tankbustas",
       "Big Mek with Shokk Attack Gun"
      ],
      "frac_wounds": 1.0,
-     "pts_per_100": 145.95
-    },
-    "secondary": {
-     "name": "Beast Snagga Boyz + Beastboss",
-     "units": [
-      "Beast Snagga Boyz",
-      "Beastboss"
-     ],
-     "frac_wounds": 0.8145,
-     "pts_per_100": 89.19
+     "pts_per_100": 125.58
     }
    },
    {
@@ -195,17 +62,17 @@
      "units": [
       "Stormboyz"
      ],
-     "frac_wounds": 0.3061,
-     "pts_per_100": 34.23
+     "frac_wounds": 1.0,
+     "pts_per_100": 77.78
     },
     "secondary": {
-     "name": "Meganobz + Warboss in Mega Armour",
+     "name": "Beast Snagga Boyz + Beastboss",
      "units": [
-      "Meganobz",
-      "Warboss in Mega Armour"
+      "Beast Snagga Boyz",
+      "Beastboss"
      ],
-     "frac_wounds": 0.0332,
-     "pts_per_100": 1.02
+     "frac_wounds": 0.3995,
+     "pts_per_100": 119.51
     }
    },
    {
@@ -218,16 +85,17 @@
      "units": [
       "Deffkoptas"
      ],
-     "frac_wounds": 0.9356,
-     "pts_per_100": 29.84
+     "frac_wounds": 1.0,
+     "pts_per_100": 47.22
     },
     "secondary": {
-     "name": "Trukk",
+     "name": "Meganobz + Warboss in Mega Armour",
      "units": [
-      "Trukk"
+      "Meganobz",
+      "Warboss in Mega Armour"
      ],
-     "frac_wounds": 1.0,
-     "pts_per_100": 4.95
+     "frac_wounds": 0.4969,
+     "pts_per_100": 74.8
     }
    }
   ],
@@ -238,6 +106,162 @@
    "defender_tests": "mean",
    "weight": 0.5
   },
-  "updated": "2026-10-06T04:50:22+00:00"
+  "updated": "2026-10-12T05:13:50+00:00"
+ },
+ "DemOrks.txt|TestMarines.txt": {
+  "attacker_list": "DemOrks.txt",
+  "defender_list": "TestMarines.txt",
+  "entries": [
+   {
+    "attacker": "Beast Snagga Boyz + Beastboss",
+    "units": [
+     "Beast Snagga Boyz",
+     "Beastboss"
+    ],
+    "primary": {
+     "name": "Company Heroes + Captain",
+     "units": [
+      "Company Heroes",
+      "Captain"
+     ],
+     "frac_wounds": 0.5678,
+     "pts_per_100": 65.16
+    },
+    "secondary": {
+     "name": "Intercessor Squad + Librarian",
+     "units": [
+      "Intercessor Squad",
+      "Librarian"
+     ],
+     "frac_wounds": 0.9733,
+     "pts_per_100": 94.32
+    }
+   },
+   {
+    "attacker": "Meganobz + Warboss in Mega Armour",
+    "units": [
+     "Meganobz",
+     "Warboss in Mega Armour"
+    ],
+    "primary": {
+     "name": "Redemptor Dreadnought",
+     "units": [
+      "Redemptor Dreadnought"
+     ],
+     "frac_wounds": 0.6524,
+     "pts_per_100": 25.67
+    },
+    "secondary": {
+     "name": "Company Heroes + Captain",
+     "units": [
+      "Company Heroes",
+      "Captain"
+     ],
+     "frac_wounds": 0.6531,
+     "pts_per_100": 56.26
+    }
+   },
+   {
+    "attacker": "Stormboyz",
+    "units": [
+     "Stormboyz"
+    ],
+    "primary": {
+     "name": "Intercessor Squad + Librarian",
+     "units": [
+      "Intercessor Squad",
+      "Librarian"
+     ],
+     "frac_wounds": 0.3829,
+     "pts_per_100": 87.25
+    },
+    "secondary": {
+     "name": "Incursor Squad",
+     "units": [
+      "Incursor Squad"
+     ],
+     "frac_wounds": 0.5854,
+     "pts_per_100": 65.94
+    }
+   },
+   {
+    "attacker": "Tankbustas + Big Mek with Shokk Attack Gun",
+    "units": [
+     "Tankbustas",
+     "Big Mek with Shokk Attack Gun"
+    ],
+    "primary": {
+     "name": "Redemptor Dreadnought",
+     "units": [
+      "Redemptor Dreadnought"
+     ],
+     "frac_wounds": 0.9856,
+     "pts_per_100": 48.69
+    },
+    "secondary": {
+     "name": "Company Heroes + Captain",
+     "units": [
+      "Company Heroes",
+      "Captain"
+     ],
+     "frac_wounds": 0.8611,
+     "pts_per_100": 62.84
+    }
+   },
+   {
+    "attacker": "Deffkoptas",
+    "units": [
+     "Deffkoptas"
+    ],
+    "primary": {
+     "name": "Incursor Squad",
+     "units": [
+      "Incursor Squad"
+     ],
+     "frac_wounds": 0.5158,
+     "pts_per_100": 44.58
+    },
+    "secondary": {
+     "name": "Intercessor Squad + Librarian",
+     "units": [
+      "Intercessor Squad",
+      "Librarian"
+     ],
+     "frac_wounds": 0.2733,
+     "pts_per_100": 45.77
+    }
+   },
+   {
+    "attacker": "Trukk",
+    "units": [
+     "Trukk"
+    ],
+    "primary": {
+     "name": "Incursor Squad",
+     "units": [
+      "Incursor Squad"
+     ],
+     "frac_wounds": 0.2554,
+     "pts_per_100": 31.32
+    },
+    "secondary": {
+     "name": "Intercessor Squad + Librarian",
+     "units": [
+      "Intercessor Squad",
+      "Librarian"
+     ],
+     "frac_wounds": 0.1824,
+     "pts_per_100": 46.68
+    }
+   }
+  ],
+  "uncovered": [],
+  "settings": {
+   "phase": "Total",
+   "attacker_tests": "best",
+   "defender_tests": "mean",
+   "weight": 0.5
+  },
+  "updated": "2026-10-12T05:10:12+00:00"
  }
 }
