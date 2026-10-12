@@ -4,7 +4,10 @@ Units are tokens (a base, or the ellipse of a whole unit) that start at a random
 side's deployment zone and can be dragged anywhere on the board, stopping at its edges. They are
 half see-through so terrain shows underneath. A click selects a token, a right click on no token
 releases the selection. A right click on a token opens its menu: to the reserves or back (see
-below), and, under "Rotate", a turn of 15 or 45 degrees, clockwise or counter-clockwise.
+below); under "Rotate", a turn of 15 or 45 degrees, clockwise or counter-clockwise; and, for a unit of
+several models, under "Formation", how its models stand, which sets the size and shape of its token
+(command_center.deploy.bases: compact, 1" apart as it starts, spread as far as it may, or in a line,
+which is a tube and not an ellipse). Each board keeps its own.
 
 A unit's name is written inside its base, along it, as large as fits and on as many lines as that
 takes; what does not fit, even at the smallest size, is cut short with an ellipsis (fit_label). The
@@ -33,6 +36,7 @@ import math
 import random
 import re
 from dataclasses import dataclass
+from typing import Callable, NamedTuple
 
 from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPainter, QPainterPath, QPen, QPolygonF
@@ -40,9 +44,10 @@ from PySide6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsPolygo
                                QSizePolicy, QVBoxLayout, QWidget, QWidgetAction)
 
 from command_center.deploy import Footprint
+from command_center.deploy.bases import FORMATIONS, SPACED, TUBE, Base, unit_footprint
 from command_center.deploy.movement import rings
 from command_center.deploy.objectives import distance_to_region, objective_regions
-from command_center.deploy.placement import clamp, ellipse_polygon, extent, offset_ellipse, overlaps, random_spot
+from command_center.deploy.placement import clamp, extent, offset_outline, outline, overlaps, random_spot
 from command_center.deploy.sight import (DRAFT_DIRECTIONS, DRAFT_ORIGINS, GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles,
                                          cast, fans, reaching_fans, sees)
 from command_center.ui.theme import C, font_family
@@ -56,6 +61,7 @@ TOKEN_OPACITY = 0.5               # terrain stays visible underneath
 SELECTED = "#e0a800"
 # the turns a unit's menu offers, under its "Rotate" heading: degrees clockwise, and how each is written
 ROTATE = "Rotate"
+FORMATION = "Formation"           # the heading of the formations (command_center.deploy.bases.FORMATIONS) in that menu
 ROTATIONS = ((15, "↻  15°"), (45, "↻  45°"), (-15, "↺  15°"), (-45, "↺  45°"))
 RING_INK = ["#2f7d32", "#c26a00", "#7b3fa0"]      # innermost ring first
 DISTANCE_INK = "#1d1c1a"
@@ -114,12 +120,32 @@ class Token:
     y: float = 0.0
     angle: float = 0.0          # degrees clockwise, as seen from above
     reserve: bool = False       # in the reserves space, not on the board
+    bases: tuple[tuple[Base, int], ...] = ()      # (base, count) of its models: what its footprint is made from
+    formation: str = SPACED     # how its models stand: its footprint's size and shape
     board_spot: tuple[float, float] | None = None       # where it stood on the board, to go back there
 
     @property
     def box(self) -> tuple[float, float]:
         """Width and height the turned footprint takes on the board."""
-        return extent(self.footprint.w, self.footprint.h, self.angle)
+        return extent(self.footprint.w, self.footprint.h, self.angle, self.footprint.shape)
+
+    def outline(self, n: int = 36) -> list[tuple[float, float]]:
+        """Its edge on the board, where it stands and as it is turned."""
+        fp = self.footprint
+        return outline(self.x, self.y, fp.w, fp.h, self.angle, n, fp.shape)
+
+    def around(self, d: float) -> list[tuple[float, float]]:
+        """The line `d` inches out from its edge."""
+        fp = self.footprint
+        return offset_outline(self.x, self.y, fp.w, fp.h, self.angle, d, shape=fp.shape)
+
+
+class MenuEntry(NamedTuple):
+    """An entry of a unit's menu: its name and what it does (None: a heading); ticked or not, for a
+    choice among several (None: not such a choice)."""
+    name: str
+    do: Callable[[], None] | None = None
+    ticked: bool | None = None
 
 
 def compact_label(name: str) -> str:
@@ -129,16 +155,18 @@ def compact_label(name: str) -> str:
     return " + ".join([re.sub(r"\s+Squad\b", "", parts[0])] + parts[1:])
 
 
-def line_widths(n: int, a: float, b: float, line_height: float) -> list[float] | None:
+def line_widths(n: int, a: float, b: float, line_height: float, tube: bool = False) -> list[float] | None:
     """The widths of n lines of text stacked in the middle of an ellipse of half-axes a (along the lines)
     and b: each as wide as the ellipse is at the line's edge farthest from the centre, less a margin.
-    None when n lines are too tall for it."""
+    In a tube of that length and width, its straight part is there at every height. None when n lines
+    are too tall for it."""
     widths = []
     for i in range(n):
         edge = abs(i - (n - 1) / 2) * line_height + line_height / 2
         if edge >= b:
             return None
-        widths.append(2 * a * math.sqrt(1 - (edge / b) ** 2) - 2 * LABEL_MARGIN)
+        chord = math.sqrt(1 - (edge / b) ** 2)
+        widths.append(2 * ((a - b) + b * chord if tube and a > b else a * chord) - 2 * LABEL_MARGIN)
     return widths
 
 
@@ -155,8 +183,9 @@ def wrap(words: list[str], widths: list[float], width_of) -> tuple[list[str], li
     return lines, rest
 
 
-def fit_label(text: str, a: float, b: float, sizes=LABEL_SIZES, family: str = "") -> tuple[QFont, list[str], float] | None:
-    """A name fitted in an ellipse of half-axes a and b pixels, written along a: the font, the lines and
+def fit_label(text: str, a: float, b: float, sizes=LABEL_SIZES, family: str = "",
+              tube: bool = False) -> tuple[QFont, list[str], float] | None:
+    """A name fitted in an ellipse (or a tube) of half-axes a and b pixels, written along a: the font, the lines and
     the height of a line. The largest size at which the whole name fits, on as few lines as that takes;
     at the smallest size, what fits of it, cut short with an ellipsis. None when not even a letter fits."""
     words = text.split()
@@ -169,7 +198,7 @@ def fit_label(text: str, a: float, b: float, sizes=LABEL_SIZES, family: str = ""
         height = fm.height()
         best: tuple[int, list[str], list[str], list[float]] | None = None      # letters placed, lines, words left, widths
         n = 1
-        while (widths := line_widths(n, a, b, height)) is not None:
+        while (widths := line_widths(n, a, b, height, tube)) is not None:
             lines, rest = wrap(words, widths, fm.horizontalAdvance)
             if not rest:
                 return font, lines, height                  # all of it, at this size
@@ -205,7 +234,8 @@ class TokenItem(QGraphicsPolygonItem):
     def shape_it(self):
         """Its outline, for the angle it is turned at, and its look: selected or not."""
         t = self.token
-        self.setPolygon(polygon(ellipse_polygon(0, 0, t.footprint.w, t.footprint.h, t.angle)))
+        fp = t.footprint
+        self.setPolygon(polygon(outline(0, 0, fp.w, fp.h, t.angle, shape=fp.shape)))
         fill, line = TOKEN[t.role]
         chosen = self.board.selected == t.key
         pen = line_pen(SELECTED if chosen else line, 3 if chosen else 1.5, (3, 1.5) if t.footprint.estimated else None)
@@ -220,9 +250,9 @@ class TokenItem(QGraphicsPolygonItem):
         if k <= 0:
             return
         a, b = t.footprint.w * k / 2, t.footprint.h * k / 2
-        size = (round(a), round(b))
-        if self._name is None or self._name[0] != size:       # fitted again only when the base changes size on screen
-            self._name = (size, fit_label(compact_label(t.label), a, b))
+        size = (round(a), round(b), t.footprint.shape)
+        if self._name is None or self._name[0] != size:       # fitted again only when the base changes size or shape
+            self._name = (size, fit_label(compact_label(t.label), a, b, tube=t.footprint.shape == TUBE))
         fitted = self._name[1]
         if not fitted:
             return
@@ -405,18 +435,35 @@ class UnitMap(LayoutMap):
             self.items[t.key].setPos(*spot)
         self._redraw_overlays()
 
-    def menu_actions(self, key: str) -> list[tuple[str, object]]:
-        """What a right click on a unit offers: each a name and what it does; a heading does nothing (None)."""
-        move = (TO_BOARD, lambda: self.to_board(key)) if self.tokens[key].reserve else (
-            TO_RESERVES, lambda: self.to_reserves(key))
-        turns = [(text, lambda degrees=degrees: self.rotate(key, degrees)) for degrees, text in ROTATIONS]
-        return [move, (ROTATE, None)] + turns
+    def menu_actions(self, key: str) -> list[MenuEntry]:
+        """What a right click on a unit offers: where it goes, its turns, and, for a unit of several
+        models, its formations, the one it is in ticked."""
+        t = self.tokens[key]
+        entries = [MenuEntry(TO_BOARD, lambda: self.to_board(key)) if t.reserve else
+                   MenuEntry(TO_RESERVES, lambda: self.to_reserves(key)), MenuEntry(ROTATE)]
+        entries += [MenuEntry(text, lambda degrees=degrees: self.rotate(key, degrees)) for degrees, text in ROTATIONS]
+        if t.bases and t.footprint.models > 1:
+            entries.append(MenuEntry(FORMATION))
+            entries += [MenuEntry(text, lambda name=name: self.set_formation(key, name), t.formation == name)
+                        for name, text in FORMATIONS.items()]
+        return entries
+
+    def set_formation(self, key: str, formation: str):
+        """Have a unit's models stand another way: its token takes that formation's size and shape, where it is."""
+        t = self.tokens[key]
+        if formation not in FORMATIONS or not t.bases or t.footprint.models <= 1:
+            return
+        t.formation, t.footprint = formation, unit_footprint(list(t.bases), formation)
+        if key in self.items:
+            self.items[key].shape_it()
+            self.items[key].setPos(*self.keep_in(t, t.x, t.y))     # larger, it may have to move in from an edge
+        self._redraw_overlays()
 
     def token_menu(self, key: str, at):
         """The menu of a unit, at a point of the screen; the unit is then the selected one."""
         self.pick(key)
         menu = QMenu(self)
-        for name, do in self.menu_actions(key):
+        for name, do, ticked in self.menu_actions(key):
             if do is None:                              # a heading: a rule, then its name, which can't be chosen
                 menu.addSeparator()
                 heading = QWidgetAction(menu)
@@ -426,13 +473,18 @@ class UnitMap(LayoutMap):
                 heading.setEnabled(False)
                 menu.addAction(heading)
             else:
-                menu.addAction(name).triggered.connect(lambda _checked=False, do=do: do())
+                action = menu.addAction(name)
+                if ticked is not None:
+                    action.setCheckable(True)
+                    action.setChecked(ticked)
+                action.triggered.connect(lambda _checked=False, do=do: do())
         menu.exec(at)
 
     # ---------------------------------------------------------------- units
     def add_token(self, key: str, role: str, label: str, footprint: Footprint, move: float = 0.0,
-                  ranges: tuple[float, ...] = ()):
-        t = Token(key, role, label, footprint, move, tuple(ranges))
+                  ranges: tuple[float, ...] = (), bases=()):
+        """bases: (base, count) of the unit's models, for it to take other formations than the one of `footprint`."""
+        t = Token(key, role, label, footprint, move, tuple(ranges), bases=tuple(bases))
         self._place(t)
         self.tokens[key] = t
         if self.layout_data:
@@ -523,7 +575,9 @@ class UnitMap(LayoutMap):
             return self._show_sub()
         fp = t.footprint
         size = f'{fp.w:.1f}"' if abs(fp.w - fp.h) < 1e-6 else f'{fp.w:.1f}" x {fp.h:.1f}"'
-        self._show_sub(f"{t.label}  ·  {fp.description}  ·  {size}" + (f"  ·  turned {t.angle:.0f}°" if t.angle else "")
+        self._show_sub(f"{t.label}  ·  {fp.description}  ·  {size}"
+                       + (f"  ·  {FORMATIONS[t.formation].lower()}" if t.formation != SPACED else "")
+                       + (f"  ·  turned {t.angle:.0f}°" if t.angle else "")
                        + ("  ·  base size estimated" if fp.estimated else ""))
 
     # ---------------------------------------------------------------- what is drawn over the board
@@ -593,8 +647,7 @@ class UnitMap(LayoutMap):
             a, d = self.tokens.get(a_key), self.tokens.get(d_key)
             if not a or not d:
                 continue
-            outline_a = ellipse_polygon(a.x, a.y, a.footprint.w, a.footprint.h, a.angle, n=36)
-            outline_d = ellipse_polygon(d.x, d.y, d.footprint.w, d.footprint.h, d.angle, n=36)
+            outline_a, outline_d = a.outline(), d.outline()
             dist, p, q = distance_to_region(outline_a, [outline_d])
             if dist <= 0:                                   # touching: centre to centre
                 p, q = (a.x, a.y), (d.x, d.y)
@@ -614,23 +667,21 @@ class UnitMap(LayoutMap):
         t = self.tokens.get(self.selected or "")
         if not t or not self.layout_data or t.reserve:          # off the board: nothing to measure or to see from there
             return
-        fp = t.footprint
         if self.overlays["sight"] and t.ranges and self.obstacles:
-            outline = ellipse_polygon(t.x, t.y, fp.w, fp.h, t.angle, n=72)
+            edge = t.outline(72)
             hidden = None
             if self.overlays["hidden"]:
                 hidden = GO_TO_GROUND_RANGE if self.overlays["ground"] else HIDDEN_RANGE
             few = dict(origins=DRAFT_ORIGINS, directions=DRAFT_DIRECTIONS) if draft else {}
-            rays = cast(outline, max(t.ranges), self.obstacles, hidden=hidden, **few)
+            rays = cast(edge, max(t.ranges), self.obstacles, hidden=hidden, **few)
             self._shade(items, fans(rays), SIGHT_FILL, SIGHT_OPACITY, Z_OVERLAY)       # union: what it sees
             for o in self.tokens.values():                      # the enemy units in it: a glow around each
-                of = o.footprint
-                if o.role != t.role and not o.reserve and sees(rays, ellipse_polygon(o.x, o.y, of.w, of.h, o.angle, n=36)):
+                if o.role != t.role and not o.reserve and sees(rays, o.outline()):
                     self.seen.add(o.key)
                     ring = QPainterPath()                       # around the unit, not under it: its own colour stays
-                    ring.addPolygon(polygon(offset_ellipse(o.x, o.y, of.w, of.h, o.angle, SEEN_GLOW)))
+                    ring.addPolygon(polygon(o.around(SEEN_GLOW)))
                     ring.closeSubpath()
-                    ring.addPolygon(polygon(ellipse_polygon(o.x, o.y, of.w, of.h, o.angle)))
+                    ring.addPolygon(polygon(o.outline()))
                     ring.closeSubpath()
                     glow = QGraphicsPathItem(ring)
                     glow.setPen(NO_PEN)
@@ -642,8 +693,7 @@ class UnitMap(LayoutMap):
                     d = self.tokens.get(d_key)
                     if a_key != t.key or not d or d.reserve or (rank == "secondary" and not self.overlays["plan2"]):
                         continue
-                    target = ellipse_polygon(d.x, d.y, d.footprint.w, d.footprint.h, d.angle, n=36)
-                    for fan in reaching_fans(rays, target):
+                    for fan in reaching_fans(rays, d.outline()):
                         if len(fan) > 2:
                             reaching.append(fan)
                         else:                                 # a lone ray
@@ -653,20 +703,20 @@ class UnitMap(LayoutMap):
             cx, cy = BOARD_W / 2 - t.x, BOARD_H / 2 - t.y
             norm = (cx * cx + cy * cy) ** 0.5 or 1.0
             for r in t.ranges:
-                pts = offset_ellipse(t.x, t.y, fp.w, fp.h, t.angle, r)
+                pts = t.around(r)
                 self._add(items, self.scene.addPolygon(polygon(pts), line_pen(RANGE_INK)), Z_OVERLAY + 0.2)
                 at = max(pts, key=lambda p: ((p[0] - t.x) * cx + (p[1] - t.y) * cy) / norm)
                 self._halo_text(items, *at, f'{r:g}"', RANGE_INK, Z_OVERLAY + 0.2)
         for (name, d), ink in zip(rings(t.move, self.overlays["move"], self.overlays["advance"],
                                         self.overlays["charge"]), RING_INK):
-            pts = offset_ellipse(t.x, t.y, fp.w, fp.h, t.angle, d)
+            pts = t.around(d)
             self._add(items, self.scene.addPolygon(polygon(pts), line_pen(ink, 2, (3, 1.5))), Z_OVERLAY + 0.3)
             top = max(pts, key=lambda p: p[1])                     # write it at the ring's top
             self._halo_text(items, *top, name, ink, Z_OVERLAY + 0.3, above=True)
         if self.overlays["objectives"]:
-            outline = ellipse_polygon(t.x, t.y, fp.w, fp.h, t.angle, n=36)
+            edge = t.outline()
             for r in self.regions:
-                d, near, far = distance_to_region(outline, r["polygons"])
+                d, near, far = distance_to_region(edge, r["polygons"])
                 if d > 0:                                   # unit edge to the objective's terrain edge
                     self._add(items, self.scene.addLine(*near, *far, line_pen(DISTANCE_INK, 1.5, DISTANCE_DASH)),
                               Z_OVERLAY + 0.4)

@@ -210,9 +210,9 @@ class HolomapTest(unittest.TestCase):
             win.overlay_ticks[name].setChecked(True)
         m.pick(key)
         self.assertGreater(len(m._overlay_items), 0)
-        self.assertEqual(m.menu_actions(key)[0][0], TO_RESERVES)
+        self.assertEqual(m.menu_actions(key)[0].name, TO_RESERVES)
 
-        m.menu_actions(key)[0][1]()                                        # as the menu's entry does
+        m.menu_actions(key)[0].do()                                        # as the menu's entry does
         self.assertTrue(t.reserve)
         self.assertEqual(t.board_spot, (20, 22))
         x0, x1, y0, y1 = reserve_half("attacker")
@@ -236,7 +236,7 @@ class HolomapTest(unittest.TestCase):
         self.assertNotIn(defenders[0], m.seen)
 
         m.pick(key)
-        self.assertEqual(m.menu_actions(key)[0][0], TO_BOARD)
+        self.assertEqual(m.menu_actions(key)[0].name, TO_BOARD)
         m.to_board(key)
         self.assertFalse(t.reserve)
         w, h = t.box
@@ -270,11 +270,11 @@ class HolomapTest(unittest.TestCase):
         t = m.tokens[key]
         m.move_token(key, 30, 22)
         entries = m.menu_actions(key)
-        names = [name for name, _ in entries]
+        names = [e.name for e in entries]
         at = names.index(ROTATE)
-        self.assertIsNone(entries[at][1])                                  # a heading: nothing to choose
-        self.assertEqual(names[at + 1:], ["↻  15°", "↻  45°", "↺  15°", "↺  45°"])
-        turns = [do for _, do in entries[at + 1:]]
+        self.assertIsNone(entries[at].do)                                  # a heading: nothing to choose
+        self.assertEqual(names[at + 1:at + 5], ["↻  15°", "↻  45°", "↺  15°", "↺  45°"])
+        turns = [e.do for e in entries[at + 1:at + 5]]
         turns[0]()
         self.assertEqual(t.angle, 15)                                      # clockwise
         turns[1]()
@@ -289,7 +289,62 @@ class HolomapTest(unittest.TestCase):
         QTest.mouseDClick(m.view.viewport(), Qt.LeftButton, pos=at_unit)
         self.assertEqual(t.angle, 315)
         m.to_reserves(key)                                                 # in reserve too
-        self.assertEqual([name for name, _ in m.menu_actions(key)][-4:], names[-4:])
+        self.assertEqual([e.name for e in m.menu_actions(key)][at + 1:at + 5], names[at + 1:at + 5])
+
+    def test_formations(self):
+        from command_center.deploy.bases import COMPACT, FORMATIONS, LINE, SPACED, SPREAD, TUBE
+        from command_center.ui.tools.holomap.map_view import FORMATION
+        attackers, _ = self.place(4)
+        m = self.win.maps[0]
+        key = next((k for k in attackers if m.tokens[k].footprint.models > 1), None)
+        if key is None:
+            self.skipTest("the fixture's attackers are single models")
+        t = m.tokens[key]
+        m.move_token(key, 30, 22)
+        entries = m.menu_actions(key)
+        at = [e.name for e in entries].index(FORMATION)
+        self.assertIsNone(entries[at].do)
+        choices = entries[at + 1:]
+        self.assertEqual([e.name for e in choices], ["Compact", '1" space', "Max spread", "Line spread"])
+        self.assertEqual([e.ticked for e in choices], [False, True, False, False])     # as it starts: 1" apart
+        spaced = (t.footprint.w, t.footprint.h)
+        area = lambda: t.footprint.w * t.footprint.h
+
+        choices[0].do()                                                    # Compact: smaller
+        self.assertEqual(t.formation, COMPACT)
+        self.assertLess(t.footprint.w, spaced[0])
+        self.assertEqual([e.ticked for e in m.menu_actions(key)[at + 1:]], [True, False, False, False])
+        self.assertEqual((t.x, t.y), (30, 22))                             # where it stood
+        compact = area()
+        m.set_formation(key, SPREAD)                                       # Max spread: larger than 1" apart
+        self.assertGreater(area(), spaced[0] * spaced[1])
+        self.assertGreater(area(), compact)
+        m.set_formation(key, LINE)                                         # Line spread: a tube
+        self.assertEqual(t.footprint.shape, TUBE)
+        self.assertGreater(t.footprint.w, t.footprint.h)
+        self.assertEqual(len(m.items[key].polygon()), 36)
+        m.describe(t)
+        self.assertIn("line spread", m.sub.text())
+        m.move_token(key, 500, 22)                                         # a tube stops at the edges as an ellipse does
+        self.assertAlmostEqual(t.x, BOARD_W - t.box[0] / 2)
+        m.rotate(key, 45)
+        w, h = t.box
+        self.assertTrue(w / 2 - 1e-6 <= t.x <= BOARD_W - w / 2 + 1e-6 and h / 2 - 1e-6 <= t.y <= BOARD_H - h / 2 + 1e-6)
+        for name in ("move", "objectives", "sight"):                       # what is drawn for it follows its shape
+            self.win.overlay_ticks[name].setChecked(True)
+        m.pick(key)
+        self.assertGreater(len(m._overlay_items), 0)
+        self.assertFalse(m.grab().isNull())
+        m.set_formation(key, SPACED)                                       # back as it started
+        self.assertEqual((t.footprint.w, t.footprint.h), spaced)
+        m.set_formation(key, "no such formation")
+        self.assertEqual(t.formation, SPACED)
+        self.assertEqual(self.win.maps[1].tokens[key].formation, SPACED)   # each board its own
+        self.assertEqual(set(FORMATIONS), {COMPACT, SPACED, SPREAD, LINE})
+
+        lone = next((k for k in m.tokens if m.tokens[k].footprint.models == 1), None)
+        if lone:                                                           # a lone model has no formation to choose
+            self.assertNotIn(FORMATION, [e.name for e in m.menu_actions(lone)])
 
     def test_right_button(self):
         from PySide6.QtCore import QPoint

@@ -11,6 +11,7 @@ import numpy as np
 
 from command_center.data.layouts import parse_layouts
 from command_center.deploy import parse_base, unit_footprint
+from command_center.deploy.bases import COHERENCY, COMPACT, ELLIPSE, FORMATIONS, LINE, REACH, SPACED, SPREAD, TUBE
 from command_center.deploy.arrange import arrange
 from command_center.deploy.movement import parse_move, rings
 from command_center.deploy.objectives import (contact_length, distance_to_region, objective_regions, terrain_pieces,
@@ -18,7 +19,7 @@ from command_center.deploy.objectives import (contact_length, distance_to_region
 from command_center.deploy.sight import (GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, cast, piece_crossings,
                                          ray_lengths, reaching, reaching_fans, sees, visibility)
 from command_center.deploy.placement import (clamp, ellipse_polygon, extent, nearest_on_outline, offset_ellipse,
-                                             overlaps, random_spot)
+                                             offset_outline, outline, overlaps, random_spot, tube_polygon)
 from command_center.deploy.roster import roster
 from command_center.deploy.territory import territory_line
 from command_center.data.missionbook import MissionBook
@@ -123,6 +124,69 @@ class BasesTest(unittest.TestCase):
         mixed = unit_footprint([(b, 4), (parse_base("40mm"), 1)])
         self.assertEqual(mixed.description, "5 models: 4x 32mm, 1x 40mm")
         self.assertTrue(unit_footprint([(parse_base("Use model", 10), 2)]).estimated)
+
+    def test_formations(self):
+        boyz = [(parse_base("32mm"), 10)]
+        d = parse_base("32mm").w
+        by = {name: unit_footprint(boyz, name) for name in FORMATIONS}
+        self.assertEqual(by[SPACED], unit_footprint(boyz))                   # 1" between neighbours: what units start in
+        area = lambda f: math.pi * f.w * f.h / 4 if f.shape == ELLIPSE else math.pi * f.h ** 2 / 4 + (f.w - f.h) * f.h
+        self.assertLess(area(by[COMPACT]), area(by[SPACED]))
+        self.assertLess(area(by[SPACED]), area(by[SPREAD]))
+        self.assertGreaterEqual(area(by[COMPACT]), 10 * math.pi * d * d / 4)   # room for every base, touching
+        self.assertEqual([by[name].shape for name in (COMPACT, SPACED, SPREAD, LINE)], [ELLIPSE, ELLIPSE, ELLIPSE, TUBE])
+        reach = REACH + 2 * d                                                # every model within 9" of every other
+        for f in by.values():
+            self.assertEqual((f.models, f.description), (10, by[SPACED].description))
+        for name in (SPREAD, LINE):
+            self.assertLessEqual(by[name].w, reach + 1e-9)
+            self.assertLessEqual(by[name].h, reach + 1e-9)
+        # a row of five: 2" apart would be longer than the reach allows, so as far apart as it does
+        five = unit_footprint([(parse_base("32mm"), 5)], LINE)
+        self.assertAlmostEqual(five.w, reach)
+        self.assertAlmostEqual(five.h, d)
+        three = unit_footprint([(parse_base("32mm"), 3)], LINE)              # three: 2" apart, in one row
+        self.assertAlmostEqual(three.w, 3 * d + 2 * COHERENCY)
+        self.assertAlmostEqual(three.h, d)
+        self.assertGreater(by[LINE].h, d)                                    # ten don't fit in one row, even touching: two
+        self.assertAlmostEqual(by[LINE].w, reach)
+        # a horde: too large to spread 2" apart within reach, so rounder, then closer; never past the reach
+        horde = unit_footprint([(parse_base("25mm"), 30)], SPREAD)
+        self.assertLessEqual(max(horde.w, horde.h), REACH + 2 * parse_base("25mm").w + 1e-9)
+        self.assertGreaterEqual(area(horde), area(unit_footprint([(parse_base("25mm"), 30)], COMPACT)))
+        # two models touching are as long as their two bases
+        pair = unit_footprint([(parse_base("90mm"), 2)], COMPACT)
+        self.assertAlmostEqual(pair.w, 2 * parse_base("90mm").w)
+        self.assertAlmostEqual(pair.h, parse_base("90mm").w)
+        # mixed bases: the reach counts the two largest; a lone model is its base whatever the formation
+        mixed = unit_footprint([(parse_base("32mm"), 10), (parse_base("50mm"), 1)], LINE)
+        self.assertAlmostEqual(mixed.w, REACH + d + parse_base("50mm").w)
+        for name in FORMATIONS:
+            lone = unit_footprint([(parse_base("40mm"), 1)], name)
+            self.assertEqual((round(lone.w, 6), round(lone.h, 6), lone.shape), (round(40 / 25.4, 6), round(40 / 25.4, 6), ELLIPSE))
+        self.assertEqual(unit_footprint(boyz, "no such formation"), by[SPACED])
+
+    def test_tube(self):
+        tube = tube_polygon(10, 20, 8, 2, 0, n=72)
+        xs, ys = [p[0] for p in tube], [p[1] for p in tube]
+        self.assertAlmostEqual(max(xs) - min(xs), 8)
+        self.assertAlmostEqual(max(ys) - min(ys), 2)
+        self.assertEqual(sum(1 for y in ys if abs(abs(y - 20) - 1) < 1e-9), 2)      # flat along its length: top and bottom
+        self.assertTrue(all((abs(x - 10) <= 3 + 1e-9 and abs(y - 20) <= 1 + 1e-9)             # on the straight part,
+                            or abs(math.hypot(abs(x - 10) - 3, y - 20) - 1) < 1e-9 for x, y in tube))   # or on a round end
+        turned = tube_polygon(10, 20, 8, 2, 90, n=72)
+        self.assertAlmostEqual(max(p[1] for p in turned) - min(p[1] for p in turned), 8)
+        self.assertEqual(tuple(round(v, 6) for v in extent(8, 2, 0, "tube")), (8, 2))
+        self.assertEqual(tuple(round(v, 6) for v in extent(8, 2, 90, "tube")), (2, 8))
+        w, h = extent(8, 2, 45, "tube")
+        box = [p for p in tube_polygon(0, 0, 8, 2, 45, n=360)]
+        self.assertAlmostEqual(max(p[0] for p in box) - min(p[0] for p in box), w, places=3)
+        self.assertAlmostEqual(max(p[1] for p in box) - min(p[1] for p in box), h, places=3)
+        self.assertEqual(outline(1, 2, 8, 2, 30, 36, "tube"), tube_polygon(1, 2, 8, 2, 30, 36))
+        self.assertEqual(outline(1, 2, 8, 2, 30, 36), ellipse_polygon(1, 2, 8, 2, 30, 36))
+        self.assertEqual(offset_outline(1, 2, 8, 2, 30, 1.5, 72, "tube"), tube_polygon(1, 2, 11, 5, 30, 72))    # a larger tube
+        self.assertEqual(offset_outline(1, 2, 8, 2, 30, 1.5), offset_ellipse(1, 2, 8, 2, 30, 1.5))
+        self.assertEqual(tube_polygon(1, 2, 2, 2, 0), ellipse_polygon(1, 2, 2, 2, 0))          # no longer than wide: round
 
 
 class MovementTest(unittest.TestCase):

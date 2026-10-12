@@ -24,9 +24,11 @@ def ellipse_outline(x: float, y: float, w: float, h: float, n: int = 12) -> list
             for i in range(n)]
 
 
-def extent(w: float, h: float, angle: float = 0.0) -> tuple[float, float]:
-    """Width and height of the box around a w x h ellipse turned by `angle` degrees."""
+def extent(w: float, h: float, angle: float = 0.0, shape: str = "ellipse") -> tuple[float, float]:
+    """Width and height of the box around a w x h ellipse (or tube) turned by `angle` degrees."""
     a, b, t = w / 2, h / 2, math.radians(angle)
+    if shape == "tube" and w > h:                     # its straight part turned, and a circle at each end
+        return (w - h) * abs(math.cos(t)) + h, (w - h) * abs(math.sin(t)) + h
     return (2 * math.sqrt((a * math.cos(t)) ** 2 + (b * math.sin(t)) ** 2),
             2 * math.sqrt((a * math.sin(t)) ** 2 + (b * math.cos(t)) ** 2))
 
@@ -41,6 +43,36 @@ def ellipse_polygon(x: float, y: float, w: float, h: float, angle: float = 0.0, 
         u, v = w / 2 * math.cos(2 * math.pi * i / n), h / 2 * math.sin(2 * math.pi * i / n)
         out.append((x + u * c + v * s, y - u * s + v * c))      # clockwise with y up
     return out
+
+
+def tube_polygon(x: float, y: float, w: float, h: float, angle: float = 0.0, n: int = 36) -> list[Point]:
+    """Outline of a tube centred at (x, y): a rectangle w long with round ends, h across, turned `angle`
+    degrees clockwise as an ellipse is. One no longer than it is wide is an ellipse."""
+    if w <= h:
+        return ellipse_polygon(x, y, w, h, angle, n)
+    t = math.radians(angle)
+    c, s = math.cos(t), math.sin(t)
+    half, r = (w - h) / 2, h / 2                      # half its straight part, and the radius of its ends
+    out = []
+    for i in range(n):
+        p = 2 * math.pi * i / n
+        side = 0.0 if abs(math.cos(p)) < 1e-9 else math.copysign(half, math.cos(p))
+        u, v = side + r * math.cos(p), r * math.sin(p)
+        out.append((x + u * c + v * s, y - u * s + v * c))
+    return out
+
+
+def outline(x: float, y: float, w: float, h: float, angle: float = 0.0, n: int = 36, shape: str = "ellipse") -> list[Point]:
+    """Outline of a footprint of either shape."""
+    return tube_polygon(x, y, w, h, angle, n) if shape == "tube" else ellipse_polygon(x, y, w, h, angle, n)
+
+
+def offset_outline(x: float, y: float, w: float, h: float, angle: float, d: float, n: int = 72,
+                   shape: str = "ellipse") -> list[Point]:
+    """The line `d` inches out from a footprint's edge, all the way round: of a tube, a larger tube."""
+    if shape == "tube" and w > h:
+        return tube_polygon(x, y, w + 2 * d, h + 2 * d, angle, n)
+    return offset_ellipse(x, y, w, h, angle, d, n)
 
 
 def offset_ellipse(x: float, y: float, w: float, h: float, angle: float, d: float, n: int = 72) -> list[Point]:
