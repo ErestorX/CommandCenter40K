@@ -19,17 +19,17 @@ from __future__ import annotations
 from string import capwords
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont, QFontMetrics
 from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
 from command_center.deploy.estimates import difficulty
 from command_center.qt.registry import Selection, register_tool
 from command_center.qt.screen import available
-from command_center.qt.theme import C, DIFFICULTY_COLORS, NO_ESTIMATE, display_family, disposition_colors, font_family
+from command_center.qt.theme import DIFFICULTY_COLORS, NO_ESTIMATE, display_family, disposition_colors
 from command_center.qt.tools.cogitator.estimate import EstimatePanel
 from command_center.qt.toolwindow import ToolWindow
-from command_center.qt.widgets import Panel, button, label, restyle
+from command_center.qt.widgets import Dots, Panel, button, label, restyle
 
 if TYPE_CHECKING:
     from command_center.qt.app import App
@@ -50,48 +50,6 @@ def _hyphenated(word: str, font: QFontMetrics, room: int) -> str:
                len(word) // 2)
     cut = min(cut, len(word) * 2 // 3)                        # not just its last letters on the second line
     return f"{word[:cut]}-\n{word[cut:]}"
-
-
-class Dots(QWidget):
-    """Words and circles in a row: "1st o / 2nd o", or the key to the circles' colours. A part that is a
-    colour ("#rrggbb") is a circle; any other is written. set_color changes a circle."""
-
-    DOT, GAP = 10, 5
-
-    def __init__(self, parts: list[str]):
-        super().__init__()
-        self.parts = list(parts)
-        self.text_font = QFont(font_family(), 9)
-        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-
-    def set_color(self, n: int, color: str):
-        """Fill the nth circle (0: the first)."""
-        at = [i for i, part in enumerate(self.parts) if part.startswith("#")][n]
-        if self.parts[at] != color:
-            self.parts[at] = color
-            self.update()
-
-    def _widths(self) -> list[int]:
-        fm = QFontMetrics(self.text_font)
-        return [self.DOT if part.startswith("#") else fm.horizontalAdvance(part) for part in self.parts]
-
-    def sizeHint(self) -> QSize:
-        widths = self._widths()
-        return QSize(sum(widths) + self.GAP * (len(widths) - 1) + 2, 16)
-
-    def paintEvent(self, event):
-        p = QPainter(self)
-        p.setRenderHint(QPainter.Antialiasing)
-        p.setFont(self.text_font)
-        x = 1
-        for part, w in zip(self.parts, self._widths()):
-            p.setPen(QColor(C["muted"]))
-            if part.startswith("#"):
-                p.setBrush(QColor(part))
-                p.drawEllipse(QRectF(x + 0.5, 3.5, self.DOT - 1, self.DOT - 1))
-            else:
-                p.drawText(QRectF(x, 0, w, 16), Qt.AlignLeft | Qt.AlignVCenter, part)
-            x += w + self.GAP
 
 
 class Cell(Panel):

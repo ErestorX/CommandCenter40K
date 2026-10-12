@@ -144,7 +144,7 @@ rewrite lacks most, and Qt is what makes it possible.
 
 ## Progress
 
-Stages 1 to 5 are done, in `command_center/qt/`, next to the tkinter front end, which is untouched
+Stages 1 to 6 are done, in `command_center/qt/`, next to the tkinter front end, which is untouched
 but for its colours moving to `command_center/ui/palette.py` so that both read the same ones.
 
 ```bash
@@ -152,7 +152,7 @@ pip install -r requirements-qt.txt
 python main_qt.py                 # or: python -m command_center qt
 ```
 
-The Qt launcher offers the tools it has: every one but the Field Holomap. `main.py`, `run_app.bat`
+The Qt launcher offers every tool. What is left is stage 7: making it the app. `main.py`, `run_app.bat`
 and the release still start the tkinter app.
 
 What stages 1 and 2 showed:
@@ -210,6 +210,19 @@ processes, and the results window with its five views. What it showed:
   that hides tests is `hide_records`, since `hide` is the window's own.
 - Splitters share their room by the sizes they are given, not by stretch factors, when what they
   hold has no size of its own (the charts).
+
+Stage 6 is the Field Holomap and its Score Oracle (`qt/tools/holomap/`), the last tool. What it showed:
+
+- Units are items Qt drags: the press, the grab offset and the move by hand are gone, and so is
+  `ui/translucent.py`'s work, which has no counterpart here. A unit is see-through because its
+  colour is.
+- A board is drawn once per layout and its units put back on it; nothing is drawn again on a
+  resize but the texts kept in pixels, which are placed again for the new scale.
+- The boards and the info panel are still placed by `deploy.arrange`, in an area that has no
+  layout of its own. Qt's layouts do not do "as large as possible".
+- A mission card is a small HTML document, as the rules text is.
+- On the score sheet, the wheel scrolls the sheet over a drop-down because the drop-down lets it
+  pass: one line, in place of a binding on every drop-down.
 
 The real app, built for Windows with the options of `release.yml` (`main_qt.py`, tkinter left out):
 

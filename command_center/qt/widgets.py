@@ -4,9 +4,9 @@ from __future__ import annotations
 from typing import Callable
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (QAbstractItemView, QCheckBox, QComboBox, QFrame, QHeaderView, QLabel, QPushButton,
-                               QRadioButton, QStyle, QStyleOptionComboBox, QTreeWidget, QTreeWidgetItem, QWidget)
+                               QRadioButton, QSizePolicy, QStyle, QStyleOptionComboBox, QTreeWidget, QTreeWidgetItem, QWidget)
 
 from command_center.ui.palette import C
 
@@ -232,8 +232,68 @@ class Table(QTreeWidget):
         self.reordered.emit()
 
 
+class Dots(QWidget):
+    """Words and circles in a row: "1st o / 2nd o", or the key to the circles' colours. A part that is a
+    colour ("#rrggbb") is a circle; any other is written. set_color changes a circle."""
+
+    DOT, GAP = 10, 5
+
+    def __init__(self, parts: list[str]):
+        super().__init__()
+        self.parts = list(parts)
+        self.text_font = QFont(self.font())
+        self.text_font.setPointSize(9)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
+    def set_color(self, n: int, color: str):
+        """Fill the nth circle (0: the first)."""
+        at = [i for i, part in enumerate(self.parts) if part.startswith("#")][n]
+        if self.parts[at] != color:
+            self.parts[at] = color
+            self.update()
+
+    def _widths(self) -> list[int]:
+        fm = QFontMetrics(self.text_font)
+        return [self.DOT if part.startswith("#") else fm.horizontalAdvance(part) for part in self.parts]
+
+    def sizeHint(self) -> QSize:
+        widths = self._widths()
+        return QSize(sum(widths) + self.GAP * (len(widths) - 1) + 2, 16)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        p.setFont(self.text_font)
+        x = 1
+        for part, w in zip(self.parts, self._widths()):
+            p.setPen(QColor(C["muted"]))
+            if part.startswith("#"):
+                p.setBrush(QColor(part))
+                p.drawEllipse(QRectF(x + 0.5, 3.5, self.DOT - 1, self.DOT - 1))
+            else:
+                p.drawText(QRectF(x, 0, w, 16), Qt.AlignLeft | Qt.AlignVCenter, part)
+            x += w + self.GAP
+
+
 class Combo(QComboBox):
-    """A drop-down in the theme's colours, with its arrow drawn (a styled one has none of its own)."""
+    """A drop-down in the theme's colours, with its arrow drawn (a styled one has none of its own).
+
+    wheel: False where the wheel must scroll what the drop-down is on, and never change its value.
+    on_popup: called just before its list opens, to fill it with what can be chosen now."""
+
+    wheel = True
+    on_popup: Callable[[], None] | None = None
+
+    def wheelEvent(self, event):
+        if self.wheel:
+            super().wheelEvent(event)
+        else:
+            event.ignore()                      # passed on to what holds it
+
+    def showPopup(self):
+        if self.on_popup:
+            self.on_popup()
+        super().showPopup()
 
     def paintEvent(self, event):
         super().paintEvent(event)

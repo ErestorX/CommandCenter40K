@@ -85,6 +85,24 @@ def show_vp(lb: QLabel, points: int, over: bool):
     lb.setStyleSheet(f"color: {OVER_INK if over else C['ink']};")
 
 
+class Counter(QWidget):
+    """- n +: a count to step down or up. on_step(by) is told of a click, and answers with show(n)."""
+
+    def __init__(self, count: int, on_step: Callable[[int], None]):
+        super().__init__()
+        row = QHBoxLayout(self)
+        row.setContentsMargins(3, 0, 3, 0)
+        row.setSpacing(0)
+        self.count = label(str(count), align=Qt.AlignCenter)
+        self.count.setMinimumWidth(20)
+        row.addWidget(button("−", lambda: on_step(-1), "step"))
+        row.addWidget(self.count)
+        row.addWidget(button("+", lambda: on_step(1), "step"))
+
+    def show_count(self, n: int):
+        self.count.setText(str(n))
+
+
 class PrimaryRows:
     """A player's primary mission in a grid, from `row` down: its heading (the VP counted per column, the
     total), then a row per scoring option of its card, under its block's heading: a tick box where the
@@ -149,21 +167,11 @@ class PrimaryRows:
         box.toggled.connect(lambda on: self._score(i, col, int(on)))
         return box
 
-    def _counter(self, i: int, col: int) -> QWidget:
+    def _counter(self, i: int, col: int) -> Counter:
         """- n +: how many times an option is scored in a column."""
-        f = QWidget()
-        row = QHBoxLayout(f)
-        row.setContentsMargins(3, 0, 3, 0)
-        row.setSpacing(0)
-        count = label(str(self.score.counts[i][col]), align=Qt.AlignCenter)
-        count.setMinimumWidth(20)
-        self.shown[i, col] = lambda n: count.setText(str(n))
-        for text, step in (("−", -1), ("", 0), ("+", 1)):
-            if not step:
-                row.addWidget(count)
-                continue
-            row.addWidget(button(text, lambda step=step: self._score(i, col, self.score.counts[i][col] + step), "step"))
-        return f
+        counter = Counter(self.score.counts[i][col], lambda by: self._score(i, col, self.score.counts[i][col] + by))
+        self.shown[i, col] = counter.show_count
+        return counter
 
     def _round_cells(self, g: QGridLayout, row: int, values: list[str]):
         """A cell per column of `values`, editing them in place: a number, "-" or nothing."""

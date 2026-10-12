@@ -9,7 +9,7 @@ show_territory: the line between the two players' territories (command_center.de
 role_names: what the two sides are called on the map ("attacker" and "defender" unless changed)."""
 from __future__ import annotations
 
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QBrush, QColor, QFont, QFontMetricsF, QPainter, QPainterPath, QPen, QPolygonF, QTransform
 from PySide6.QtWidgets import (QGraphicsItem, QGraphicsScene, QGraphicsView, QSizePolicy, QStackedWidget, QVBoxLayout)
 
@@ -51,15 +51,19 @@ def objective_fill(o: dict) -> str:
 
 class PixelText(QGraphicsItem):
     """A text centred on a point of the board, its size in pixels whatever the board's scale. `offset`
-    moves it by so many pixels, `angle` turns it (degrees clockwise), `back` paints a box behind it."""
+    moves it by so many pixels, `angle` turns it (degrees clockwise), `back` paints a box behind it
+    (a colour, or one with its opacity: "#rrggbb", or QColor). `width`: it wraps at that many pixels."""
 
     def __init__(self, text: str, x: float, y: float, color: str, size: int = 8, bold: bool = False,
-                 offset: tuple[float, float] = (0, 0), angle: float = 0, back: str | None = None):
+                 offset: tuple[float, float] = (0, 0), angle: float = 0, back=None, width: float = 0,
+                 align: Qt.AlignmentFlag = Qt.AlignHCenter):
         super().__init__()
         self.text, self.color, self.offset, self.angle, self.back = text, QColor(color), offset, angle, back
         self.font = QFont(font_family(), size)
         self.font.setBold(bold)
-        self.box = QFontMetricsF(self.font).boundingRect(QRectF(), Qt.AlignCenter, text).adjusted(-2, 0, 2, 0)
+        self.flags_ = int(align | Qt.AlignVCenter | Qt.TextWordWrap)
+        self.box = QFontMetricsF(self.font).boundingRect(QRectF(0, 0, width or 10_000, 10_000), self.flags_, text
+                                                         ).adjusted(-2, 0, 2, 0)
         self.box.moveCenter(QPointF(0, 0))
         self.setFlag(QGraphicsItem.ItemIgnoresTransformations)
         self.setPos(x, y)
@@ -75,11 +79,20 @@ class PixelText(QGraphicsItem):
             painter.fillRect(self.box, QColor(self.back))
         painter.setFont(self.font)
         painter.setPen(self.color)
-        painter.drawText(self.box, Qt.AlignCenter, self.text)
+        painter.drawText(self.box.adjusted(2, 0, -2, 0), self.flags_, self.text)
+
+    @property
+    def size(self) -> tuple[float, float]:
+        """Its width and height, in pixels."""
+        return self.box.width(), self.box.height()
 
 
 class BoardView(QGraphicsView):
-    """Shows the whole board, as large as its room allows."""
+    """Shows the whole board, as large as its room allows. `scaled` is emitted when that size changed,
+    `right_clicked` on a click of the right button."""
+
+    scaled = Signal()
+    right_clicked = Signal()
 
     def __init__(self):
         board = QGraphicsScene(0, 0, BOARD_W, BOARD_H)
@@ -96,6 +109,17 @@ class BoardView(QGraphicsView):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.fitInView(QRectF(0, 0, BOARD_W, BOARD_H), Qt.KeepAspectRatio)
+        self.scaled.emit()
+
+    @property
+    def pixels_per_inch(self) -> float:
+        return self.transform().m11()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.RightButton:
+            self.right_clicked.emit()
+        else:
+            super().mousePressEvent(event)
 
 
 class LayoutMap(Panel):
