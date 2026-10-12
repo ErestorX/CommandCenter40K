@@ -2,58 +2,76 @@
 from them are as tall as it."""
 from __future__ import annotations
 
-import sys
-import tkinter as tk
-
-TITLE_BAR = 32      # a guess at the height of a window's title bar, until the window is there to be measured
-
-
-def _zoom(win: tk.Misc) -> None:
-    try:
-        if sys.platform.startswith("linux"):
-            win.attributes("-zoomed", True)
-        else:
-            win.state("zoomed")
-    except tk.TclError:             # a window manager that can't: the screen's size, at least
-        win.geometry(f"{win.winfo_screenwidth()}x{win.winfo_screenheight()}+0+0")
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtWidgets import QStyle, QWidget
 
 
-def fill_screen(win: tk.Misc) -> None:
-    """Maximise a main window and keep it so: it can be minimised, but goes back to the full screen as soon
-    as it is restored or resized. (Not `resizable(False, False)`, nor a title bar without its maximise button:
-    Windows maximises such a window over the taskbar.)"""
-    _zoom(win)
-
-    def keep(e):
-        if e.widget is win and win.state() == "normal":
-            _zoom(win)
-    win.bind("<Configure>", keep, add="+")
+class _StayMaximised(QObject):
+    def eventFilter(self, win, event):
+        if event.type() == QEvent.WindowStateChange and not win.windowState() & (
+                Qt.WindowMaximized | Qt.WindowMinimized | Qt.WindowFullScreen):
+            QTimer.singleShot(0, win.showMaximized)             # once Qt is done with this change
+        return False
 
 
-def screen_height(win: tk.Toplevel, width: int) -> None:
-    """Make a floating window as tall as the screen allows (down to the taskbar, as its maximised parent),
-    `width` wide at most, centred; only its width can then be changed."""
-    parent = win.master.winfo_toplevel()
-    parent.update_idletasks()
-    screen_w = win.winfo_screenwidth()
-    width = min(width, screen_w)
-    x = (screen_w - width) // 2
-    if parent.winfo_viewable():
-        top = max(0, parent.winfo_y())                              # a maximised window starts off the screen
-        bottom = parent.winfo_rooty() + parent.winfo_height()
-    else:
-        top, bottom = 0, win.winfo_screenheight() - 2 * TITLE_BAR
-    win.geometry(f"{width}x{bottom - top - TITLE_BAR}+{x}+{top}")
-    win.resizable(True, False)
+def fill_screen(win: QWidget) -> None:
+    """Have a main window open maximised and keep it so: it can be minimised, but goes back to the full
+    screen as soon as it is restored."""
+    win.setWindowState(win.windowState() | Qt.WindowMaximized)
+    win._stay_maximised = _StayMaximised(win)
+    win.installEventFilter(win._stay_maximised)
 
-    def measured(e):
-        """Once it is on screen its frame can be measured: the height to the pixel, and what is centred is the
-        window, not its frame."""
-        if e.widget is not win:
-            return
-        win.unbind("<Map>", bound)
-        win.update_idletasks()
-        bar, side = win.winfo_rooty() - win.winfo_y(), win.winfo_rootx() - win.winfo_x()
+
+def put_away(win: QWidget) -> None:
+    """Hide a main window until show_again()."""
+    win._shown_at = win.geometry()
+    win.hide()
+
+
+def show_again(win: QWidget) -> None:
+    """Show a window that put_away() hid, as it was. A maximised window shown again fills the screen, but
+    Qt lays its content out for the size it would have if it were not (Windows): it is told its size."""
+    win.show()
+    was = getattr(win, "_shown_at", None)
+    if was is not None:
+        win.setGeometry(was)
+
+
+def available(win: QWidget | None = None):
+    """The part of the screen windows may take (without the taskbar): that of `win`'s screen."""
+    screen = (win.screen() if win is not None else None) or QGuiApplication.primaryScreen()
+    return screen.availableGeometry()
+
+
+class _FullHeight(QObject):
+    def __init__(self, win: QWidget, parent: QWidget | None):
+        super().__init__(win)
+        self.parent_window, self.done = parent, False
+
+    def eventFilter(self, win, event):
+        if event.type() == QEvent.Show and not self.done:
+            self.done = True
+            QTimer.singleShot(0, lambda: self.place(win))       # its frame is known once it is on screen
+        return False
+
+    def place(self, win: QWidget):
+        area, frame = available(self.parent_window), win.frameGeometry()
+        bar = frame.height() - win.height()
         if bar > 0:
-            win.geometry(f"{win.winfo_width()}x{bottom - top - bar}+{x - max(0, side)}+{top}")
-    bound = win.bind("<Map>", measured, add="+")
+            win.setFixedHeight(area.height() - bar)
+        win.move(area.x() + (area.width() - win.frameGeometry().width()) // 2, area.y())
+
+
+def screen_height(win: QWidget, width: int, parent: QWidget | None = None) -> None:
+    """Make a floating window as tall as the screen allows (down to the taskbar, as its maximised parent),
+    `width` wide at most, centred; only its width can then be changed. Its title bar's height is a guess
+    until the window is shown and can be measured."""
+    area = available(parent)
+    bar = win.style().pixelMetric(QStyle.PM_TitleBarHeight)
+    width = min(width, area.width())
+    win.resize(width, area.height() - bar)
+    win.setFixedHeight(area.height() - bar)
+    win.move(area.x() + (area.width() - width) // 2, area.y())
+    win._full_height = _FullHeight(win, parent)
+    win.installEventFilter(win._full_height)

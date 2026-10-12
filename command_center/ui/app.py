@@ -1,63 +1,62 @@
-"""Application shell: updates the data if it is due (command_center.ui.updater), then creates the Tk
-root, loads the shared context, shows the launcher and opens tools from the registry.
+"""Application shell: starts Qt, updates the app and the data if they are due (command_center.ui.appupdate,
+command_center.ui.updater), loads the shared context, shows the launcher and opens tools from the registry.
 
     python main.py            # or: python -m command_center
 """
 from __future__ import annotations
 
 import sys
-import tkinter as tk
-from tkinter import messagebox
+
+from PySide6.QtWidgets import QApplication, QMessageBox, QVBoxLayout, QWidget
 
 from command_center.context import AppContext
 from command_center.lists.library import install_demo
-from command_center.release import use_bundled_certificates
 from command_center.ui.appupdate import update_app
 from command_center.ui.launcher import Launcher
 from command_center.ui.registry import Selection, discover, get_tool
-from command_center.ui.screen import fill_screen
-from command_center.ui.theme import load_fonts, setup_style
+from command_center.ui.screen import fill_screen, put_away, show_again
+from command_center.ui.theme import app_identity, setup_style
 from command_center.ui.updater import refresh_data
+from command_center.release import use_bundled_certificates
 
 
-def dpi_aware() -> None:
-    """Crisp text on high-DPI screens (Windows). To call before the first window."""
-    if sys.platform == "win32":
-        try:
-            import ctypes
-            ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        except Exception:  # noqa: BLE001 - older Windows, or already set: keep the scaling there is
-            pass
-        try:        # an app of its own in the taskbar, with its windows' icon: not grouped under Python's
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ErestorX.CommandCenter40K")
-        except Exception:  # noqa: BLE001 - cosmetic only
-            pass
+def application() -> QApplication:
+    """The process's Qt application, with the app's look: made at the first call."""
+    app = QApplication.instance()
+    if app is None:
+        app_identity()
+        app = QApplication(sys.argv[:1])
+        app.setApplicationName("Command Center 40K")
+        setup_style(app)
+    return app
 
 
-class App(tk.Tk):
+class App(QWidget):
+    """The launcher's window, and what the tools opened from it share: the context, the list of them."""
+
     def __init__(self, ctx: AppContext):
-        dpi_aware()
-        load_fonts()                       # before Tk starts: it lists the fonts once
         super().__init__()
         self.ctx = ctx
-        self.title("Command Center 40K")
-        setup_style(self)                  # also sets self.fonts
+        self.setWindowTitle("Command Center 40K")
         fill_screen(self)
-        self.open_windows: list[tk.Toplevel] = []
+        self.open_windows: list[QWidget] = []
         self.launcher = Launcher(self)
-        self.launcher.pack(fill="both", expand=True)
+        box = QVBoxLayout(self)
+        box.setContentsMargins(0, 0, 0, 0)
+        box.addWidget(self.launcher)
 
-    def open_tool(self, key: str, selection: Selection | None) -> tk.Toplevel:
+    def open_tool(self, key: str, selection: Selection | None) -> QWidget:
         win = get_tool(key).open(self, selection)
         self.open_windows.append(win)
-        self.withdraw()
+        win.show()
+        put_away(self)
         return win
 
-    def on_tool_closed(self, win: tk.Toplevel) -> None:
+    def on_tool_closed(self, win: QWidget) -> None:
         if win in self.open_windows:
             self.open_windows.remove(win)
         if not self.open_windows:
-            self.deiconify()
+            show_again(self)
 
 
 def main(data_dir: str | None = None) -> None:
@@ -66,18 +65,17 @@ def main(data_dir: str | None = None) -> None:
     discover()
     use_bundled_certificates()
     install_demo()
+    qt = application()
     if data_dir is None:
-        dpi_aware()
         if update_app():                   # the packaged app is installing its new version: it comes back
             raise SystemExit(0)
         refresh_data()
     try:
         ctx = AppContext(data_dir)
     except FileNotFoundError as e:
-        root = tk.Tk()
-        root.withdraw()
-        messagebox.showerror("Command Center 40K", f"{e}\n\nThe data could not be downloaded: check the connection and "
-                                                   "start the app again, or run:  python -m command_center fetch")
-        root.destroy()
+        QMessageBox.critical(None, "Command Center 40K", f"{e}\n\nThe data could not be downloaded: check the "
+                             "connection and start the app again, or run:  python -m command_center fetch")
         raise SystemExit(1)
-    App(ctx).mainloop()
+    win = App(ctx)
+    win.show()
+    raise SystemExit(qt.exec())

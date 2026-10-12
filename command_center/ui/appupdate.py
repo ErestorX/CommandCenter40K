@@ -3,8 +3,7 @@ GitHub has a newer release, the app offers to install it (one that was declined,
 then the app closes and comes back as the new version."""
 from __future__ import annotations
 
-import tkinter as tk
-from tkinter import messagebox
+from PySide6.QtWidgets import QMessageBox
 
 from command_center import release
 from command_center.ui.updater import UpdateWindow
@@ -19,7 +18,7 @@ class AppUpdateWindow(UpdateWindow):
     def _work(self, url: str):
         self.new_dir = None
         try:
-            self.new_dir = release.download(url, self._messages.put)
+            self.new_dir = release.download(url, self.log)
         except Exception as e:  # noqa: BLE001 - whatever went wrong, the app starts as it is
             self.error = str(e)
 
@@ -40,16 +39,14 @@ def update_app() -> bool:
     if not found or not release.is_newer(found[0], current) or release.was_declined(found[0]):
         return False
     tag, url = found
-    root = tk.Tk()
-    root.withdraw()
-    wanted = messagebox.askyesno("Command Center 40K", f"Version {tag} of the app is available (this is {current}).\n\n"
-                                                       "Install it now? Your lists and saved work are kept.")
-    root.destroy()
-    if not wanted:
+    wanted = QMessageBox.question(None, "Command Center 40K",
+                                  f"Version {tag} of the app is available (this is {current}).\n\n"
+                                  "Install it now? Your lists and saved work are kept.")
+    if wanted != QMessageBox.Yes:
         release.mark_declined(tag)
         return False
     win = AppUpdateWindow(url)
-    win.mainloop()
+    win.exec()
     if win.new_dir is None:
         return False
     try:

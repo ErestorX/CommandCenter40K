@@ -9,20 +9,36 @@ Each layout can be taken off the view (next to the legend). The layouts viewed a
 strip under them."""
 from __future__ import annotations
 
-import tkinter as tk
-from tkinter import ttk
 from typing import TYPE_CHECKING
+
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QSizePolicy, QVBoxLayout, QWidget
 
 from command_center.analysis.army_plans import pair_key
 from command_center.deploy.arrange import Rect, arrange
 from command_center.ui.registry import Selection, register_tool
-from command_center.ui.tools.holomap.map_view import OVERLAYS, LayoutMap, legend
+from command_center.ui.tools.holomap.map_view import OVERLAYS, Legend, UnitMap
 from command_center.ui.tools.holomap.score_oracle import ScoreOracle
 from command_center.ui.tools.holomap.side_panel import ROLES, SidePanel
 from command_center.ui.toolwindow import ToolWindow
+from command_center.ui.widgets import Panel, Tick, label
 
 if TYPE_CHECKING:
     from command_center.ui.app import App
+
+GAP = 6                         # between the boards, the info panel and its two parts
+
+
+class BoardArea(QWidget):
+    """Where the boards and the info panel go: it has no layout of its own, the window places them."""
+
+    def __init__(self, win: "HolomapWindow"):
+        super().__init__()
+        self.win = win
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.win.arrange()
 
 
 class HolomapWindow(ToolWindow):
@@ -30,138 +46,163 @@ class HolomapWindow(ToolWindow):
 
     def __init__(self, app: "App", selection: Selection):
         super().__init__(app, selection)
-        body = ttk.Frame(self, padding=8)
-        body.pack(fill="both", expand=True)
-        body.columnconfigure(0, weight=1, uniform="thirds")
-        body.columnconfigure(1, weight=2, uniform="thirds")
-        body.rowconfigure(0, weight=1)
-        self.side = SidePanel(body, self)
-        self.side.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
-
-        maps = self.board_area = ttk.Frame(body)           # the boards and the info panel: placed by _arrange
-        maps.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
-        self.maps = [LayoutMap(maps) for _ in range(3)]
-        self.shown = [tk.BooleanVar(value=True) for _ in self.maps]     # the layouts being viewed
-        self._arrange_job = None
-        self.selected: tuple[LayoutMap, str] | None = None     # the unit token later functions act on
+        self._built = False
+        body = QHBoxLayout(self)
+        body.setContentsMargins(8, 8, 8, 8)
+        body.setSpacing(8)
+        self.side = SidePanel(self)
+        self.board_area = BoardArea(self)                       # the boards and the info panel: placed by arrange
+        for part, share in ((self.side, 1), (self.board_area, 2)):
+            part.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)      # a third, two thirds
+            body.addWidget(part, share)
+        self.maps = [UnitMap() for _ in range(3)]
+        for m in self.maps:
+            m.setParent(self.board_area)
+            m.on_select = self._on_select
+        self.selected: tuple[UnitMap, str] | None = None        # the unit token later functions act on
         self.placed: dict[str, object] = {}                     # token key -> roster row on the maps
         plans = self.ctx.army_plans                             # the Engagement Optimizer's army plan, kept live
         self.plan = plans.get(selection.attacker.path, selection.defender.path)
         self._unsubscribe = plans.subscribe(self._on_plan_saved)
-        self.oracle: ScoreOracle | None = None                 # the floating score window, when open
-        for m in self.maps:
-            m.on_select = self._on_select
-        self.info_cell = self._build_info(maps)
-        maps.bind("<Configure>", lambda e: self._arrange())
+        self.oracle: ScoreOracle | None = None                  # the floating score window, when open
+        self._arrange_timer = QTimer(self)
+        self._arrange_timer.setSingleShot(True)
+        self._arrange_timer.timeout.connect(self.arrange)
+        self.info_cell = self._build_info()
+        self._built = True
         self.refresh()
         self._update_plan_links()
 
-    def _build_info(self, parent) -> ttk.Frame:
-        """The info panel, in two parts (_arrange stacks them or sets them side by side): the board
+    def _build_info(self) -> QWidget:
+        """The info panel, in two parts (arrange stacks them or sets them side by side): the board
         (pairing, measurements, legend, the layouts viewed), and the selected unit's options."""
-        cell = ttk.Frame(parent)
+        cell = QWidget(self.board_area)
+        self.info_grid = QGridLayout(cell)
+        self.info_grid.setContentsMargins(0, 0, 0, 0)
+        self.info_grid.setSpacing(GAP)
 
-        top = self.info_top = ttk.Frame(cell, style="Panel.TFrame", padding=10)
-        self.pairing = ttk.Label(top, text="", style="H2.TLabel", wraplength=350, justify="left")
-        self.pairing.pack(anchor="w")
-        self.info = ttk.Label(top, text="", style="Muted.TLabel", wraplength=270, justify="left")
-        self.info.pack(anchor="w", pady=(2, 6))
-        self.measure = tk.BooleanVar(value=False)
-        ttk.Checkbutton(top, text="Show table-setup measurements", variable=self.measure,
-                        style="Panel.TCheckbutton", command=self._toggle_measurements).pack(anchor="w", pady=(0, 6))
-        keys = ttk.Frame(top, style="Flat.TFrame")              # the legend | the layouts viewed
-        keys.pack(anchor="w")
-        legend(keys).pack(side="left", anchor="n")
-        view = ttk.Frame(keys, style="Flat.TFrame")
-        view.pack(side="left", anchor="n", padx=(18, 0))
-        ttk.Label(view, text="View", style="Muted.TLabel").pack(anchor="w")
-        for letter, v in zip("ABC", self.shown):
-            ttk.Checkbutton(view, text=f"Layout {letter}", variable=v, style="Panel.TCheckbutton",
-                            command=self._toggle_layouts).pack(anchor="w")
+        top = self.info_top = Panel()
+        col = QVBoxLayout(top)
+        col.setContentsMargins(10, 10, 10, 10)
+        col.setSpacing(0)
+        self.pairing = label("", "h2", wrap=True)
+        self.pairing.setFixedWidth(330)
+        col.addWidget(self.pairing)
+        col.addSpacing(2)
+        self.info = label("", "muted", wrap=True)
+        self.info.setFixedWidth(330)
+        col.addWidget(self.info)
+        col.addSpacing(6)
+        self.measure = Tick("Show table-setup measurements")
+        self.measure.toggled.connect(lambda _on: self._toggle_measurements())
+        col.addWidget(self.measure)
+        col.addSpacing(6)
+        keys = QHBoxLayout()                                    # the legend | the layouts viewed
+        keys.setSpacing(18)
+        keys.addWidget(Legend())
+        view = QVBoxLayout()
+        view.setSpacing(2)
+        view.addWidget(label("View", "muted"))
+        self.shown: list[Tick] = []                             # the layouts being viewed
+        for letter in "ABC":
+            tick = Tick(f"Layout {letter}")
+            tick.setChecked(True)
+            tick.toggled.connect(lambda _on: self._toggle_layouts())
+            view.addWidget(tick)
+            self.shown.append(tick)
+        view.addStretch(1)
+        keys.addLayout(view)
+        keys.addStretch(1)
+        col.addLayout(keys)
+        col.addStretch(1)
 
-        bottom = self.info_bottom = ttk.Frame(cell, style="Panel.TFrame", padding=10)
-        ttk.Label(bottom, text="Selected unit", style="Muted.TLabel").pack(anchor="w")
-        self.overlay_vars = {name: tk.BooleanVar(value=False) for name in OVERLAYS}
-        self.overlay_widgets: dict[str, list] = {}
+        bottom = self.info_bottom = Panel()
+        col = QVBoxLayout(bottom)
+        col.setContentsMargins(10, 10, 10, 10)
+        col.setSpacing(4)
+        col.addWidget(label("Selected unit", "muted"))
+        self.overlay_ticks: dict[str, Tick] = {}
 
         def option_row(lead: str, options: list[tuple[str, str]]):
-            row = ttk.Frame(bottom, style="Flat.TFrame")
-            row.pack(anchor="w", pady=(2, 0))
+            row = QHBoxLayout()
+            row.setSpacing(12)
             if lead:
-                ttk.Label(row, text=lead, style="Panel.TLabel").pack(side="left", padx=(0, 8))
-            for name, text in options:                     # "Movement ☐": the label, then its box
-                lb = ttk.Label(row, text=text, style="Panel.TLabel")
-                lb.pack(side="left")
-                cb = ttk.Checkbutton(row, variable=self.overlay_vars[name], style="Panel.TCheckbutton",
-                                     command=self._toggle_overlays)
-                cb.pack(side="left", padx=(2, 12))
-                self.overlay_widgets[name] = [lb, cb]
+                row.addWidget(label(lead))
+            for name, text in options:
+                tick = self.overlay_ticks[name] = Tick(text)
+                tick.toggled.connect(lambda _on: self._toggle_overlays())
+                row.addWidget(tick)
+            row.addStretch(1)
+            col.addLayout(row)
 
         option_row("Show", [("move", "Movement"), ("advance", "Advance"), ("charge", "Charge")])
         option_row("", [("objectives", "Distances to the objectives")])
         option_row("Show", [("plan", "Targets"), ("plan2", "2nd"), ("planall", "all")])
         option_row("Show", [("sight", "Line of Sight"), ("hidden", "Hidden"), ("ground", "Go to Ground")])
-        self.plan_note = ttk.Label(bottom, text="No Engagement Optimizer army plan for these two lists yet: Targets "
-                                               "need one.", style="Muted.TLabel")
+        self.plan_note = label("No Engagement Optimizer army plan for these two lists yet: Targets need one.", "muted",
+                               wrap=True)
+        col.addWidget(self.plan_note)
+        col.addStretch(1)
         self._sub_options()
         return cell
 
     # ---------------------------------------------------------------- the boards viewed, and their place
     def _toggle_layouts(self):
-        for m, v in zip(self.maps, self.shown):
-            if not v.get() and m.selected:                      # no selection left on a board out of view
+        for m, tick in zip(self.maps, self.shown):
+            if not tick.isChecked() and m.selected:             # no selection left on a board out of view
                 m._select(None)
-        self._arrange()
+        self.arrange()
 
     def _arrange_later(self):
         """Arrange again once the info panel has its new size (its texts changed)."""
-        if self._arrange_job is None:
-            self._arrange_job = self.after_idle(self._arrange)
+        self._arrange_timer.start(0)
 
-    def _arrange(self):
+    def arrange(self):
         """Place the boards viewed and the info panel in the space they share, the boards as large as
         that allows."""
-        self._arrange_job = None
-        area, top, bottom = self.board_area, self.info_top, self.info_bottom
-        if area.winfo_width() < 10 or area.winfo_height() < 10:           # not laid out yet
+        if not self._built:
             return
-        gap, m0 = 6, self.maps[0]
-        tw, th, bw, bh = top.winfo_reqwidth(), top.winfo_reqheight(), bottom.winfo_reqwidth(), bottom.winfo_reqheight()
-        chrome = (26, m0.title.winfo_reqheight() + m0.sub.winfo_reqheight() + 30)     # a map's frame, title, margins
-        shown = [m for m, v in zip(self.maps, self.shown) if v.get()]
-        a = arrange(len(shown), area.winfo_width(), area.winfo_height(),
-                    tall=(max(tw, bw) + gap, th + bh + 2 * gap), wide=(tw + bw + 2 * gap, max(th, bh) + gap),
+        area, top, bottom = self.board_area, self.info_top, self.info_bottom
+        if area.width() < 10 or area.height() < 10:             # not laid out yet
+            return
+        m0 = self.maps[0]
+        (tw, th), (bw, bh) = ((s.width(), s.height()) for s in (top.sizeHint(), bottom.sizeHint()))
+        # what a map takes around its board: frame and margins, title, line under it
+        chrome = (16, m0.title.sizeHint().height() + m0.sub.sizeHint().height() + 20)
+        shown = [m for m, tick in zip(self.maps, self.shown) if tick.isChecked()]
+        a = arrange(len(shown), area.width(), area.height(),
+                    tall=(max(tw, bw) + GAP, th + bh + 2 * GAP), wide=(tw + bw + 2 * GAP, max(th, bh) + GAP),
                     chrome=chrome)
 
-        def put(w, rect: Rect):
+        def put(w: QWidget, rect: Rect):
             x, y, width, height = rect
-            w.place(x=x + 3, y=y + 3, width=max(1, width - 6), height=max(1, height - 6))
+            w.setGeometry(x + 3, y + 3, max(1, width - 6), max(1, height - 6))
+            w.show()
         for m in self.maps:
             if m not in shown:
-                m.place_forget()
+                m.hide()
         for m, rect in zip(shown, a.boards):
             put(m, rect)
+        grid = self.info_grid                                   # its two parts: side by side, or stacked
+        grid.removeWidget(top)
+        grid.removeWidget(bottom)
+        grid.addWidget(top, 0, 0)
+        grid.addWidget(bottom, *((0, 1) if a.wide else (1, 0)))
+        grid.setRowStretch(0, 1)
+        grid.setRowStretch(1, 0)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1 if a.wide else 0)
         put(self.info_cell, a.info)
-        cell = self.info_cell                                   # its two parts: side by side, or stacked
-        top.grid(row=0, column=0, sticky="nsew")
-        if a.wide:
-            bottom.grid(row=0, column=1, sticky="nsew", padx=(gap, 0), pady=0)
-        else:
-            bottom.grid(row=1, column=0, sticky="ew", padx=0, pady=(gap, 0))
-        cell.rowconfigure(0, weight=1)
-        cell.columnconfigure(0, weight=1)
-        cell.columnconfigure(1, weight=1 if a.wide else 0)
 
     def _sub_options(self):
         """Hidden refines line of sight, Go to Ground refines Hidden, 2nd and all refine Targets: each
         only available while the option it refines is on."""
-        sight, plan = self.overlay_vars["sight"].get(), self.overlay_vars["plan"].get()
-        for name, on in (("hidden", sight), ("ground", sight and self.overlay_vars["hidden"].get()),
-                         ("plan2", plan), ("planall", plan)):
-            for w in self.overlay_widgets[name]:
-                w.state(["!disabled"] if on else ["disabled"])
+        on = {name: tick.isChecked() for name, tick in self.overlay_ticks.items()}
+        for name, usable in (("hidden", on["sight"]), ("ground", on["sight"] and on["hidden"]),
+                             ("plan2", on["plan"]), ("planall", on["plan"])):
+            self.overlay_ticks[name].setEnabled(usable)
 
-    def _on_select(self, source: LayoutMap, key: str | None):
+    def _on_select(self, source: UnitMap, key: str | None):
         """One selection for the whole window: selecting on one map clears the others."""
         self.selected = (source, key) if key else None
         for m in self.maps:
@@ -206,39 +247,37 @@ class HolomapWindow(ToolWindow):
                             links.append((key, hit, rank))
         for m in self.maps:
             m.set_plan_links(links)
-        if self.plan:                                           # the note only takes room when needed
-            self.plan_note.pack_forget()
-        else:
-            self.plan_note.pack(anchor="w", pady=(4, 0))
+        self.plan_note.setVisible(not self.plan)                # the note only takes room when needed
         self._arrange_later()
 
     # ---------------------------------------------------------------- Score Oracle
-    def open_score_oracle(self):
+    def open_score_oracle(self) -> ScoreOracle:
         """The floating score window: one per Field Holomap, brought to the front if already open."""
-        if self.oracle is not None and self.oracle.winfo_exists():
-            self.oracle.deiconify()
-            self.oracle.lift()
-            self.oracle.focus_set()
-            return
-        self.oracle = ScoreOracle(self)
+        if self.oracle is None:
+            self.oracle = ScoreOracle(self)
+            self.oracle.destroyed.connect(self._oracle_closed)
+        self.oracle.show()
+        self.oracle.raise_()
+        self.oracle.activateWindow()
+        return self.oracle
 
-    def back(self):
+    def _oracle_closed(self):
+        self.oracle = None
+
+    def closeEvent(self, event):
         self._unsubscribe()
-        if self._arrange_job is not None:
-            self.after_cancel(self._arrange_job)
-        if self.oracle is not None and self.oracle.winfo_exists():
-            self.oracle.destroy()
-        super().back()
+        self._arrange_timer.stop()
+        super().closeEvent(event)                               # the Score Oracle is this window's: it closes with it
 
     def _toggle_overlays(self):
         self._sub_options()
-        flags = {name: v.get() for name, v in self.overlay_vars.items()}
+        flags = {name: tick.isChecked() and tick.isEnabled() for name, tick in self.overlay_ticks.items()}
         for m in self.maps:
             m.set_overlays(**flags)
 
     def _toggle_measurements(self):
         for m in self.maps:
-            m.show_measurements = self.measure.get()
+            m.show_measurements = self.measure.isChecked()
             m.draw()
 
     def refresh(self):
@@ -247,7 +286,7 @@ class HolomapWindow(ToolWindow):
         both = all(fd.values())
         for role, other in (("attacker", "defender"), ("defender", "attacker")):
             self.side.show_mission(role, book.primary_mission(fd[role], fd[other]) if both else None)
-        if getattr(self, "oracle", None) is not None and self.oracle.winfo_exists():
+        if self.oracle is not None:
             self.oracle.refresh()
 
         if not book.available:
@@ -260,17 +299,16 @@ class HolomapWindow(ToolWindow):
             layouts = book.layouts_for(fd["attacker"], fd["defender"])
             msg = "" if layouts else f"No layouts found for {fd['attacker']} vs {fd['defender']}."
         for i, m in enumerate(self.maps):
-            m.set_layout(layouts[i] if i < len(layouts) else None, msg if i == 0 else "", self.measure.get())
+            m.set_layout(layouts[i] if i < len(layouts) else None, msg if i == 0 else "", self.measure.isChecked())
 
         if both:
             pairing = (f"{fd['attacker']} (mirror)" if fd["attacker"] == fd["defender"]
                        else f"{fd['attacker']} vs {fd['defender']}")
-            self.pairing.configure(text=pairing)
-            self.info.configure(text=f"{len(layouts)} layouts for this pairing  ·  Event Companion, via "
-                                     "rapidingress.com")
+            self.pairing.setText(pairing)
+            self.info.setText(f"{len(layouts)} layouts for this pairing  ·  Event Companion, via rapidingress.com")
         else:
-            self.pairing.configure(text="")
-            self.info.configure(text="")
+            self.pairing.setText("")
+            self.info.setText("")
         self._arrange_later()
 
 

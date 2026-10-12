@@ -23,5 +23,5 @@ def to_int(s, default=None):
 
 
 def clean_glyphs(s: str) -> str:
-    """Characters some Windows/Tk fonts can't draw -> plain equivalents."""
+    """Characters some fonts can't draw -> plain equivalents."""
     return (s or "").replace("‑", "-").replace("­", "").replace(" ", " ").replace(" ", " ")

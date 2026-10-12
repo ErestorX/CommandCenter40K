@@ -36,8 +36,8 @@ and saved work are in `~/Library/Application Support/Command Center 40K`.
 
 On both, when a new version is out, the app offers to install it at start-up: say yes and it comes back updated, with your lists and saved work as they were.
 
-**From the source:** you need a recent Python 3 (it is developed on 3.14; tkinter, which it
-uses, ships with Python on Windows).
+**From the source:** you need a recent Python 3 (it is developed on 3.14); its windows are made
+with Qt (PySide6), which the first line below installs.
 
 ```bash
 pip install -r requirements.txt

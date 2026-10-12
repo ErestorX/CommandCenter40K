@@ -1,0 +1,18 @@
+Command Center 40K is built with the following software, which keeps its own licence.
+
+Qt and Qt for Python (PySide6, Shiboken6)
+    (c) The Qt Company Ltd and other contributors. https://www.qt.io
+    Used under the GNU Lesser General Public License, version 3 (LGPL-3.0.txt in this folder; it adds
+    to the GNU General Public License, version 3: GPL-3.0.txt).
+    The packaged app carries these libraries unmodified, as separate files (the PySide6 and shiboken6
+    folders next to the app's own files): they can be replaced by other builds of the same libraries.
+    Their source code: https://download.qt.io/official_releases/QtForPython/ and
+    https://download.qt.io/official_releases/qt/
+
+NumPy
+    (c) NumPy Developers. BSD 3-Clause licence. https://numpy.org
+
+Python
+    (c) Python Software Foundation. PSF licence. https://www.python.org
+
+The display font and the game data shown by the app are not covered by the above.

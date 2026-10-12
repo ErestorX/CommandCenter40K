@@ -1,19 +1,20 @@
 """Base class for tool windows."""
 from __future__ import annotations
 
-import tkinter as tk
 from typing import TYPE_CHECKING
 
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QWidget
+
 from command_center.ui.screen import fill_screen
-from command_center.ui.theme import C, dark_title_bar
 
 if TYPE_CHECKING:
     from command_center.ui.app import App
     from command_center.ui.registry import Selection
 
 
-class ToolWindow(tk.Toplevel):
-    """A themed top-level window that knows the app context and the selected armies (None for a tool
+class ToolWindow(QWidget):
+    """A top-level window that knows the app context and the selected armies (None for a tool
     registered with needs_armies=False, when no lists are chosen). It fills the screen, and stays so.
 
     Closing it (or calling back()) returns to the launcher when no other tool is open."""
@@ -21,16 +22,17 @@ class ToolWindow(tk.Toplevel):
     title_text = "Tool"
 
     def __init__(self, app: "App", selection: "Selection | None"):
-        super().__init__(app)
+        super().__init__()                      # no parent: a window of the launcher's would hide with it
         self.app = app
         self.ctx = app.ctx
         self.selection = selection
-        self.title(f"Command Center 40K — {self.title_text}")
-        self.configure(bg=C["bg"])
+        self.setWindowTitle(f"Command Center 40K — {self.title_text}")
+        self.setAttribute(Qt.WA_DeleteOnClose)
         fill_screen(self)
-        dark_title_bar(self)
-        self.protocol("WM_DELETE_WINDOW", self.back)
 
     def back(self):
-        self.destroy()
+        self.close()
+
+    def closeEvent(self, event):
         self.app.on_tool_closed(self)
+        super().closeEvent(event)

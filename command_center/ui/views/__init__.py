@@ -1,1 +1,1 @@
-"""Reusable windows that tools can open (rules text, abilities, ...)."""
+"""Views shared by several tools."""

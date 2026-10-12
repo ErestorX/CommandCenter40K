@@ -1,4 +1,4 @@
-"""The Qt Engagement Optimizer, without a screen, on the test fixtures: units and their tests, a run on a
+"""The Engagement Optimizer, without a screen, on the test fixtures: units and their tests, a run on a
 worker thread, and the results explorer. Plans are saved in a temporary folder, never the user's."""
 import os
 import tempfile
@@ -7,27 +7,22 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")       # before Qt starts: no screen is needed, none is used
 
-try:
-    from PySide6.QtCore import Qt
-    from PySide6.QtTest import QTest
-    HAVE_QT = True
-except ImportError:          # the Qt front end is optional until it has every tool (docs/qt_migration.md)
-    HAVE_QT = False
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
 
 from command_center.analysis.army_plans import ArmyPlanStore
 from command_center.analysis.plan import PlanStore
 from command_center.lists import parse_list
 from tests.helpers import FIXTURE_LIST
-from tests.test_qt_auspex import wait_until
-from tests.test_qt_windows import fixture_context
+from tests.test_ui_auspex import wait_until
+from tests.test_ui_windows import fixture_context
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class OptimizerTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from command_center.qt.app import App, application
-        from command_center.qt.registry import Selection, discover
+        from command_center.ui.app import App, application
+        from command_center.ui.registry import Selection, discover
         cls.tools = {t.key: t for t in discover()}
         cls.qt = application()
         cls.ctx = fixture_context()
@@ -42,7 +37,7 @@ class OptimizerTest(unittest.TestCase):
         cls.app.close()
 
     def setUp(self):
-        from command_center.qt.tools.optimizer.window import OptimizerWindow
+        from command_center.ui.tools.optimizer.window import OptimizerWindow
         self.plans = self.folder / f"{self.id()}.json"
         self.win = OptimizerWindow(self.app, self.selection, PlanStore(self.plans))
         self.win.show()
@@ -127,7 +122,7 @@ class OptimizerTest(unittest.TestCase):
         self.assertEqual(len(PlanStore(self.plans).get(self.win.left.army, "attacker", self.win.left.unit).tests), 2)
 
     def test_run_and_results(self):
-        from command_center.qt.tools.optimizer.results import FROM, INTO, MATRIX, PLAN, TABLE
+        from command_center.ui.tools.optimizer.results import FROM, INTO, MATRIX, PLAN, TABLE
         left, right = self.plan_two_units()
         cases = self.win._n_cases
         res = self.run_tests()

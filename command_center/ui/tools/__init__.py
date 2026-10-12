@@ -1,2 +1,2 @@
-"""Feature windows. Every module/package here is imported by command_center.ui.registry.discover()
-and registers itself with @register_tool. See command_center/ui/registry.py for how to add one."""
+"""Feature windows. Every module or package in here is imported at start-up (command_center.ui.registry.discover);
+each registers itself with @register_tool."""

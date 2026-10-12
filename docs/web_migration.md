@@ -2,7 +2,8 @@
 
 Branch `QT_migration`, 12 October 2026. The same audit as [qt_migration.md](qt_migration.md), for a
 front end made of web pages. Nothing of the app is changed: this document, and a spike
-(`spikes/web_spike/`) that the figures below come from.
+(`spikes/web_spike/`) that the figures below come from. Qt was chosen; the spike was removed when the
+migration ended, and is in the branch's history.
 
 ## Verdict
 

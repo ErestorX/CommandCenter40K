@@ -1,7 +1,11 @@
-"""Colours, fonts and ttk styles shared by every window.
+"""Colours, fonts and styles shared by every window.
 
 A dark theme: black backgrounds, charcoal panels with a thin steel border, inset black fields, bevelled
-buttons with their text in the display font, white text and a red accent.
+buttons with their text in the display font, white text and a red accent. The colours are those of
+command_center.ui.palette; here they become the application's palette and its style sheet.
+
+A widget takes a style by its `role` property (command_center.ui.widgets sets it): QLabel[role="h1"],
+QFrame[role="panel"], QPushButton[role="accent"]...
 
 Fonts: Caliban Angelus (assets/fonts, loaded for this process only) is the display font: titles,
 headings, buttons, badges and tabs. Its digits and small sizes are hard to read, so numbers and body
@@ -9,229 +13,150 @@ text stay in the system's font (font_family()). BODY_IN_DISPLAY_FONT puts everyt
 from __future__ import annotations
 
 import sys
-import tkinter as tk
-import tkinter.font as tkfont
-from tkinter import ttk
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QFontDatabase, QIcon, QPalette
+from PySide6.QtWidgets import QApplication
 
 from command_center import config
 from command_center.ui.palette import (BODY_IN_DISPLAY_FONT, C, DIFFICULTY_COLORS, DISPLAY_FAMILY,  # noqa: F401
                                        DISPOSITION_COLORS, NO_ESTIMATE, disposition_colors)
 
+BODY_SIZE = 10                  # points
 _display: str | None = None     # the display family once known to be there (else the system's)
-_fonts_loaded = False
+_body = ""
+
+STYLE = """
+QToolTip {{ background: {raised}; color: {ink}; border: 1px solid {line}; padding: 2px 6px; }}
+
+QFrame[role="panel"] {{ background: {panel}; border: 1px solid {line}; }}
+QFrame[role="cell"] {{ background: {field}; border: 1px solid {line}; }}
+QFrame[role="cell"][on="true"] {{ border-color: {accent}; }}
+QFrame[role="rule"] {{ background: {line}; border: none; }}
+
+QLabel[role="h1"] {{ font-family: "{display}"; font-size: 17pt; font-weight: bold; }}
+QLabel[role="h2"] {{ font-family: "{display}"; font-size: 12pt; font-weight: bold; }}
+QLabel[role="big"] {{ font-size: 22pt; font-weight: bold; }}
+QLabel[role="muted"] {{ color: {muted}; font-size: 9pt; }}
+QLabel[role="warn"] {{ color: {warn}; font-size: 9pt; }}
+QLabel[role="small"] {{ font-size: 9pt; }}
+QLabel[role="total"] {{ font-weight: bold; }}
+QLabel[role="att"] {{ color: {att}; font-family: "{display}"; font-weight: bold; }}
+QLabel[role="def"] {{ color: {def}; font-family: "{display}"; font-weight: bold; }}
+QLabel[role="att-badge"], QLabel[role="def-badge"], QLabel[role="muted-badge"] {{
+    font-family: "{display}"; font-weight: bold; padding: 3px 10px; }}
+QLabel[role="att-badge"] {{ background: #4a1715; color: #ff8f88; }}
+QLabel[role="def-badge"] {{ background: #16304f; color: #9cc6f5; }}
+QLabel[role="muted-badge"] {{ background: {grid}; color: {muted}; }}
+
+QPushButton {{ font-family: "{display}"; font-weight: bold; color: {ink}; background: {raised}; padding: 5px 12px;
+    border: 1px solid {line}; border-top-color: #4a4a55; border-left-color: #4a4a55; }}
+QPushButton:hover {{ background: {hover}; }}
+QPushButton:pressed {{ background: {field}; border-color: {line}; border-top-color: #08080a; border-left-color: #08080a; }}
+QPushButton:disabled {{ color: {dim}; background: {panel}; }}
+QPushButton[role="accent"] {{ color: {accent}; font-size: 11pt; padding: 6px 12px; }}
+QPushButton[role="accent"]:hover {{ color: #ff5a4f; }}
+QPushButton[role="accent"]:disabled {{ color: {dim}; }}
+QPushButton[role="step"] {{ font-family: "{body}"; padding: 0px 5px; border: none; }}
+QPushButton[role="switch"] {{ color: {muted}; font-size: 11pt; padding: 7px 18px; min-width: 70px; }}
+QPushButton[role="switch"]:hover {{ color: {ink}; }}
+QPushButton[role="switch"]:checked {{ color: {accent}; background: {field}; border-color: {line};
+    border-top-color: #08080a; border-left-color: #08080a; }}
+
+QTreeWidget {{ background: {field}; color: {ink}; border: 1px solid {line}; outline: none; }}
+QTreeWidget::item {{ padding: 2px 3px; }}
+QTreeWidget::item:selected {{ background: {select}; color: white; }}
+QHeaderView::section {{ background: {raised}; color: {ink}; font-size: 9pt; padding: 3px 4px; border: none;
+    border-right: 1px solid {line}; border-bottom: 1px solid {line}; }}
+QTreeWidget[role="filters"] {{ background: {field}; }}
+QTabWidget::pane {{ border: 1px solid {line}; background: {panel}; top: -1px; }}
+QTabBar::tab {{ font-family: "{display}"; font-weight: bold; color: {muted}; background: {bg}; padding: 5px 14px;
+    border: 1px solid {line}; margin-right: 2px; }}
+QTabBar::tab:hover {{ color: {ink}; background: {raised}; }}
+QTabBar::tab:selected {{ color: {ink}; background: {panel}; border-bottom-color: {panel}; }}
+QSplitter::handle {{ background: {bg}; }}
+QSplitter::handle:horizontal {{ width: 6px; }}
+QSplitter::handle:vertical {{ height: 6px; }}
+QSpinBox {{ background: {field}; color: {ink}; border: 1px solid {line}; padding: 2px 4px; }}
+QSlider::groove:horizontal {{ height: 6px; background: {field}; border: 1px solid {line}; }}
+QSlider::handle:horizontal {{ width: 12px; margin: -6px 0; background: {raised}; border: 1px solid {line};
+    border-top-color: #4a4a55; border-left-color: #4a4a55; }}
+QSlider::handle:horizontal:hover {{ background: {hover}; }}
+QGroupBox {{ border: 1px solid {line}; margin-top: 9px; padding-top: 4px; }}
+QGroupBox::title {{ subcontrol-origin: margin; left: 8px; padding: 0px 3px; color: {muted}; }}
+QComboBox {{ background: {field}; color: {ink}; border: 1px solid {line}; padding: 2px 6px; }}
+QComboBox:disabled {{ background: {grid}; color: {dim}; }}
+QComboBox::drop-down {{ background: {raised}; border-left: 1px solid {line}; width: 16px; }}
+QComboBox::drop-down:hover {{ background: {hover}; }}
+QComboBox QAbstractItemView {{ background: {field}; color: {ink}; border: 1px solid {line};
+    selection-background-color: {select}; selection-color: white; outline: none; }}
+
+QListWidget, QPlainTextEdit, QLineEdit {{ background: {field}; color: {ink}; border: 1px solid {line};
+    selection-background-color: {select}; selection-color: white; }}
+QListWidget {{ border: none; outline: none; }}
+QListWidget::item:selected {{ background: {select}; color: white; }}
+QLineEdit {{ padding: 3px 4px; }}
+QLineEdit[state="done"] {{ background: {raised}; }}
+QLineEdit[state="bad"] {{ background: {bad}; }}
+
+QProgressBar {{ background: {field}; border: 1px solid {line}; max-height: 12px; }}
+QProgressBar::chunk {{ background: {accent}; }}
+QScrollArea {{ border: none; }}
+"""
 
 
-def load_fonts() -> None:
-    """Make the fonts of assets/fonts usable by this process (Windows and macOS; elsewhere they must be
-    installed). To call before the Tk root is created; once is enough, more calls do nothing."""
-    global _fonts_loaded
-    if sys.platform not in ("win32", "darwin") or _fonts_loaded:
-        return
-    _fonts_loaded = True
-    try:
-        import ctypes
-        paths = sorted(config.FONTS_DIR.glob("*.ttf"))
-        if sys.platform == "win32":
-            for path in paths:
-                ctypes.windll.gdi32.AddFontResourceExW(str(path), 0x10, 0)  # FR_PRIVATE: not installed, ours only
-            return
-        from ctypes.util import find_library
-        cf, ct = ctypes.CDLL(find_library("CoreFoundation")), ctypes.CDLL(find_library("CoreText"))
-        cf.CFURLCreateFromFileSystemRepresentation.restype = ctypes.c_void_p
-        cf.CFURLCreateFromFileSystemRepresentation.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_long,
-                                                               ctypes.c_bool]
-        cf.CFRelease.argtypes = [ctypes.c_void_p]
-        ct.CTFontManagerRegisterFontsForURL.restype = ctypes.c_bool
-        ct.CTFontManagerRegisterFontsForURL.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p]
-        for path in paths:
-            raw = str(path).encode("utf-8")
-            url = cf.CFURLCreateFromFileSystemRepresentation(None, raw, len(raw), False)
-            if url:
-                ct.CTFontManagerRegisterFontsForURL(url, 1, None)           # kCTFontManagerScopeProcess: ours only
-                cf.CFRelease(url)
-    except Exception:  # noqa: BLE001 - no font: the system's is used
-        pass
+def load_fonts() -> list[str]:
+    """Make the fonts of assets/fonts usable by this process, and return their families. Qt does it on
+    every system: nothing is installed."""
+    return [family for path in sorted(config.FONTS_DIR.glob("*.ttf"))
+            for family in QFontDatabase.applicationFontFamilies(QFontDatabase.addApplicationFont(str(path)))]
 
 
-def set_icon(root: tk.Tk) -> None:
-    """The app's icon on this root's window and on every window opened from it (and so in the taskbar)."""
-    try:
-        if sys.platform == "win32":
-            root.iconbitmap(default=str(config.ICON_DIR / "icon.ico"))      # every size, sharp in the title bar
-        else:
-            root._icon = tk.PhotoImage(master=root, file=str(config.ICON_DIR / "icon.png"))
-            root.iconphoto(True, root._icon)
-    except Exception:  # noqa: BLE001 - cosmetic only: Tk's own icon
-        pass
+def app_identity() -> None:
+    """An app of its own in the Windows taskbar, with its windows' icon: not grouped under Python's.
+    To call before the first window."""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ErestorX.CommandCenter40K")
+        except Exception:  # noqa: BLE001 - cosmetic only
+            pass
 
 
-def dark_title_bar(win: tk.Misc) -> None:
-    """Ask Windows for a dark title bar on a top-level window (ignored where it can't be done).
-    To call once the window is set up: making it transient gives it a new frame, a plain one."""
-    if sys.platform != "win32":
-        return
-    try:
-        import ctypes
-        win.update_idletasks()
-        hwnd = ctypes.windll.user32.GetParent(win.winfo_id())
-        on = ctypes.c_int(1)
-        for attribute in (20, 19):                  # DWMWA_USE_IMMERSIVE_DARK_MODE, and its older number
-            if ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, attribute, ctypes.byref(on), ctypes.sizeof(on)) == 0:
-                break
-    except Exception:  # noqa: BLE001 - cosmetic only
-        pass
-
-
-def setup_style(root: tk.Tk) -> None:
-    global _display
-    style = ttk.Style(root)
-    if "clam" in style.theme_names():
-        style.theme_use("clam")
-    base = tkfont.nametofont("TkDefaultFont")
-    base.configure(size=10)
-    _display = DISPLAY_FAMILY if DISPLAY_FAMILY in tkfont.families(root) else None
+def setup_style(app: QApplication) -> None:
+    """The app's look, on every window opened from now on: colours, fonts, icon, dark title bars."""
+    global _display, _body
+    app.setStyle("Fusion")                      # the same widgets on every system, drawn from the palette
+    app.styleHints().setColorScheme(Qt.ColorScheme.Dark)        # the title bars too
+    _display = DISPLAY_FAMILY if DISPLAY_FAMILY in load_fonts() else None
+    font = app.font()
     if _display and BODY_IN_DISPLAY_FONT:
-        for name in ("TkDefaultFont", "TkTextFont", "TkMenuFont", "TkHeadingFont", "TkTooltipFont"):
-            tkfont.nametofont(name).configure(family=_display)
-    fam, dis = base.actual("family"), display_family()
-    root.fonts = {
-        "h1": tkfont.Font(family=dis, size=17, weight="bold"),
-        "h2": tkfont.Font(family=dis, size=12, weight="bold"),
-        "big": tkfont.Font(family=fam, size=22, weight="bold"),
-        "small": tkfont.Font(family=fam, size=9),
-        "role": tkfont.Font(family=dis, size=10, weight="bold"),
-        "button": tkfont.Font(family=dis, size=10, weight="bold"),
-        "accent": tkfont.Font(family=dis, size=11, weight="bold"),
-    }
-    root.configure(bg=C["bg"])
-    set_icon(root)
-    dark_title_bar(root)
-    # plain Tk widgets that are given no colours of their own
-    for pattern, value in (("*Entry.background", C["field"]), ("*Entry.foreground", C["ink"]),
-                           ("*Entry.insertBackground", C["ink"]), ("*Entry.disabledBackground", C["grid"]),
-                           ("*Text.background", C["field"]), ("*Text.foreground", C["ink"]),
-                           ("*Text.insertBackground", C["ink"]), ("*Text.selectBackground", C["select"]),
-                           ("*Text.selectForeground", "white"), ("*Entry.selectBackground", C["select"]),
-                           ("*Entry.selectForeground", "white"),
-                           ("*Listbox.background", C["field"]), ("*Listbox.foreground", C["ink"]),
-                           ("*Listbox.selectBackground", C["select"]), ("*Listbox.selectForeground", "white"),
-                           ("*Canvas.background", C["panel"]), ("*Label.background", C["panel"]),
-                           ("*Label.foreground", C["ink"]),
-                           # the list a drop-down opens
-                           ("*TCombobox*Listbox.background", C["field"]), ("*TCombobox*Listbox.foreground", C["ink"]),
-                           ("*TCombobox*Listbox.selectBackground", C["select"]),
-                           ("*TCombobox*Listbox.selectForeground", "white")):
-        root.option_add(pattern, value)
+        font.setFamily(_display)
+    font.setPointSize(BODY_SIZE)
+    app.setFont(font)
+    _body = font.family()
+    icon = config.ICON_DIR / ("icon.ico" if sys.platform == "win32" else "icon.png")
+    if icon.exists():
+        app.setWindowIcon(QIcon(str(icon)))
 
-    bevel = dict(bordercolor=C["line"], lightcolor="#4a4a55", darkcolor="#08080a")       # a raised edge
-    flat = dict(bordercolor=C["line"], lightcolor=C["field"], darkcolor=C["field"])      # an inset field
-    style.configure(".", background=C["bg"], foreground=C["ink"], fieldbackground=C["field"], bordercolor=C["line"],
-                    lightcolor=C["panel"], darkcolor=C["panel"], troughcolor=C["field"], insertcolor=C["ink"],
-                    selectbackground=C["select"], selectforeground="white", focuscolor=C["line"])
-    # a disabled widget keeps the background of what it sits on (the theme's own would be light grey)
-    style.map(".", foreground=[("disabled", C["dim"])], background=[])
-    style.configure("MutedBg.TLabel", background=C["bg"], foreground=C["muted"], font=root.fonts["small"])
-    style.configure("TFrame", background=C["bg"])
-    style.configure("Panel.TFrame", background=C["panel"], relief="solid", borderwidth=1, bordercolor=C["line"])
-    style.configure("Flat.TFrame", background=C["panel"], relief="flat", borderwidth=0)
-    style.configure("TLabel", background=C["bg"], foreground=C["ink"])
-    style.configure("Panel.TLabel", background=C["panel"])
-    style.configure("Muted.TLabel", background=C["panel"], foreground=C["muted"], font=root.fonts["small"])
-    style.configure("H1.TLabel", font=root.fonts["h1"])
-    style.configure("H2.TLabel", background=C["panel"], font=root.fonts["h2"])
-    style.configure("Big.TLabel", background=C["panel"], font=root.fonts["big"])
-    style.configure("Att.TLabel", background=C["panel"], foreground=C["att"], font=root.fonts["role"])
-    style.configure("Def.TLabel", background=C["panel"], foreground=C["def"], font=root.fonts["role"])
-
-    # buttons: bevelled, their text in the display font; the accent ones in red
-    style.configure("TButton", background=C["raised"], foreground=C["ink"], font=root.fonts["button"], padding=(12, 5),
-                    relief="raised", **bevel)
-    style.map("TButton", background=[("disabled", C["panel"]), ("pressed", C["field"]), ("active", C["hover"])],
-              foreground=[("disabled", C["dim"])], lightcolor=[("pressed", "#08080a")], darkcolor=[("pressed", "#4a4a55")])
-    style.configure("Accent.TButton", font=root.fonts["accent"], foreground=C["accent"], padding=(12, 6))
-    style.map("Accent.TButton", foreground=[("disabled", C["dim"]), ("active", "#ff5a4f")])
-
-    # tick boxes and radio buttons: an inset box, a light mark
-    for name in ("TCheckbutton", "TRadiobutton"):
-        style.configure(name, background=C["bg"], foreground=C["ink"], indicatorbackground=C["field"],
-                        indicatorforeground=C["ink"], upperbordercolor=C["line"], lowerbordercolor=C["line"],
-                        focuscolor=C["bg"])
-        style.map(name, background=[("active", C["bg"])], foreground=[("disabled", C["dim"])],
-                  indicatorbackground=[("disabled", C["grid"]), ("pressed", C["hover"]), ("active", C["raised"])],
-                  indicatorforeground=[("disabled", C["dim"])])
-        style.configure(f"Panel.{name}", background=C["panel"], focuscolor=C["panel"])
-        style.map(f"Panel.{name}", background=[("active", C["panel"])])
-
-    # a switch: radio buttons shaped as buttons, side by side, the chosen one pressed in and in red
-    style.layout("Switch.TRadiobutton", style.layout("TButton"))
-    style.configure("Switch.TRadiobutton", background=C["raised"], foreground=C["muted"], font=root.fonts["accent"],
-                    padding=(18, 7), relief="raised", anchor="center", **bevel)
-    style.map("Switch.TRadiobutton",
-              background=[("selected", C["field"]), ("pressed", C["field"]), ("active", C["hover"])],
-              foreground=[("selected", C["accent"]), ("active", C["ink"])],
-              relief=[("selected", "sunken"), ("pressed", "sunken")],
-              lightcolor=[("selected", "#08080a")], darkcolor=[("selected", "#4a4a55")])
-
-    # fields
-    style.configure("TEntry", foreground=C["ink"], fieldbackground=C["field"], insertcolor=C["ink"], **flat)
-    style.configure("TSpinbox", foreground=C["ink"], fieldbackground=C["field"], background=C["raised"],
-                    arrowcolor=C["ink"], insertcolor=C["ink"], **flat)
-    style.configure("TCombobox", foreground=C["ink"], fieldbackground=C["field"], background=C["raised"],
-                    arrowcolor=C["ink"], **flat)
-    style.map("TCombobox", fieldbackground=[("disabled", C["grid"]), ("readonly", C["field"])],
-              foreground=[("disabled", C["dim"])], background=[("active", C["hover"])],
-              selectbackground=[("readonly", C["field"])], selectforeground=[("readonly", C["ink"])],
-              arrowcolor=[("disabled", C["dim"])])
-    # drop-downs of a sheet: black while they can be chosen from, greyed once locked
-    style.map("Sheet.TCombobox", fieldbackground=[("disabled", C["grid"]), ("readonly", C["field"])],
-              foreground=[("disabled", C["muted"])])
-
-    # tables
-    style.configure("Treeview", rowheight=22, background=C["field"], fieldbackground=C["field"], foreground=C["ink"],
-                    **flat)
-    style.configure("Treeview.Heading", font=root.fonts["small"], background=C["raised"], foreground=C["ink"],
-                    relief="flat", **bevel)
-    style.map("Treeview.Heading", background=[("active", C["hover"])])
-    style.map("Treeview", background=[("selected", C["select"])], foreground=[("selected", "white")])
-
-    style.configure("TScrollbar", background=C["raised"], troughcolor=C["field"], arrowcolor=C["muted"], **bevel)
-    style.map("TScrollbar", background=[("disabled", C["panel"]), ("active", C["hover"])],
-              arrowcolor=[("disabled", C["grid"])])
-    style.configure("TNotebook", background=C["bg"], bordercolor=C["line"], lightcolor=C["panel"],
-                    darkcolor=C["panel"], tabmargins=(2, 4, 2, 0))
-    style.configure("TNotebook.Tab", background=C["bg"], foreground=C["muted"], font=root.fonts["button"],
-                    padding=(14, 5), bordercolor=C["line"], lightcolor=C["bg"], darkcolor=C["bg"])
-    style.map("TNotebook.Tab", background=[("selected", C["panel"]), ("active", C["raised"])],
-              foreground=[("selected", C["ink"]), ("active", C["ink"])],
-              lightcolor=[("selected", C["panel"])], darkcolor=[("selected", C["panel"])])
-    style.configure("TPanedwindow", background=C["bg"])
-    style.configure("Sash", background=C["bg"], bordercolor=C["line"], lightcolor=C["line"], darkcolor=C["line"])
-    style.configure("TSeparator", background=C["line"])
-    style.configure("TLabelframe", background=C["bg"], bordercolor=C["line"], lightcolor=C["bg"], darkcolor=C["bg"])
-    style.configure("TLabelframe.Label", background=C["bg"], foreground=C["muted"])
-    style.configure("Panel.TLabelframe", background=C["panel"], lightcolor=C["panel"], darkcolor=C["panel"])
-    style.configure("Panel.TLabelframe.Label", background=C["panel"], foreground=C["muted"])
-    style.configure("TProgressbar", background=C["accent"], troughcolor=C["field"], bordercolor=C["line"],
-                    lightcolor=C["accent"], darkcolor=C["accent"])
-    style.configure("TScale", background=C["raised"], troughcolor=C["field"], **bevel)
-    style.map("TScale", background=[("active", C["hover"])])
-
-    # cells of a matrix: black boxes on the panel
-    style.configure("Cell.TFrame", background=C["field"], relief="solid", borderwidth=1, bordercolor=C["line"])
-    style.configure("CellOn.TFrame", background=C["field"], relief="solid", borderwidth=1, bordercolor=C["accent"],
-                    lightcolor=C["accent"], darkcolor=C["accent"])           # the cell that is shown elsewhere
-    style.configure("Cell.TLabel", background=C["field"])
-    style.configure("CellMuted.TLabel", background=C["field"], foreground=C["muted"], font=root.fonts["small"])
-    # badges: a value shown as a tinted tag, in its side's colours
-    badge = dict(font=root.fonts["role"], padding=(10, 3), relief="flat", borderwidth=0)
-    style.configure("AttBadge.TLabel", background="#4a1715", foreground="#ff8f88", **badge)
-    style.configure("DefBadge.TLabel", background="#16304f", foreground="#9cc6f5", **badge)
-    style.configure("MutedBadge.TLabel", background=C["grid"], foreground=C["muted"], **badge)
+    p = QPalette()
+    for role, color in ((QPalette.Window, C["bg"]), (QPalette.WindowText, C["ink"]), (QPalette.Base, C["field"]),
+                        (QPalette.AlternateBase, C["panel"]), (QPalette.Text, C["ink"]), (QPalette.Button, C["raised"]),
+                        (QPalette.ButtonText, C["ink"]), (QPalette.Highlight, C["select"]),
+                        (QPalette.HighlightedText, "white"), (QPalette.ToolTipBase, C["raised"]),
+                        (QPalette.ToolTipText, C["ink"]), (QPalette.PlaceholderText, C["muted"]),
+                        (QPalette.Light, "#4a4a55"), (QPalette.Midlight, C["hover"]), (QPalette.Mid, C["line"]),
+                        (QPalette.Dark, "#08080a"), (QPalette.Shadow, "#000000"), (QPalette.Link, C["def"])):
+        p.setColor(role, QColor(color))
+    for role in (QPalette.WindowText, QPalette.Text, QPalette.ButtonText):
+        p.setColor(QPalette.Disabled, role, QColor(C["dim"]))
+    app.setPalette(p)
+    app.setStyleSheet(STYLE.format(display=display_family(), body=_body, **C))
 
 
 def font_family() -> str:
     """The family of body text and numbers."""
-    return tkfont.nametofont("TkDefaultFont").actual("family")
+    return _body or QApplication.font().family()
 
 
 def display_family() -> str:

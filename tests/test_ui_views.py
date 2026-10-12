@@ -1,27 +1,22 @@
-"""The Qt front end's shared views, without a screen: the charts, the rich text window and what it does
+"""The front end's shared views, without a screen: the charts, the rich text window and what it does
 to Wahapedia's HTML, the rules windows."""
 import os
 import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")       # before Qt starts: no screen is needed, none is used
 
-try:
-    from PySide6.QtCore import QPoint, QPointF, Qt
-    from PySide6.QtTest import QTest
-    HAVE_QT = True
-except ImportError:          # the Qt front end is optional until it has every tool (docs/qt_migration.md)
-    HAVE_QT = False
+from PySide6.QtCore import QPoint, QPointF, Qt
+from PySide6.QtTest import QTest
 
 from command_center.lists import parse_list
 from tests.helpers import FIXTURE_LIST, fixture_wd
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class PrepareTest(unittest.TestCase):
     """Wahapedia's HTML, made ready for the window's document."""
 
     def prepare(self, text):
-        from command_center.qt.richtext import prepare
+        from command_center.ui.richtext import prepare
         return prepare(text)
 
     def test_images_links_and_styles_go(self):
@@ -45,11 +40,10 @@ class PrepareTest(unittest.TestCase):
         self.assertEqual(self.prepare("a<br><br><div>Example</div>"), "a<br><br><div>Example</div>")
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class ChartsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from command_center.qt.app import application
+        from command_center.ui.app import application
         cls.qt = application()
 
     def show(self, chart, width=900, height=420):
@@ -60,7 +54,7 @@ class ChartsTest(unittest.TestCase):
         return chart
 
     def test_heatmap(self):
-        from command_center.qt.charts import Heatmap
+        from command_center.ui.charts import Heatmap
         clicks, hidden = [], []
         heat = Heatmap(on_click=lambda i, j: clicks.append((i, j)), on_right_click=lambda i, j: hidden.append((i, j)))
         self.show(heat)
@@ -81,7 +75,7 @@ class ChartsTest(unittest.TestCase):
         self.assertIsNone(heat.selected)                                   # its row is gone
 
     def test_heatmap_scrolls_when_it_does_not_fit(self):
-        from command_center.qt.charts import Heatmap
+        from command_center.ui.charts import Heatmap
         heat = self.show(Heatmap(), 500, 300)
         n = 30
         heat.set_data([f"unit {i}" for i in range(n)], [f"target {j}" for j in range(n)],
@@ -91,12 +85,12 @@ class ChartsTest(unittest.TestCase):
         self.assertGreater(heat.surface.width(), heat.viewport().width())
 
     def items(self, n=6):
-        from command_center.qt.charts import SLOTS, BarItem
+        from command_center.ui.charts import SLOTS, BarItem
         return [BarItem(f"k{i}", f"test {i}", 10.0 - i, 5.0 - i / 2, 14.0 - i, sublabel="vs cover", tip=[f"tip {i}"],
                         segments=[(0.5, SLOTS[0]), (0.5, SLOTS[1])] if i % 2 else []) for i in range(n)]
 
     def test_bar_chart(self):
-        from command_center.qt.charts import SLOTS, BarChart
+        from command_center.ui.charts import SLOTS, BarChart
         clicks = []
         bars = self.show(BarChart(on_click=clicks.append))
         bars.grab()
@@ -118,7 +112,7 @@ class ChartsTest(unittest.TestCase):
         self.assertGreater(bars.surface.height(), bars.viewport().height())        # scrolls
 
     def test_stem_chart(self):
-        from command_center.qt.charts import StemChart
+        from command_center.ui.charts import StemChart
         clicks = []
         stems = self.show(StemChart(on_click=clicks.append))
         stems.grab()
@@ -137,15 +131,14 @@ class ChartsTest(unittest.TestCase):
         self.assertGreaterEqual(stems._geom()[0], stems.COLUMN)
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class RichTextTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from command_center.qt.app import application
+        from command_center.ui.app import application
         cls.qt = application()
 
     def test_window_and_search(self):
-        from command_center.qt.richtext import RichTextWindow
+        from command_center.ui.richtext import RichTextWindow
         w = RichTextWindow(None, "Rules", 700)
         self.addCleanup(w.close)
         w.h1("Orks")
@@ -180,7 +173,7 @@ class RichTextTest(unittest.TestCase):
 
     def test_rules_windows(self):
         from command_center.data.rules import RulesBook
-        from command_center.qt.views.rules import show_army_rules, show_unit_abilities
+        from command_center.ui.views.rules import show_army_rules, show_unit_abilities
         wd = fixture_wd()
         army, book = parse_list(FIXTURE_LIST, wd), RulesBook(wd)
         rules = show_army_rules(None, book, army)

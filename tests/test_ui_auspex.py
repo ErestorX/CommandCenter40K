@@ -1,20 +1,16 @@
-"""The Qt Armies Auspex, without a screen, on the test fixtures: a unit against another, simulated on a
+"""The Armies Auspex, without a screen, on the test fixtures: a unit against another, simulated on a
 worker thread, and what changes the simulation."""
 import os
 import unittest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")       # before Qt starts: no screen is needed, none is used
 
-try:
-    from PySide6.QtCore import QEventLoop, QTimer
-    HAVE_QT = True
-except ImportError:          # the Qt front end is optional until it has every tool (docs/qt_migration.md)
-    HAVE_QT = False
+from PySide6.QtCore import QEventLoop, QTimer
 
 from command_center.core import Modifiers
 from command_center.lists import parse_list
 from tests.helpers import FIXTURE_LIST
-from tests.test_qt_windows import fixture_context
+from tests.test_ui_windows import fixture_context
 
 
 def wait_until(done, seconds: float = 10.0) -> bool:
@@ -29,12 +25,11 @@ def wait_until(done, seconds: float = 10.0) -> bool:
     return done()
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class AuspexTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from command_center.qt.app import App, application
-        from command_center.qt.registry import Selection, discover
+        from command_center.ui.app import App, application
+        from command_center.ui.registry import Selection, discover
         discover()
         cls.qt = application()
         cls.ctx = fixture_context()
@@ -153,7 +148,7 @@ class AuspexTest(unittest.TestCase):
         self.assertIn("simulated attacks", win.results.status.text())
 
     def test_rules_windows_open(self):
-        from command_center.qt.richtext import RichTextWindow
+        from command_center.ui.richtext import RichTextWindow
         self.win.left._show_abilities()
         shown = self.win.findChildren(RichTextWindow)
         self.assertEqual(len(shown), 1)

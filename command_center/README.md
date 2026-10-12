@@ -6,7 +6,7 @@ it, see the [README at the root](../README.md). Paths below are from the root of
 ## Running, data, tests
 
 ```bash
-pip install -r requirements.txt        # numpy (tkinter ships with Python on Windows)
+pip install -r requirements.txt        # numpy, and PySide6 (Qt) for the windows
 python main.py                          # the app (run_app.bat: the same with .venv, errors -> run_log.txt)
 python -m command_center                # the same
 python -m command_center ui --data DIR  # with a folder of Wahapedia CSVs used as it is (no update check)
@@ -40,7 +40,7 @@ Tests (standard library `unittest`, no extra packages; run_tests.bat writes test
 python -m unittest discover -s tests -t .
 ```
 
-Packaged app: `.github/workflows/release.yml` builds it with PyInstaller (Python, tkinter and
+Packaged app: `.github/workflows/release.yml` builds it with PyInstaller (Python, Qt and
 numpy included) on Windows and on macOS (Apple Silicon), a zip each. Push a tag `vX.Y.Z` and
 both zips are attached to a GitHub Release of that name; run the workflow by hand to get them
 as artifacts of the run instead. Each build is started before it is zipped, and nothing is
@@ -67,19 +67,26 @@ Saved state, all in `user_data/` (git-ignored): `test_plans.json` (the Engagemen
 tests, per list file, side and unit), `army_plans.json` (its army plans, per pair of lists),
 `estimates.json` (the Disposition Cogitator's Estimates, per pairing and first player).
 
-Look: `command_center/ui/theme.py` holds the dark palette (`C`), the ttk styles and the fonts.
+Look: `command_center/ui/palette.py` holds the dark palette (`C`); `command_center/ui/theme.py` makes
+Qt's palette and style sheet of it, and loads the fonts. A widget takes a style by its `role`
+(`command_center/ui/widgets.py`).
 Caliban Angelus (`assets/fonts/`, loaded for the process, no install) is the display font for
 titles, headings, buttons, tabs and badges; numbers and body text stay in the system font
 (`BODY_IN_DISPLAY_FONT` puts everything in it). The battlefield boards keep a light palette of
-their own (`command_center/ui/tools/holomap/map_view.py`). The screenshots of the root README are in
+their own (`command_center/ui/views/board.py`). The screenshots of the root README are in
 `assets/screenshots/`; `python scripts/readme_screenshots.py` takes them again from the real app
-(Windows; on the demonstration lists and a temporary copy of their saved work).
+(on the demonstration lists and a temporary copy of their saved work; each window is pictured by Qt,
+without its title bar).
 
-Qt front end, under way (`docs/qt_migration.md`): `command_center/qt/` takes over from
-`command_center/ui/` tool by tool, and has the launcher and every tool; the tkinter one is still what `main.py` starts.
-`pip install -r requirements-qt.txt`, then `python main_qt.py` (or `python -m command_center qt`).
-Its windows are tested without a screen (`tests/test_qt_*.py`, skipped without PySide6).
-Colours shared by both front ends are in `command_center/ui/palette.py`.
+The windows are tested without a screen (`tests/test_ui_*.py`, on Qt's "offscreen" platform). A wait for
+a worker thread in such a test goes through Qt's event loop (`tests.test_ui_auspex.wait_until`), never
+`QTest.qWait`, which keeps Python's lock. Two things to know when writing a window: an attribute named
+as a method of its Qt class replaces that method silently (`metric`, `actions`, `hide`...), and a
+maximised window that was hidden is shown again through `screen.show_again`. How the front end came
+from tkinter to Qt, and what was measured on the way: `docs/qt_migration.md`.
+
+Qt is used under the LGPL: `assets/licenses/` ships with the packaged app, where Qt's libraries stay
+separate files.
 
 ## Layout
 
@@ -132,7 +139,7 @@ command_center/
     assign.py             army plan: a 1st and 2nd target for every attacker
     army_plans.py         saved army plans, one per pair of lists, shared with other windows
   ui/
-    app.py                Tk root, launcher, opens tools
+    app.py                the Qt application, the launcher's window, opens tools
     registry.py           @register_tool + auto-discovery
     toolwindow.py         base class for tool windows
     screen.py             window sizes: main windows fill the screen and stay so (fill_screen), the
@@ -140,25 +147,29 @@ command_center/
     updater.py            the data check at start-up (once a day), in a window of its own
     appupdate.py          the packaged app's update at start-up: the offer, the download window
     launcher.py           choose attacker/defender lists, then a tool (list-free tools: apart, on the left)
-    theme.py, widgets.py  the dark theme (colours, fonts, ttk styles), shared widgets
-    translucent.py        see-through fills on a canvas: stipples, or images where Tk ignores them (macOS)
-    charts.py             canvas heatmap, bar chart and stem chart with tooltips
+    palette.py, theme.py  the dark theme: its colours as plain values; Qt's palette, style sheet and fonts
+    widgets.py            shared widgets: labels and buttons by role, tables, drop-downs, tick boxes
+    worker.py             work on another thread, its result back through a signal
+    charts.py             painted heatmap, bar chart and stem chart with tooltips
     richtext.py           Wahapedia HTML -> text window, stratagem cards
     views/rules.py        army-rules and unit-abilities windows (reusable)
     views/scoresheet.py   score sheet parts: two players face to face, the rows of a primary mission
+    views/board.py        a battlefield layout drawn as a scene, scaled by its view
     tools/
       cogitator/          the Disposition Cogitator: the matrix of Force Dispositions (needs no list)
                           estimate.py: a pairing's Estimate panel (primaries to score | its three layouts)
       auspex/             the Armies Auspex: one unit against another (army panels | results)
       optimizer/          the Engagement Optimizer (test plans | run | results window)
       holomap/           the Field Holomap: missions + army summaries | the pairing's three layouts
+                          map_view.py: a layout with the units on it, and what is drawn for the selected one
                           score_oracle.py: the floating Score Oracle window, with the score sheet
   README.md               this file
 tests/                    unit tests + small fixtures
 assets/icon/              the app's icon: skull_icon.png and what is made from it (icon.ico for Windows,
-                          icon.icns for the macOS .app, icon.png for windows elsewhere); set by theme.set_icon
+                          icon.icns for the macOS .app, icon.png for windows elsewhere); set by theme.setup_style
 assets/fonts/             the display font (Caliban Angelus), loaded by the app itself: no install needed
 assets/screenshots/       the screenshots of the root README
+assets/licenses/          the licences of what the packaged app carries (Qt: LGPL), shipped with it
 assets/demo/user_data/    the work saved for the demonstration lists (tests, army plan, Estimates): a copy
                           of user_data/ made by hand, put in place at the first start while there is no
                           user_data/ yet (lists.library.install_demo)
@@ -169,7 +180,7 @@ wahapedia_data/           downloaded data (git-ignored)
 
 Dependencies only point downwards: `ui → lists → data → core`. Nothing in `core`
 imports from `data`, `lists` or `ui`, so the engine can be reused (CLI, tests,
-a future web front end) without tkinter.
+another front end) without Qt.
 
 ## Armies Auspex
 

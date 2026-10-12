@@ -1,7 +1,10 @@
 # Moving the app from tkinter to Qt: an evaluation
 
-Branch `QT_migration`, 12 October 2026. Nothing of the app is changed on this branch: it adds this
-document and a spike (`spikes/qt_spike.py`) that the figures below come from.
+Branch `QT_migration`, 12 October 2026. This is the evaluation the migration was decided on, kept as
+it was written, followed by an account of the migration itself (Progress). The spike its figures
+come from (`spikes/qt_spike.py`) was removed at the last stage: it is in the branch's history, as is
+the tkinter front end. Paths in the Progress notes are those of the time: `command_center/qt/` is
+`command_center/ui/` today.
 
 ## Verdict
 
@@ -144,16 +147,9 @@ rewrite lacks most, and Qt is what makes it possible.
 
 ## Progress
 
-Stages 1 to 6 are done, in `command_center/qt/`, next to the tkinter front end, which is untouched
-but for its colours moving to `command_center/ui/palette.py` so that both read the same ones.
-
-```bash
-pip install -r requirements-qt.txt
-python main_qt.py                 # or: python -m command_center qt
-```
-
-The Qt launcher offers every tool. What is left is stage 7: making it the app. `main.py`, `run_app.bat`
-and the release still start the tkinter app.
+All seven stages are done. Stages 1 to 6 built the Qt front end in `command_center/qt/`, next to the
+tkinter one, which was untouched but for its colours moving to `command_center/ui/palette.py` so that
+both read the same ones. Stage 7 made it the app.
 
 What stages 1 and 2 showed:
 
@@ -224,16 +220,35 @@ Stage 6 is the Field Holomap and its Score Oracle (`qt/tools/holomap/`), the las
 - On the score sheet, the wheel scrolls the sheet over a drop-down because the drop-down lets it
   pass: one line, in place of a binding on every drop-down.
 
-The real app, built for Windows with the options of `release.yml` (`main_qt.py`, tkinter left out):
+Stage 7 made the Qt front end the app. What it did:
 
-| | tkinter (today) | Qt, as built | Qt, without software OpenGL and translations |
+- `command_center/qt/` became `command_center/ui/`; the tkinter front end, its two tests and the two
+  spikes were removed. `main.py`, `run_app.bat` and `python -m command_center` start Qt.
+- PySide6 is a requirement (`requirements.txt`), and the window tests no longer skip without it.
+- `scripts/readme_screenshots.py` pictures each window with Qt: 170 lines, on any system, where it
+  was 230 lines, most of them Windows calls copying the screen. The README's screenshots were taken again; they
+  no longer show a title bar.
+- `release.yml` builds without tkinter, ships `assets/licenses/` (the LGPL's text, and what the app
+  is built with), and on Windows takes out the software OpenGL library and Qt's translations.
+
+The app as `release.yml` builds it for Windows, built and started here in a clean environment:
+
+| | tkinter | Qt, as built | Qt, as released (without software OpenGL and translations) |
 |---|---|---|---|
-| App folder | 63 MB | 134 MB | 107 MB |
-| Zip to download | 27.6 MB | | 46.5 MB |
+| App folder | 63 MB | 134 MB | 108 MB |
+| Zip to download | 27.6 MB | | 46.7 MB |
 
-It starts and shows the launcher. The trimmed build was started too.
+Its window was up 2.2 s after it was started.
 
-Left for the decision point: the macOS build, which needs the workflow. Not done here.
+Not done, and to watch at the first release:
+
+- The macOS build has never been run. The workflow builds it, runs the tests on it and starts it:
+  that will be its first try, and a failure there stops the release of both.
+- The tests now open windows on the workflow's runners too, without a screen. They pass here on
+  Windows; they have not run on a runner.
+- The Optimizer's worker processes were run from the source, not from the packaged app.
+- The first update from a tkinter release to a Qt one: the mechanism is unchanged (the `.exe` and
+  `_internal` are replaced), and it has not been tried.
 
 ## Alternatives
 

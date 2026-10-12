@@ -14,24 +14,25 @@ command_center.deploy.scoring.PlayerScore objects (totals, caps, WTC).
 "Import Estimate" fills the two primary missions from the Disposition Cogitator's saved Estimate of
 the game's pairing, the one with the player ticked "Went first" going first (command_center.deploy.estimates).
 The circle next to it has that Estimate's difficulty colour, as on the Cogitator's matrix, from the
-attacker's point of view; it is white when there is no such Estimate, or nobody is ticked yet."""
+attacker's point of view; it is empty when there is no such Estimate, or nobody is ticked yet."""
 from __future__ import annotations
 
 import random
-import tkinter as tk
 from datetime import date
 from string import capwords
-from tkinter import ttk
 from typing import TYPE_CHECKING
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
 
 from command_center.deploy.estimates import difficulty, game_estimate
 from command_center.deploy.scoring import (BATTLE_READY, COLUMNS, PRIMARY_MAX, ROUND_MAX, ROUNDS, SECONDARY_CELLS,
                                            SECONDARY_MAX, SECONDARY_MISSION_MAX, PlayerScore, SecondaryRow,
                                            primary_options, wtc)
 from command_center.ui.screen import screen_height
-from command_center.ui.theme import C, DIFFICULTY_COLORS, NO_ESTIMATE, dark_title_bar, display_family, font_family
-from command_center.ui.views.scoresheet import (CELL_DONE, OVER_INK, FaceToFace, PrimaryRows, column_headers,
-                                                sheet_fonts, show_vp, summary_row)
+from command_center.ui.theme import C, DIFFICULTY_COLORS, NO_ESTIMATE, display_family
+from command_center.ui.views.scoresheet import OVER_INK, Counter, FaceToFace, PrimaryRows, column_headers, show_vp, summary_row
+from command_center.ui.widgets import Combo, Dots, Panel, Tick, button, label
 
 if TYPE_CHECKING:
     from command_center.ui.tools.holomap.window import HolomapWindow
@@ -40,72 +41,79 @@ ROLES = ("attacker", "defender")
 WIN_INK, LOSE_INK = C["good"], C["muted"]
 
 
-class ScoreOracle(tk.Toplevel):
+class SheetCombo(Combo):
+    """A drop-down of the sheet: the wheel scrolls the sheet, wherever the pointer is, never its value."""
+
+    wheel = False
+
+
+class ScoreOracle(QWidget):
     def __init__(self, holomap: "HolomapWindow"):
-        super().__init__(holomap)
+        super().__init__(holomap, Qt.Window)            # floats above the Field Holomap, both usable
         self.holomap = holomap
-        self.title("Command Center 40K — Score Oracle")
-        self.configure(bg=C["bg"])
-        self.minsize(1000, 1)
-        self.transient(holomap)                   # floats above the Field Holomap, both usable
-        screen_height(self, 1240)
-        dark_title_bar(self)
-        fam = font_family()
-        self.fonts = {"score": (fam, 30, "bold"), "name": (display_family(), 14, "bold"),
-                      "result": (display_family(), 13, "bold"),
-                      **sheet_fonts()}
+        self.setWindowTitle("Command Center 40K — Score Oracle")
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setMinimumWidth(1000)
+        screen_height(self, 1240, holomap)
         self.scores = {role: PlayerScore(name=role.title()) for role in ROLES}
         self.cells: dict[str, dict] = {role: {} for role in ROLES}
         self.primary_names = {role: "Primary mission" for role in ROLES}
 
-        body = ttk.Frame(self, padding=10)
-        body.pack(fill="both", expand=True)
-        self._build_header(body).pack(fill="x")
-        self.footer = ttk.Label(body, text="", style="MutedBg.TLabel", wraplength=1200, justify="left")
-        self.footer.pack(side="bottom", anchor="w", pady=(6, 0))
-        self.faces = FaceToFace(body)                     # face to face: attacker left, defender right
-        self.faces.pack(fill="both", expand=True, pady=(8, 0))
+        body = QVBoxLayout(self)
+        body.setContentsMargins(10, 10, 10, 10)
+        body.setSpacing(8)
+        body.addWidget(self._build_header())
+        self.faces = FaceToFace()                           # face to face: attacker left, defender right
+        body.addWidget(self.faces, 1)
+        self.footer = label("", "muted", wrap=True)
+        body.addWidget(self.footer)
         for role in ROLES:
             self._build_player(role)
         self.refresh()
 
     # ---------------------------------------------------------------- header
-    def _build_header(self, parent) -> ttk.Frame:
-        h = ttk.Frame(parent, style="Panel.TFrame", padding=(14, 10))
+    def _build_header(self) -> Panel:
+        h = Panel()
+        g = QGridLayout(h)
+        g.setContentsMargins(14, 10, 14, 10)
+        g.setHorizontalSpacing(20)
+        g.setVerticalSpacing(4)
         for c in (0, 2):
-            h.columnconfigure(c, weight=1, uniform="sides")
-        ttk.Label(h, text=date.today().strftime("%B %d, %Y"), style="Muted.TLabel").grid(
-            row=0, column=0, columnspan=2, sticky="w")
-        imp = ttk.Frame(h, style="Flat.TFrame")                # the Cogitator's Estimate of this game, on demand
-        imp.grid(row=0, column=1, columnspan=2, sticky="e")
-        self.import_note = ttk.Label(imp, text="", style="Muted.TLabel")
-        self.import_note.pack(side="left", padx=(0, 8))
-        ttk.Button(imp, text="Import Estimate", command=self.import_estimate).pack(side="left")
-        self.estimate_dot = tk.Canvas(imp, width=16, height=16, bg=C["panel"], highlightthickness=0)
-        self.estimate_dot.create_oval(2, 2, 14, 14, fill=NO_ESTIMATE, outline=C["muted"], tags="dot")
-        self.estimate_dot.pack(side="left", padx=(6, 0))
-        self.name_vars, self.side_labels = {}, {}
-        for col, role, anchor in ((0, "attacker", "w"), (2, "defender", "e")):
-            f = ttk.Frame(h, style="Flat.TFrame")
-            f.grid(row=1, column=col, sticky=anchor)
-            v = tk.StringVar(value=self.scores[role].name)
-            v.trace_add("write", lambda *a, r=role: self._on_name(r))
-            e = tk.Entry(f, textvariable=v, font=self.fonts["name"], relief="flat", bg=C["panel"],
-                         fg=C["att"] if role == "attacker" else C["def"], width=16,
-                         justify="left" if anchor == "w" else "right", highlightthickness=0)
-            e.pack(anchor=anchor)
-            self.name_vars[role] = v
-            lb = ttk.Label(f, text="", style="Panel.TLabel", justify="left" if anchor == "w" else "right")
-            lb.pack(anchor=anchor)
-            self.side_labels[role] = lb
-        mid = ttk.Frame(h, style="Flat.TFrame")
-        mid.grid(row=1, column=1, padx=20)
-        self.score_lbl = tk.Label(mid, text="", font=self.fonts["score"], bg=C["panel"], fg=C["ink"])
-        self.score_lbl.pack()
-        self.result_lbl = tk.Label(mid, text="", font=self.fonts["result"], bg=C["panel"])
-        self.result_lbl.pack()
-        self.points_lbl = ttk.Label(mid, text="", style="Muted.TLabel")
-        self.points_lbl.pack()
+            g.setColumnStretch(c, 1)
+        g.addWidget(label(date.today().strftime("%B %d, %Y"), "muted"), 0, 0)
+        imp = QHBoxLayout()                                 # the Cogitator's Estimate of this game, on demand
+        imp.setSpacing(6)
+        imp.addStretch(1)
+        self.import_note = label("", "muted")
+        imp.addWidget(self.import_note)
+        imp.addWidget(button("Import Estimate", self.import_estimate))
+        self.estimate_dot = Dots([NO_ESTIMATE])
+        imp.addWidget(self.estimate_dot)
+        g.addLayout(imp, 0, 1, 1, 2)
+        self.names: dict[str, QLineEdit] = {}
+        self.side_labels = {}
+        for col, role, align in ((0, "attacker", Qt.AlignLeft), (2, "defender", Qt.AlignRight)):
+            f = QVBoxLayout()
+            f.setSpacing(0)
+            e = self.names[role] = QLineEdit(self.scores[role].name)
+            e.setAlignment(align)
+            e.setMaximumWidth(320)
+            e.setStyleSheet(f'QLineEdit {{ background: transparent; border: none; padding: 0; font-family: "{display_family()}";'
+                            f' font-size: 14pt; font-weight: bold; color: {C["att" if role == "attacker" else "def"]}; }}')
+            e.textChanged.connect(lambda _text, role=role: self._on_name(role))
+            f.addWidget(e, 0, align)
+            lb = self.side_labels[role] = label("", align=align)
+            f.addWidget(lb, 0, align)
+            g.addLayout(f, 1, col)
+        mid = QVBoxLayout()
+        mid.setSpacing(0)
+        self.score_lbl = label("", align=Qt.AlignCenter)
+        self.score_lbl.setStyleSheet("font-size: 30pt; font-weight: bold;")
+        self.result_lbl = label("", align=Qt.AlignCenter)
+        self.points_lbl = label("", "muted", align=Qt.AlignCenter)
+        for w in (self.score_lbl, self.result_lbl, self.points_lbl):
+            mid.addWidget(w)
+        g.addLayout(mid, 1, 1)
         return h
 
     # ---------------------------------------------------------------- one player's grid
@@ -113,129 +121,130 @@ class ScoreOracle(tk.Toplevel):
         side = ROLES.index(role)
         g = self.faces.clear(side)
         s = self.scores[role]
-        ttk.Label(g, text=role.upper(), style="Att.TLabel" if role == "attacker" else "Def.TLabel").grid(
-            row=0, column=0, sticky="w")
+        cells = self.cells[role] = {}
+        g.addWidget(label(role.upper(), "att" if role == "attacker" else "def"), 0, 0)
         column_headers(g)
         row = 1
 
         # went first: one tick, for one player
-        ttk.Label(g, text="Went first", style="Panel.TLabel").grid(row=row, column=0, sticky="w", pady=(6, 2))
-        v = tk.BooleanVar(value=s.went_first)
-        ttk.Checkbutton(g, variable=v, style="Panel.TCheckbutton",
-                        command=lambda r=role, v=v: self._on_went_first(r, v.get())).grid(
-            row=row, column=1, columnspan=ROUNDS, sticky="w", pady=(6, 2))
-        self.cells[role]["went_first"] = v
+        g.addWidget(label("Went first"), row, 0)
+        first = cells["went_first"] = Tick()
+        first.setChecked(s.went_first)
+        first.toggled.connect(lambda on, role=role: self._on_went_first(role, on))
+        g.addWidget(first, row, 1, Qt.AlignCenter)
         row += 1
 
         # Battle Ready
-        ttk.Label(g, text="Battle Ready", style="Panel.TLabel").grid(row=row, column=0, sticky="w", pady=2)
-        br = tk.BooleanVar(value=s.battle_ready)
-        ttk.Checkbutton(g, variable=br, style="Panel.TCheckbutton",
-                        command=lambda s=s, br=br: (setattr(s, "battle_ready", br.get()), self.update_totals())).grid(
-            row=row, column=1, columnspan=ROUNDS, sticky="w", pady=2)
-        self.cells[role]["battle_ready_total"] = ttk.Label(g, text="", style="Panel.TLabel", font=self.fonts["total"])
-        self.cells[role]["battle_ready_total"].grid(row=row, column=1 + COLUMNS, padx=(6, 0), pady=2)
+        g.addWidget(label("Battle Ready"), row, 0)
+        ready = Tick()
+        ready.setChecked(s.battle_ready)
+        ready.toggled.connect(lambda on, s=s: (setattr(s, "battle_ready", on), self.update_totals()))
+        g.addWidget(ready, row, 1, Qt.AlignCenter)
+        cells["battle_ready"] = ready
+        cells["battle_ready_total"] = label("", "total")
+        cells["battle_ready_total"].setContentsMargins(6, 0, 0, 0)
+        g.addWidget(cells["battle_ready_total"], row, 1 + COLUMNS)
         row += 1
 
         # primary mission: the VP counted per column, then a row per scoring option
-        primary = self.cells[role]["primary"] = PrimaryRows(g, row, s, self.primary_names[role], self.fonts,
-                                                            self.update_totals)
-        self.faces.wide[side] += primary.wide
-        self.faces.beside[side] += primary.beside
+        primary = cells["primary"] = PrimaryRows(g, row, s, self.primary_names[role], self.update_totals)
         row = primary.next_row
 
         # secondary missions: the VP counted per round, then a row per mission drawn ("!": over its cap)
-        lb, self.cells[role]["secondary_rounds"], self.cells[role]["secondary_total"] = summary_row(
-            g, row, "Secondary missions", ROUNDS, self.fonts)
-        self.faces.beside[side].append(lb)
+        _, cells["secondary_rounds"], cells["secondary_total"] = summary_row(g, row, "Secondary missions", ROUNDS)
         row += 1
-        self.cells[role]["secondary_marks"] = []
+        cells["secondary_marks"] = []
+        cells["secondary_names"] = []
         names = self._secondary_names()
         for i, sec in enumerate(s.secondaries):
-            cell = ttk.Frame(g, style="Flat.TFrame")
-            cell.grid(row=row, column=0, sticky="ew", pady=1)
-            nv = tk.StringVar(value=sec.name)
-            nv.trace_add("write", lambda *a, sec=sec, nv=nv: setattr(sec, "name", nv.get()))
-            cb = ttk.Combobox(cell, textvariable=nv, width=20, state="readonly" if names else "normal",
-                              style="Sheet.TCombobox")
+            cell = QHBoxLayout()
+            cell.setSpacing(2)
+            cb = SheetCombo()
+            cb.setEditable(not names)                       # no mission known: its name is typed
+            cb.addItems(s.unused_secondaries(names, sec) or ([sec.name] if sec.name else []))
+            cb.setCurrentText(sec.name)
             # the missions on the player's other rows are left out of the list
-            cb.configure(postcommand=lambda cb=cb, sec=sec: cb.configure(values=s.unused_secondaries(names, sec)))
-            cb.bind("<MouseWheel>", self.faces.wheel)
-            cb.pack(side="left", fill="x", expand=True)
-            x = tk.Label(cell, text="✕", bg=C["panel"], fg=C["muted"], cursor="hand2", padx=4)
-            x.pack(side="left")
-            x.bind("<Button-1>", lambda e, r=role, i=i: self._remove_secondary(r, i))
-            self._secondary_cells(g, row, sec)
-            mark = tk.Label(g, text="", font=self.fonts["total"], bg=C["panel"], fg=OVER_INK)
-            mark.grid(row=row, column=1 + COLUMNS, padx=(6, 0))
-            self.cells[role]["secondary_marks"].append((sec, mark))
+            cb.on_popup = lambda cb=cb, sec=sec: self._fill_secondaries(cb, s, sec)
+            cb.currentTextChanged.connect(lambda text, sec=sec: setattr(sec, "name", text))
+            cell.addWidget(cb, 1)
+            cell.addWidget(button("✕", lambda role=role, i=i: self._remove_secondary(role, i), "step"))
+            g.addLayout(cell, row, 0)
+            cells["secondary_names"].append(cb)
+            self._secondary_cells(g, row, sec, cells)
+            mark = label("", "total", color=OVER_INK)
+            mark.setContentsMargins(6, 0, 0, 0)
+            g.addWidget(mark, row, 1 + COLUMNS)
+            cells["secondary_marks"].append((sec, mark))
             row += 1
-        ttk.Button(g, text="+ Secondary", command=lambda r=role: self._add_secondary(r)).grid(
-            row=row, column=0, sticky="w", pady=(4, 2))
+        g.addWidget(button("+ Secondary", lambda role=role: self._add_secondary(role)), row, 0, Qt.AlignLeft)
         row += 1
 
         # CP: gained and used, counted per round, and what remains
+        cells["cp"] = {}
         for title, values in (("CP gained", s.cp_gained), ("CP used", s.cp_spent)):
-            pady = (10, 1) if values is s.cp_gained else 1
-            ttk.Label(g, text=title, style="Panel.TLabel").grid(row=row, column=0, sticky="w", pady=pady)
+            lb = label(title)
+            lb.setContentsMargins(0, 10 if values is s.cp_gained else 0, 0, 0)
+            g.addWidget(lb, row, 0)
             for r in range(ROUNDS):
-                self._cp_counter(g, values, r).grid(row=row, column=1 + r, padx=4, pady=pady)
+                counter = cells["cp"][title, r] = self._cp_counter(values, r)
+                g.addWidget(counter, row, 1 + r, Qt.AlignBottom | Qt.AlignHCenter)
             row += 1
-        ttk.Label(g, text="Remaining CP", style="Panel.TLabel").grid(row=row, column=0, sticky="w", pady=(1, 2))
-        self.cells[role]["cp_remaining"] = []
+        g.addWidget(label("Remaining CP"), row, 0)
+        cells["cp_remaining"] = []
         for r in range(ROUNDS):
-            t = tk.Label(g, text="", font=self.fonts["total"], bg=C["panel"], fg=C["ink"], width=3)
-            t.grid(row=row, column=1 + r, pady=(1, 2))
-            self.cells[role]["cp_remaining"].append(t)
+            t = label("", "total", align=Qt.AlignCenter)
+            g.addWidget(t, row, 1 + r)
+            cells["cp_remaining"].append(t)
         row += 1
-        ttk.Frame(g, style="Flat.TFrame").grid(row=row, column=0)
-        g.rowconfigure(row, weight=1)                          # space below, not between the rows
+        g.setRowStretch(row, 1)                             # space below, not between the rows
         self.update_totals()
-        self.faces.wrap(side)
 
-    def _cp_counter(self, g, values: list[int], r: int) -> tk.Frame:
+    def _fill_secondaries(self, cb: SheetCombo, s: PlayerScore, sec: SecondaryRow):
+        """A mission's drop-down, just before it opens: the missions the player has on no other row."""
+        names = s.unused_secondaries(self._secondary_names(), sec)
+        if names:
+            cb.blockSignals(True)
+            cb.clear()
+            cb.addItems(names)
+            cb.setCurrentText(sec.name)
+            cb.blockSignals(False)
+
+    def _cp_counter(self, values: list[int], r: int) -> Counter:
         """- n +: CP gained (or used) in a round."""
-        f = tk.Frame(g, bg=C["panel"])
-
         def step(by: int):
             values[r] = max(0, values[r] + by)
-            n.configure(text=values[r])
+            counter.show_count(values[r])
             self.update_totals()
-        for text, by in (("−", -1), ("+", 1)):
-            b = tk.Label(f, text=text, font=self.fonts["total"], bg=CELL_DONE, fg=C["ink"], cursor="hand2", padx=3)
-            b.pack(side="left" if by < 0 else "right")
-            b.bind("<Button-1>", lambda e, by=by: step(by))
-        n = tk.Label(f, text=values[r], width=2, font=self.fonts["cell"], bg=C["panel"], fg=C["ink"])
-        n.pack(side="left")
-        return f
+        counter = Counter(values[r], step)
+        return counter
 
-    def _secondary_cells(self, g, row: int, sec: SecondaryRow):
+    def _secondary_cells(self, g: QGridLayout, row: int, sec: SecondaryRow, cells: dict):
         """A drop-down per battle round: nothing, "-" (not active), the VP scored, or "x" (discarded).
         Once the mission is scored or discarded, the row's other cells are locked."""
-        boxes: list[ttk.Combobox] = []
+        boxes: list[SheetCombo] = []
 
         def show():
             for r, cb in enumerate(boxes):
-                cb.set(sec.rounds[r])
-                cb.configure(state="readonly" if sec.closed in (None, r) else "disabled")
+                cb.setCurrentText(sec.rounds[r])
+                cb.setEnabled(sec.closed in (None, r))
 
         def pick(r: int):
-            sec.set(r, boxes[r].get().strip())
-            boxes[r].selection_clear()
+            sec.set(r, boxes[r].currentText().strip())
             show()
             self.update_totals()
         for r in range(ROUNDS):
-            cb = ttk.Combobox(g, values=SECONDARY_CELLS, width=2, justify="center", state="readonly",
-                              style="Sheet.TCombobox")
-            cb.grid(row=row, column=1 + r, padx=1, pady=1)
-            cb.bind("<<ComboboxSelected>>", lambda e, r=r: pick(r))
-            cb.bind("<MouseWheel>", self.faces.wheel)
+            cb = SheetCombo()
+            cb.addItems(SECONDARY_CELLS)
+            cb.setFixedWidth(44)
+            cb.activated.connect(lambda _i, r=r: pick(r))
+            g.addWidget(cb, row, 1 + r, Qt.AlignCenter)
             boxes.append(cb)
+        cells.setdefault("secondary_boxes", []).append((boxes, pick))     # a row's drop-downs, and what picking in one does
         show()
 
     # ---------------------------------------------------------------- edits
     def _on_name(self, role: str):
-        self.scores[role].name = self.name_vars[role].get()
+        self.scores[role].name = self.names[role].text()
         self.update_totals()
 
     def _on_went_first(self, role: str, on: bool):
@@ -243,12 +252,15 @@ class ScoreOracle(tk.Toplevel):
         if on:                                                # only one player goes first
             other = "defender" if role == "attacker" else "attacker"
             self.scores[other].went_first = False
-            self.cells[other]["went_first"].set(False)
+            tick = self.cells[other]["went_first"]
+            tick.blockSignals(True)
+            tick.setChecked(False)
+            tick.blockSignals(False)
         self.show_estimate()
 
     def show_estimate(self):
         """The circle by "Import Estimate": the difficulty colour of the Estimate that would be imported,
-        for the attacker; white without one (none saved, or nobody ticked "Went first")."""
+        for the attacker; empty without one (none saved, or nobody ticked "Went first")."""
         d = self.holomap
         fd = {role: d.side.disposition(role) for role in ROLES}
         first = next((role for role in ROLES if self.scores[role].went_first), None)
@@ -256,7 +268,7 @@ class ScoreOracle(tk.Toplevel):
         if first and all(fd.values()):
             groups = difficulty(d.ctx.missions, d.ctx.estimates)
             group = groups.get((fd["attacker"], fd["defender"], first == "attacker"))
-        self.estimate_dot.itemconfigure("dot", fill=NO_ESTIMATE if group is None else DIFFICULTY_COLORS[group])
+        self.estimate_dot.set_color(0, NO_ESTIMATE if group is None else DIFFICULTY_COLORS[group])
 
     def import_estimate(self):
         """Fill the two primary missions from the Cogitator's saved Estimate of this game: its pairing of
@@ -266,19 +278,19 @@ class ScoreOracle(tk.Toplevel):
         fd = {role: d.side.disposition(role) for role in ROLES}
         first = next((role for role in ROLES if self.scores[role].went_first), None)
         if not all(fd.values()):
-            return self.import_note.configure(text="Both lists need a Force Disposition")
+            return self.import_note.setText("Both lists need a Force Disposition")
         if first is None:
-            return self.import_note.configure(text="Tick who went first, then import")
+            return self.import_note.setText("Tick who went first, then import")
         p1, p2, goes_first, attacker_is_p1 = game_estimate(d.ctx.missions.dispositions, fd["attacker"],
                                                           fd["defender"], first == "attacker")
         roles = ROLES if attacker_is_p1 else ROLES[::-1]        # the roles of Player 1 and Player 2
-        label = f"{p1} vs {p2}, Player {goes_first + 1} ({roles[goes_first]}) first"
+        text = f"{p1} vs {p2}, Player {goes_first + 1} ({roles[goes_first]}) first"
         if not d.ctx.estimates.load(p1, p2, goes_first, [self.primary_names[r] for r in roles],
                                     [self.scores[r] for r in roles]):
-            return self.import_note.configure(text=f"No Estimate saved for {label}")
+            return self.import_note.setText(f"No Estimate saved for {text}")
         for role in ROLES:
             self._build_player(role)
-        self.import_note.configure(text=f"Imported: {label}")
+        self.import_note.setText(f"Imported: {text}")
 
     def _secondary_names(self) -> list[str]:
         return [capwords(m["name"]) for m in self.holomap.ctx.missions.secondary_missions]
@@ -303,21 +315,24 @@ class ScoreOracle(tk.Toplevel):
                 for r, lb in enumerate(c["secondary_rounds"]):
                     show_vp(lb, s.secondary_vp(r), s.secondary_over(r))
                 for sec, mark in c["secondary_marks"]:
-                    mark.configure(text="!" if sec.over else "")
+                    mark.setText("!" if sec.over else "")
                 for r, lb in enumerate(c["cp_remaining"]):      # up to the last round played
                     left = s.cp_remaining(r)
-                    lb.configure(text=left if s.cp_played(r) else "", fg=C["att"] if left < 0 else C["ink"])
-                c["secondary_total"].configure(text=f"{s.secondary_total}/{SECONDARY_MAX}")
-                c["battle_ready_total"].configure(text=f"{BATTLE_READY if s.battle_ready else 0}/{BATTLE_READY}")
+                    lb.setText(str(left) if s.cp_played(r) else "")
+                    lb.setStyleSheet(f"color: {C['att'] if left < 0 else C['ink']};")
+                c["secondary_total"].setText(f"{s.secondary_total}/{SECONDARY_MAX}")
+                c["battle_ready_total"].setText(f"{BATTLE_READY if s.battle_ready else 0}/{BATTLE_READY}")
         a, d = self.scores["attacker"], self.scores["defender"]
         wa, wd = wtc(a.total, d.total)
-        self.score_lbl.configure(text=f"{wa} - {wd}")
+        self.score_lbl.setText(f"{wa} - {wd}")
         if a.total == d.total:
-            self.result_lbl.configure(text="DRAW", fg=LOSE_INK)
+            text, ink = "DRAW", LOSE_INK
         else:
             winner = a if a.total > d.total else d
-            self.result_lbl.configure(text=f"{(winner.name or 'Winner').upper()} WINS", fg=WIN_INK)
-        self.points_lbl.configure(text=f"WTC  ·  Points: {a.total} - {d.total}")
+            text, ink = f"{(winner.name or 'Winner').upper()} WINS", WIN_INK
+        self.result_lbl.setText(text)
+        self.result_lbl.setStyleSheet(f'font-family: "{display_family()}"; font-size: 13pt; font-weight: bold; color: {ink};')
+        self.points_lbl.setText(f"WTC  ·  Points: {a.total} - {d.total}")
 
     def refresh(self):
         """Armies, dispositions and primary missions, as the Field Holomap shows them."""
@@ -334,15 +349,14 @@ class ScoreOracle(tk.Toplevel):
                 self.primary_names[role] = primaries[role]
                 self.scores[role].set_options(primary_options(mission))
                 self._build_player(role)
-            self.side_labels[role].configure(
-                text=f"{army.faction or army.path.stem}\n{fd[role] or 'No Force Disposition'}")
+            self.side_labels[role].setText(f"{army.faction or army.path.stem}\n{fd[role] or 'No Force Disposition'}")
         layouts = book.layouts_for(fd["attacker"], fd["defender"]) if all(fd.values()) else []
-        self.footer.configure(text="Warhammer 40,000 11th edition  ·  "
-                                   + (f"{fd['attacker']} vs {fd['defender']}  ·  " if all(fd.values()) else "")
-                                   + f"{primaries['attacker']} / {primaries['defender']}"
-                                   + (f"  ·  layouts {', '.join(l['id'] for l in layouts)}" if layouts else "")
-                                   + f"\n!  VP above a cap don't count: {ROUND_MAX} per battle round (primary,"
-                                     f" secondary), {SECONDARY_MISSION_MAX} per secondary mission, {PRIMARY_MAX}"
-                                     " over the game.")
+        self.footer.setText("Warhammer 40,000 11th edition  ·  "
+                            + (f"{fd['attacker']} vs {fd['defender']}  ·  " if all(fd.values()) else "")
+                            + f"{primaries['attacker']} / {primaries['defender']}"
+                            + (f"  ·  layouts {', '.join(l['id'] for l in layouts)}" if layouts else "")
+                            + f"\n!  VP above a cap don't count: {ROUND_MAX} per battle round (primary,"
+                              f" secondary), {SECONDARY_MISSION_MAX} per secondary mission, {PRIMARY_MAX}"
+                              " over the game.")
         self.update_totals()
         self.show_estimate()

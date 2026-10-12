@@ -1,5 +1,5 @@
-"""The colours and font names of the app's look, apart from any toolkit: the tkinter front end
-(command_center.ui.theme) and the Qt one (command_center.qt.theme) both draw from here."""
+"""The colours and font names of the app's look, as plain values: command_center.ui.theme makes the
+application's palette and style sheet of them, and what is painted by hand reads them from here."""
 from __future__ import annotations
 
 C = {

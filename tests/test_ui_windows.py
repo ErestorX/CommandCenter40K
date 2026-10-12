@@ -1,4 +1,4 @@
-"""The Qt front end's windows, opened without a screen (Qt's "offscreen" platform) on the test fixtures:
+"""The front end's windows, opened without a screen (Qt's "offscreen" platform) on the test fixtures:
 the launcher, the dialog that adds a list, the update window, the Disposition Cogitator."""
 import os
 import tempfile
@@ -7,12 +7,8 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")       # before Qt starts: no screen is needed, none is used
 
-try:
-    from PySide6.QtCore import Qt
-    from PySide6.QtTest import QTest
-    HAVE_QT = True
-except ImportError:          # the Qt front end is optional until it has every tool (docs/qt_migration.md)
-    HAVE_QT = False
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
 
 from command_center.context import AppContext
 from command_center.data.missionbook import MissionBook
@@ -29,12 +25,11 @@ def fixture_context() -> AppContext:
     return ctx
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class QtWindowsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from command_center.qt.app import App, application
-        from command_center.qt.registry import discover
+        from command_center.ui.app import App, application
+        from command_center.ui.registry import discover
         cls.tools = {t.key: t for t in discover()}
         cls.qt = application()
         cls.ctx = fixture_context()
@@ -50,7 +45,7 @@ class QtWindowsTest(unittest.TestCase):
         self.assertFalse(self.tools["cogitator"].needs_armies)         # opens with no list chosen
 
     def test_theme(self):
-        from command_center.qt.theme import C, DISPLAY_FAMILY, display_family
+        from command_center.ui.theme import C, DISPLAY_FAMILY, display_family
         self.assertEqual(display_family(), DISPLAY_FAMILY)                # loaded from assets/fonts
         self.assertEqual(self.app.palette().window().color().name(), C["bg"])
 
@@ -72,7 +67,7 @@ class QtWindowsTest(unittest.TestCase):
         self.assertEqual(launcher.att.selected_path, FIXTURE_LIST)
 
     def test_add_list_refuses_what_is_not_a_list(self):
-        from command_center.qt.launcher import AddListDialog
+        from command_center.ui.launcher import AddListDialog
         saved = []
         dialog = AddListDialog(self.app.launcher.att, self.app, "attacker", saved.append)
         dialog.text.setPlainText("not an army list")
@@ -83,7 +78,7 @@ class QtWindowsTest(unittest.TestCase):
         dialog.reject()
 
     def test_update_window_reports_and_closes(self):
-        from command_center.qt import updater
+        from command_center.ui import updater
 
         class Window(updater.UpdateWindow):
             def _work(self, target):
@@ -99,7 +94,7 @@ class QtWindowsTest(unittest.TestCase):
         self.assertEqual(win.bar.value(), 100)
 
     def test_update_window_says_what_failed(self):
-        from command_center.qt import updater
+        from command_center.ui import updater
 
         class Window(updater.UpdateWindow):
             def _work(self, target):
@@ -114,7 +109,7 @@ class QtWindowsTest(unittest.TestCase):
         self.assertIsNone(win.changed)
 
     def test_board_draws_a_layout(self):
-        from command_center.qt.views.board import LayoutMap
+        from command_center.ui.views.board import LayoutMap
         board = LayoutMap()
         board.show_territory = True
         layout = self.ctx.missions.layouts[0]

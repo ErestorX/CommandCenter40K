@@ -2,7 +2,6 @@
 Command line:
 
     python -m command_center                    # graphical app (same as: python main.py)
-    python -m command_center qt                 # its Qt front end, under way (docs/qt_migration.md)
     python -m command_center fetch [--force]    # download / refresh Wahapedia data
     python -m command_center show --unit "Knight Castellan"
     python -m command_center fight --attacker "Kabalite Warriors" --attacker-models 10 \\
@@ -58,11 +57,6 @@ def cmd_ui(a):
     ui_main(a.data)
 
 
-def cmd_qt(a):
-    from command_center.qt.app import main as qt_main
-    qt_main(a.data)
-
-
 def cmd_fetch(rest: list[str]):
     from command_center.data import fetch
     fetch.main(rest)
@@ -79,9 +73,6 @@ def main(argv: list[str] | None = None) -> None:
     u = sub.add_parser("ui", help="graphical app (default)")
     u.add_argument("--data", help="folder with the raw Wahapedia CSVs")
     u.set_defaults(fn=cmd_ui)
-    q = sub.add_parser("qt", help="the Qt front end, under way: the tools it has so far (needs PySide6)")
-    q.add_argument("--data", help="folder with the raw Wahapedia CSVs")
-    q.set_defaults(fn=cmd_qt)
     sub.add_parser("fetch", help="download / refresh Wahapedia data (see: python -m command_center fetch -h)")
 
     s = sub.add_parser("show", help="show a unit's stats and weapons")

@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (QGraphicsItem, QGraphicsScene, QGraphicsView, QSi
 
 from command_center.deploy.placement import BOARD_H, BOARD_W
 from command_center.deploy.territory import territory_line
-from command_center.qt.theme import C, font_family
-from command_center.qt.widgets import Panel, label
+from command_center.ui.theme import C, font_family
+from command_center.ui.widgets import Panel, label
 
 ZONE_FILL = {"attacker": "#f1d3d3", "defender": "#d3dff0"}
 ZONE_INK = {"attacker": "#a3262a", "defender": "#1f5288"}

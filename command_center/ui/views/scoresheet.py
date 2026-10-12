@@ -3,112 +3,104 @@ Cogitator's Estimates): two players' grids face to face in a scrolling area, and
 mission in such a grid.
 
 A grid has the texts in column 0, a column per battle round and one for the end of the battle
-(columns 1 to COLUMNS), then a column for totals."""
+(columns 1 to COLUMNS), then a column for totals. Its texts wrap to the width the grid leaves them."""
 from __future__ import annotations
 
-import tkinter as tk
-from tkinter import ttk
 from typing import Callable
 
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QLineEdit, QScrollArea, QSizePolicy, QWidget
+
 from command_center.deploy.scoring import COLUMNS, END, PRIMARY_MAX, PlayerScore
-from command_center.ui.theme import C, font_family
+from command_center.ui.theme import C
+from command_center.ui.widgets import Panel, Tick, button, label, restyle
 
-CELL_BG, CELL_DONE = C["field"], C["raised"]       # empty cell, cell with a value
-CELL_BAD = C["bad"]                                # not a number
 OVER_INK = C["warn"]                               # VP lost to a cap
+WIDE = 2 + COLUMNS                                 # the columns a text spanning a grid takes
 
 
-def sheet_fonts() -> dict[str, tuple]:
-    fam = font_family()
-    return {"cell": (fam, 10), "total": (fam, 10, "bold"), "small": (fam, 9)}
+class FaceToFace(QScrollArea):
+    """Two grids side by side, one per player, as wide as each other, scrolling together when they are
+    taller than the room they get."""
 
+    def __init__(self):
+        super().__init__()
+        self.setWidgetResizable(True)                           # the sheet is as wide as the area, and at least as tall
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        sheet = QWidget()
+        self.row = QHBoxLayout(sheet)
+        self.row.setContentsMargins(0, 0, 0, 0)
+        self.row.setSpacing(10)
+        self.panels: list[Panel | None] = [None, None]
+        for i in range(2):
+            self.clear(i)
+        self.setWidget(sheet)
 
-class FaceToFace(ttk.Frame):
-    """Two grids side by side, one per player, scrolling together when they are taller than the room
-    they get. Texts registered in `wide` (spanning a grid) and `beside` (left of the round columns)
-    are wrapped to the width they have."""
-
-    def __init__(self, master):
-        super().__init__(master)
-        bar = ttk.Scrollbar(self, orient="vertical")
-        bar.pack(side="right", fill="y")
-        self.canvas = tk.Canvas(self, bg=C["bg"], highlightthickness=0, yscrollcommand=bar.set)
-        self.canvas.pack(side="left", fill="both", expand=True)
-        bar.configure(command=self.canvas.yview)
-        sheet = self.sheet = ttk.Frame(self.canvas)
-        self.sheet_id = self.canvas.create_window(0, 0, window=sheet, anchor="nw")
-        self.canvas.bind("<Configure>", self._resized)
-        sheet.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=(0, 0, e.width, e.height)))
-        self.winfo_toplevel().bind("<MouseWheel>", self.wheel)
-        sheet.rowconfigure(0, weight=1)
-        self.grids: list[ttk.Frame] = []
-        self.wide: list[list] = [[], []]
-        self.beside: list[list] = [[], []]
-        for c in range(2):
-            sheet.columnconfigure(c, weight=1, uniform="players")
-            g = ttk.Frame(sheet, style="Panel.TFrame", padding=10)
-            g.grid(row=0, column=c, sticky="nsew", padx=(0, 5) if c == 0 else (5, 0))
-            g.columnconfigure(0, weight=1)
-            self.grids.append(g)
-
-    def clear(self, i: int) -> ttk.Frame:
-        """Empty a player's grid, to build it again."""
-        g = self.grids[i]
-        for w in g.winfo_children():
-            w.destroy()
-        for row in range(g.grid_size()[1] + 1):               # earlier builds' spacer rows: back to normal
-            g.rowconfigure(row, weight=0)
-        self.wide[i], self.beside[i] = [], []
+    def clear(self, i: int) -> QGridLayout:
+        """A player's grid, empty, to build it again."""
+        panel = Panel()
+        panel.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)     # half the sheet each, whatever they hold
+        g = QGridLayout(panel)
+        g.setContentsMargins(10, 10, 10, 10)
+        g.setHorizontalSpacing(2)
+        g.setVerticalSpacing(2)
+        g.setColumnStretch(0, 1)
+        old = self.panels[i]
+        if old is None:
+            self.row.addWidget(panel, 1)
+        else:
+            self.row.replaceWidget(old, panel)
+            self.row.setStretch(i, 1)
+            old.deleteLater()
+        self.panels[i] = panel
         return g
 
-    def wheel(self, e):
-        """The wheel scrolls the sheet, wherever the pointer is: never the value of a drop-down under it."""
-        self.canvas.yview_scroll(-1 if e.delta > 0 else 1, "units")
-        return "break"
 
-    def _resized(self, e):
-        """The sheet is as wide as the scrolling area, and at least as tall; its texts wrap to that width."""
-        self.canvas.itemconfigure(self.sheet_id, width=e.width)
-        self.sheet.rowconfigure(0, minsize=e.height)
-        for i in range(2):
-            self.wrap(i)
-
-    def wrap(self, i: int):
-        """Texts wrap at the width their grid leaves them. That width comes from the scrolling area's,
-        not from the grid's own: the grid's depends on its texts, and the two would chase each other."""
-        full = (self.canvas.winfo_width() - 10) // 2 - 26     # half the sheet, less the gap, border and padding
-        if full < 100:                                        # not laid out yet
-            return
-        beside = full - self.grids[i].grid_bbox(1, 0, 1 + COLUMNS, 0)[2] - 10     # left of the round columns
-        for lb in self.wide[i]:
-            lb.configure(wraplength=full)
-        for lb in self.beside[i]:
-            lb.configure(wraplength=max(120, beside))
-
-
-def column_headers(g, row: int = 0):
+def column_headers(g: QGridLayout, row: int = 0):
     """The round numbers, then the end of the battle, above their columns."""
     for col in range(COLUMNS):
-        ttk.Label(g, text="End" if col == END else str(col + 1), style="Muted.TLabel").grid(row=row, column=1 + col)
+        g.addWidget(label("End" if col == END else str(col + 1), "muted"), row, 1 + col, Qt.AlignCenter)
 
 
-def summary_row(g, row: int, title: str, n: int, fonts: dict) -> tuple[ttk.Label, list[tk.Label], ttk.Label]:
+def summary_row(g: QGridLayout, row: int, title: str, n: int) -> tuple[QLabel, list[QLabel], QLabel]:
     """A section's heading: its name, a label per column for the VP counted there, one for its total."""
-    lb = ttk.Label(g, text=title, style="Panel.TLabel", font=fonts["total"], wraplength=220, justify="left")
-    lb.grid(row=row, column=0, sticky="w", pady=(10, 2))
+    lb = label(title, "total", wrap=True)
+    g.addWidget(lb, row, 0)
     rounds = []
     for col in range(n):
-        t = tk.Label(g, text="", font=fonts["total"], bg=C["panel"], fg=C["ink"], width=3)
-        t.grid(row=row, column=1 + col, pady=(10, 2))
+        t = label("", "total", align=Qt.AlignCenter)
+        t.setMinimumWidth(30)
+        g.addWidget(t, row, 1 + col)
         rounds.append(t)
-    total = ttk.Label(g, text="", style="Panel.TLabel", font=fonts["total"])
-    total.grid(row=row, column=1 + COLUMNS, padx=(6, 0), pady=(10, 2))
+    total = label("", "total")
+    g.addWidget(total, row, 1 + COLUMNS)
+    for w in (lb, *rounds, total):
+        w.setContentsMargins(6 if w is total else 0, 10, 0, 2)
     return lb, rounds, total
 
 
-def show_vp(lb: tk.Label, points: int, over: bool):
+def show_vp(lb: QLabel, points: int, over: bool):
     """The VP counted in a column; with a "!" when more were scored than the round's cap."""
-    lb.configure(text=f"{points}!" if over else str(points) if points else "", fg=OVER_INK if over else C["ink"])
+    lb.setText(f"{points}!" if over else str(points) if points else "")
+    lb.setStyleSheet(f"color: {OVER_INK if over else C['ink']};")
+
+
+class Counter(QWidget):
+    """- n +: a count to step down or up. on_step(by) is told of a click, and answers with show(n)."""
+
+    def __init__(self, count: int, on_step: Callable[[int], None]):
+        super().__init__()
+        row = QHBoxLayout(self)
+        row.setContentsMargins(3, 0, 3, 0)
+        row.setSpacing(0)
+        self.count = label(str(count), align=Qt.AlignCenter)
+        self.count.setMinimumWidth(20)
+        row.addWidget(button("−", lambda: on_step(-1), "step"))
+        row.addWidget(self.count)
+        row.addWidget(button("+", lambda: on_step(1), "step"))
+
+    def show_count(self, n: int):
+        self.count.setText(str(n))
 
 
 class PrimaryRows:
@@ -117,18 +109,16 @@ class PrimaryRows:
     option is scored once, a - n + counter where it is scored "for each ...". Without options (the
     mission isn't known), a row of VP cells to fill by hand.
 
-    next_row: the first free row under it. wide, beside: its texts, for FaceToFace to wrap.
+    next_row: the first free row under it.
     on_change: called after each edit; refresh() then shows the totals."""
 
-    def __init__(self, g, row: int, score: PlayerScore, title: str, fonts: dict, on_change: Callable[[], None]):
-        self.score, self.fonts, self.on_change = score, fonts, on_change
-        self.wide: list = []
-        self.counts: dict[tuple[int, int], tk.IntVar] = {}
-        lb, self.rounds, self.total = summary_row(g, row, title, COLUMNS, fonts)
-        self.beside: list = [lb]
+    def __init__(self, g: QGridLayout, row: int, score: PlayerScore, title: str, on_change: Callable[[], None]):
+        self.score, self.on_change = score, on_change
+        self.shown: dict[tuple[int, int], Callable[[int], None]] = {}      # (option, column) -> show a count
+        _, self.rounds, self.total = summary_row(g, row, title, COLUMNS)
         row += 1
         if not score.options:
-            ttk.Label(g, text="VP scored", style="Muted.TLabel").grid(row=row, column=0, sticky="w", pady=1)
+            g.addWidget(label("VP scored", "muted"), row, 0)
             self._round_cells(g, row, score.primary)
             self.next_row = row + 1
             return
@@ -136,24 +126,17 @@ class PrimaryRows:
         for i, opt in enumerate(score.options):
             if opt.block != block:                              # "Second battle round onwards · End of your turn."
                 block = opt.block
-                head = ttk.Label(g, text="  ·  ".join(t for t in (opt.round.capitalize(), opt.when) if t),
-                                 style="Muted.TLabel", wraplength=400, justify="left")
-                head.grid(row=row, column=0, columnspan=2 + COLUMNS, sticky="w", pady=(5, 0))
-                self.wide.append(head)
+                head = label("  ·  ".join(t for t in (opt.round.capitalize(), opt.when) if t), "muted", wrap=True)
+                head.setContentsMargins(0, 5, 0, 0)
+                g.addWidget(head, row, 0, 1, WIDE)
                 row += 1
             text = f"{'or ' if opt.group != i else ''}{'+' if opt.additional else ''}{opt.vp}VP  {opt.text}"
-            lb = tk.Label(g, text=text, font=fonts["small"], bg=C["panel"], fg=C["ink"], wraplength=220,
-                          justify="left", anchor="w")
-            lb.grid(row=row, column=0, sticky="w", padx=(8, 0), pady=1)
-            self.beside.append(lb)
+            lb = label(text, "small", wrap=True)
+            lb.setContentsMargins(8, 0, 0, 0)
+            g.addWidget(lb, row, 0)
             for col in opt.columns:
-                v = self.counts[i, col] = tk.IntVar(value=score.counts[i][col])
-                if opt.tick:
-                    w = ttk.Checkbutton(g, variable=v, style="Panel.TCheckbutton",
-                                        command=lambda i=i, col=col, v=v: self._score(i, col, v.get()))
-                else:
-                    w = self._counter(g, i, col, v)
-                w.grid(row=row, column=1 + col, padx=1 if opt.tick else 4, pady=1)
+                w = self._tick(i, col) if opt.tick else self._counter(i, col)
+                g.addWidget(w, row, 1 + col, Qt.AlignCenter)
             row += 1
         self.next_row = row
 
@@ -161,49 +144,56 @@ class PrimaryRows:
         s = self.score
         for col, lb in enumerate(self.rounds):
             show_vp(lb, s.primary_vp(col), s.primary_over(col))
-        self.total.configure(text=f"{s.primary_total}/{PRIMARY_MAX}")
+        self.total.setText(f"{s.primary_total}/{PRIMARY_MAX}")
 
     def _score(self, i: int, col: int, n: int):
         """An option is scored n times in a column; ticks and counters then show the sheet's state
         (scoring an option unticks its alternatives)."""
         self.score.score(i, col, n)
-        for (j, c), v in self.counts.items():
+        for (j, c), show in self.shown.items():
             if c == col:
-                v.set(self.score.counts[j][c])
+                show(self.score.counts[j][c])
         self.on_change()
 
-    def _counter(self, g, i: int, col: int, v: tk.IntVar) -> tk.Frame:
-        """- n +: how many times an option is scored in a column."""
-        f = tk.Frame(g, bg=C["panel"])
-        for text, step in (("−", -1), ("", 0), ("+", 1)):
-            if not step:
-                tk.Label(f, textvariable=v, width=2, font=self.fonts["cell"], bg=C["panel"], fg=C["ink"]).pack(
-                    side="left")
-                continue
-            b = tk.Label(f, text=text, font=self.fonts["total"], bg=CELL_DONE, fg=C["ink"], cursor="hand2", padx=3)
-            b.pack(side="left")
-            b.bind("<Button-1>", lambda e, step=step: self._score(i, col, v.get() + step))
-        return f
+    def _tick(self, i: int, col: int) -> Tick:
+        box = Tick()
+        box.setChecked(bool(self.score.counts[i][col]))
 
-    def _round_cells(self, g, row: int, values: list[str]):
+        def show(n: int):                                       # as the sheet says: without scoring again
+            box.blockSignals(True)
+            box.setChecked(bool(n))
+            box.blockSignals(False)
+        self.shown[i, col] = show
+        box.toggled.connect(lambda on: self._score(i, col, int(on)))
+        return box
+
+    def _counter(self, i: int, col: int) -> Counter:
+        """- n +: how many times an option is scored in a column."""
+        counter = Counter(self.score.counts[i][col], lambda by: self._score(i, col, self.score.counts[i][col] + by))
+        self.shown[i, col] = counter.show_count
+        return counter
+
+    def _round_cells(self, g: QGridLayout, row: int, values: list[str]):
         """A cell per column of `values`, editing them in place: a number, "-" or nothing."""
         for r in range(len(values)):
-            v = tk.StringVar(value=values[r])
-            e = tk.Entry(g, textvariable=v, width=3, justify="center", font=self.fonts["cell"], relief="flat",
-                         highlightthickness=1, highlightbackground=C["line"], highlightcolor=C["ink"],
-                         bg=self._cell_bg(values[r]))
-            e.grid(row=row, column=1 + r, padx=1, pady=1, ipady=2)
-            v.trace_add("write", lambda *a, v=v, e=e, r=r: self._on_cell(values, r, v, e))
+            e = QLineEdit(values[r])
+            e.setMaxLength(3)
+            e.setFixedWidth(34)
+            e.setAlignment(Qt.AlignCenter)
+            e.setProperty("state", self._cell_state(values[r]))
+            g.addWidget(e, row, 1 + r, Qt.AlignCenter)
+            e.textChanged.connect(lambda text, e=e, r=r: self._on_cell(values, r, text, e))
 
     @staticmethod
-    def _cell_bg(text: str) -> str:
+    def _cell_state(text: str) -> str:
+        """How a cell is shown: empty, holding a value, or holding what is not one."""
         if not text:
-            return CELL_BG
-        return CELL_DONE if text == "-" or text.isdigit() else CELL_BAD
+            return ""
+        return "done" if text == "-" or text.isdigit() else "bad"
 
-    def _on_cell(self, values: list[str], r: int, v: tk.StringVar, e: tk.Entry):
-        text = v.get().strip()
-        bg = self._cell_bg(text)
-        e.configure(bg=bg)
-        values[r] = "" if bg == CELL_BAD else text
+    def _on_cell(self, values: list[str], r: int, text: str, e: QLineEdit):
+        text = text.strip()
+        state = self._cell_state(text)
+        restyle(e, state=state)
+        values[r] = "" if state == "bad" else text
         self.on_change()

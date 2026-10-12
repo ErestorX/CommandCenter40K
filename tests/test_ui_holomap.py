@@ -1,4 +1,4 @@
-"""The Qt Field Holomap and its Score Oracle, without a screen, on the test fixtures: the boards and where
+"""The Field Holomap and its Score Oracle, without a screen, on the test fixtures: the boards and where
 they go, units put on them, dragged and turned, what is drawn for the selected one, and the score sheet."""
 import os
 import tempfile
@@ -7,27 +7,22 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")       # before Qt starts: no screen is needed, none is used
 
-try:
-    from PySide6.QtCore import QPoint, Qt
-    from PySide6.QtTest import QTest
-    HAVE_QT = True
-except ImportError:          # the Qt front end is optional until it has every tool (docs/qt_migration.md)
-    HAVE_QT = False
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtTest import QTest
 
 from command_center.analysis.army_plans import ArmyPlanStore, PlanEntry, PlanTarget, SavedPlan
 from command_center.deploy.placement import BOARD_H, BOARD_W
 from command_center.lists import parse_list
 from tests.helpers import FIXTURE_LIST
-from tests.test_qt_auspex import wait_until
-from tests.test_qt_windows import fixture_context
+from tests.test_ui_auspex import wait_until
+from tests.test_ui_windows import fixture_context
 
 
-@unittest.skipUnless(HAVE_QT, "PySide6 not installed")
 class HolomapTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from command_center.qt.app import App, application
-        from command_center.qt.registry import Selection, discover
+        from command_center.ui.app import App, application
+        from command_center.ui.registry import Selection, discover
         cls.tools = {t.key: t for t in discover()}
         cls.qt = application()
         cls.ctx = fixture_context()

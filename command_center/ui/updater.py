@@ -5,18 +5,18 @@ what `python -m command_center fetch` does), showing what it is doing; then the 
 Wahapedia out of reach: it says so and the app starts with the data already on disk."""
 from __future__ import annotations
 
-import queue
-import threading
-import tkinter as tk
 from pathlib import Path
-from tkinter import ttk
+
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtWidgets import QDialog, QProgressBar, QVBoxLayout
 
 from command_center import config
 from command_center.data import fetch
-from command_center.ui.theme import C, dark_title_bar, load_fonts, setup_style
+from command_center.ui.widgets import Panel, label, restyle
 
 RETRIES, TIMEOUT = 1, 20          # at start-up: one attempt per request, not long (the command line is more patient)
 DONE_MS, FAILED_MS = 700, 3000    # how long the last message stays up before the app starts
+WIDTH, HEIGHT = 560, 225
 
 
 def edition_dir() -> Path:
@@ -25,45 +25,62 @@ def edition_dir() -> Path:
     return raw.parent if raw else config.DATA_ROOT / config.EDITION
 
 
-class UpdateWindow(tk.Tk):
-    """Runs the update on a thread; closes itself when it is over."""
+class _Thread(QThread):
+    def __init__(self, work):
+        super().__init__()
+        self.work = work
+
+    def run(self):
+        self.work()
+
+
+class UpdateWindow(QDialog):
+    """Runs the update on a thread; closes itself when it is over. To show with exec()."""
 
     headline = "Checking Wahapedia for new data (done once a day)"
     failed = "Wahapedia could not be checked: starting with the data on disk."
+    message = Signal(str)                   # from the worker thread: delivered on the window's
 
     def __init__(self, target):
-        load_fonts()
         super().__init__()
-        self.title("Command Center 40K")
-        setup_style(self)
-        self.resizable(False, False)
-        w, h = 560, 225
-        self.geometry(f"{w}x{h}+{(self.winfo_screenwidth() - w) // 2}+{(self.winfo_screenheight() - h) // 2}")
-        self.protocol("WM_DELETE_WINDOW", lambda: None)        # not while files are being written
-        dark_title_bar(self)                                    # again: a fixed-size window gets a new frame
-        body = ttk.Frame(self, style="Panel.TFrame", padding=18)
-        body.pack(fill="both", expand=True, padx=8, pady=8)
-        ttk.Label(body, text="Command Center 40K", style="H1.TLabel", background=C["panel"]).pack(anchor="w")
-        ttk.Label(body, text=self.headline, style="Panel.TLabel").pack(
-            anchor="w", pady=(6, 10))
-        self.bar = ttk.Progressbar(body, mode="indeterminate")
-        self.bar.pack(fill="x")
-        self.bar.start(12)
-        self.status = ttk.Label(body, text="", style="Muted.TLabel", wraplength=w - 60, justify="left")
-        self.status.pack(anchor="w", pady=(10, 0))
+        self.setWindowTitle("Command Center 40K")
+        self.setWindowFlags(Qt.Dialog | Qt.CustomizeWindowHint | Qt.WindowTitleHint)     # no close button
+        self.setFixedSize(WIDTH, HEIGHT)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(8, 8, 8, 8)
+        body = Panel()
+        outer.addWidget(body)
+        col = QVBoxLayout(body)
+        col.setContentsMargins(18, 18, 18, 18)
+        col.addWidget(label("Command Center 40K", "h1"))
+        col.addSpacing(2)
+        col.addWidget(label(self.headline))
+        col.addSpacing(6)
+        self.bar = QProgressBar()
+        self.bar.setTextVisible(False)
+        self.bar.setRange(0, 0)                                 # going: no end known
+        col.addWidget(self.bar)
+        col.addSpacing(6)
+        self.status = label("", "muted", wrap=True)
+        col.addWidget(self.status)
+        col.addStretch(1)
 
         self.changed: bool | None = None                        # the data changed; None: the update failed
         self.error = ""
-        self._messages: queue.Queue[str] = queue.Queue()
-        self._thread = threading.Thread(target=self._work, args=(target,), daemon=True)
+        self.message.connect(self._show)
+        self._thread = _Thread(lambda: self._work(target))
+        self._thread.finished.connect(self._over)
         self._thread.start()
-        self.after(100, self._poll)
+
+    def log(self, text: str) -> None:
+        """What the update is doing, from its thread."""
+        self.message.emit(text)
 
     def _work(self, target: Path):
-        """The update itself (worker thread: no Tk here, messages go through the queue)."""
+        """The update itself (worker thread: no widget touched here, messages go through log)."""
         saved = fetch.RETRIES, fetch.TIMEOUT
         fetch.RETRIES, fetch.TIMEOUT = RETRIES, TIMEOUT
-        fetch.set_log(self._messages.put)
+        fetch.set_log(self.log)
         try:
             self.changed = fetch.update(target)
         except Exception as e:  # noqa: BLE001 - whatever went wrong, the app starts with what it has
@@ -72,26 +89,26 @@ class UpdateWindow(tk.Tk):
             fetch.set_log(None)
             fetch.RETRIES, fetch.TIMEOUT = saved
 
-    def _poll(self):
-        last = ""
-        while not self._messages.empty():
-            last = self._messages.get_nowait().strip() or last
-        if last:
-            self.status.configure(text=last.splitlines()[0])
-        if self._thread.is_alive():
-            self.after(100, self._poll)
-            return
-        self.bar.stop()
+    def _show(self, text: str):
+        text = text.strip()
+        if text and self._thread.isRunning():
+            self.status.setText(text.splitlines()[0])
+
+    def _over(self):
+        self.bar.setRange(0, 100)
+        self.bar.setValue(0 if self.error else 100)
         if self.error:
-            self.bar.configure(mode="determinate", value=0)
-            self.status.configure(text=f"{self.failed}\n{self.error}", foreground=C["warn"])
+            restyle(self.status, role="warn")
+            self.status.setText(f"{self.failed}\n{self.error}")
         else:
-            self.bar.configure(mode="determinate", value=100)
-            self.status.configure(text=self.done_text())
-        self.after(FAILED_MS if self.error else DONE_MS, self.destroy)
+            self.status.setText(self.done_text())
+        QTimer.singleShot(FAILED_MS if self.error else DONE_MS, self.accept)
 
     def done_text(self) -> str:
         return "New data downloaded." if self.changed else "The data is up to date."
+
+    def reject(self):                       # Escape, or the system's close: not while files are being written
+        pass
 
 
 def refresh_data(target: Path | None = None, max_age_hours: float = fetch.MAX_AGE_HOURS) -> bool | None:
@@ -101,5 +118,5 @@ def refresh_data(target: Path | None = None, max_age_hours: float = fetch.MAX_AG
     if not fetch.is_stale(target, max_age_hours):
         return None
     win = UpdateWindow(target)
-    win.mainloop()
+    win.exec()
     return win.changed

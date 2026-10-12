@@ -1,4 +1,4 @@
-# Builds the app for Windows and for macOS (Python, tkinter and numpy included: nothing to install),
+# Builds the app for Windows and for macOS (Python, Qt and numpy included: nothing to install),
 # each as a zip.
 #   - push a tag  vX.Y.Z   -> the two zips are attached to a GitHub Release of that name
 #   - "Run workflow" by hand -> the zips are artifacts of the run (to try a build without releasing)
@@ -37,8 +37,9 @@ jobs:
       - name: Tests
         run: python -m unittest discover -s tests -t .
 
-      # One folder, not one file: starts faster and trips fewer antivirus. The tools are imported by
-      # name at run time (command_center.ui.registry.discover), hence --collect-submodules.
+      # One folder, not one file: starts faster and trips fewer antivirus; and Qt's libraries stay
+      # separate files, as their licence asks (assets/licenses, shipped as "licenses"). The tools are
+      # imported by name at run time (command_center.ui.registry.discover), hence --collect-submodules.
       # "python -m PyInstaller", not the "pyinstaller" command: only the first has this folder on its path,
       # and without it --collect-submodules finds nothing (v1.0.0 shipped without its tools).
       # The tag is the app's version: it compares it with the latest release's (command_center/release.py).
@@ -47,9 +48,12 @@ jobs:
         run: |
           Set-Content version.txt $env:GITHUB_REF_NAME -Encoding ascii
           python -m PyInstaller main.py --name "$env:APP_NAME" --windowed --noconfirm `
-            --collect-submodules command_center --icon assets/icon/icon.ico `
+            --collect-submodules command_center --exclude-module tkinter --icon assets/icon/icon.ico `
             --add-data "assets/fonts:assets/fonts" --add-data "assets/icon:assets/icon" `
-            --add-data "assets/demo:assets/demo" --add-data "version.txt:."
+            --add-data "assets/demo:assets/demo" --add-data "assets/licenses:licenses" --add-data "version.txt:."
+          # what Qt brings that the app never uses: software OpenGL, and its own messages in other languages
+          $qt = "dist/$env:APP_NAME/_internal/PySide6"
+          Remove-Item "$qt/opengl32sw.dll", "$qt/translations" -Recurse -Force -ErrorAction SilentlyContinue
 
       # A build that cannot start shows PyInstaller's "Unhandled exception" window, or nothing at all.
       - name: Start the built app (Windows)
@@ -80,10 +84,11 @@ jobs:
           echo "$GITHUB_REF_NAME" > version.txt
           python -m pip install certifi
           python -m PyInstaller main.py --name "$APP_NAME" --windowed --noconfirm \
-            --collect-submodules command_center --collect-data certifi --icon assets/icon/icon.icns \
-            --osx-bundle-identifier com.erestorx.commandcenter40k \
+            --collect-submodules command_center --exclude-module tkinter --collect-data certifi \
+            --icon assets/icon/icon.icns --osx-bundle-identifier com.erestorx.commandcenter40k \
             --add-data "assets/fonts:assets/fonts" --add-data "assets/icon:assets/icon" \
-            --add-data "assets/demo:assets/demo" --add-data "version.txt:." --add-data "lists:lists"
+            --add-data "assets/demo:assets/demo" --add-data "assets/licenses:licenses" \
+            --add-data "version.txt:." --add-data "lists:lists"
 
       # Started: still running once its data is fetched (or after two minutes), its first start has put
       # the lists in place, and the data is there. As on a Mac without Python: this runner's Python has

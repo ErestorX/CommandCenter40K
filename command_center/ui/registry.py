@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
-    import tkinter as tk
+    from PySide6.QtWidgets import QWidget
 
     from command_center.lists import ArmyList
     from command_center.ui.app import App
@@ -39,7 +39,7 @@ class Tool:
     key: str
     title: str
     description: str
-    open: Callable[["App", "Selection | None"], "tk.Toplevel"]
+    open: Callable[["App", "Selection | None"], "QWidget"]
     order: int = 100
     needs_armies: bool = True          # False: opens without army lists chosen
 
