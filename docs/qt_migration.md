@@ -144,7 +144,7 @@ rewrite lacks most, and Qt is what makes it possible.
 
 ## Progress
 
-Stages 1 and 2 are done, in `command_center/qt/`, next to the tkinter front end, which is untouched
+Stages 1 to 3 are done, in `command_center/qt/`, next to the tkinter front end, which is untouched
 but for its colours moving to `command_center/ui/palette.py` so that both read the same ones.
 
 ```bash
@@ -155,7 +155,7 @@ python main_qt.py                 # or: python -m command_center qt
 The Qt launcher offers the tools it has: the Disposition Cogitator so far. `main.py`, `run_app.bat`
 and the release still start the tkinter app.
 
-What the two stages showed:
+What stages 1 and 2 showed:
 
 - Nothing platform-specific is left in the shell but one call for the Windows taskbar. Fonts, dark
   title bars, DPI and window sizes are Qt's.
@@ -168,6 +168,21 @@ What the two stages showed:
   with this palette.
 - `tests/test_qt_windows.py` opens every Qt window without a screen, on the fixtures. It is skipped
   where PySide6 is not installed, as on the release workflow today.
+
+Stage 3 is what the next two tools share: the charts (`qt/charts.py`), the rules text window
+(`qt/richtext.py`) and the two rules windows (`qt/views/rules.py`). No tool shows them yet. What it showed:
+
+- Wahapedia's HTML goes into one document nearly as it is, in place of the parser written for
+  tkinter. Its tables are now tables (tkinter showed their cells in a line), and its lists are indented.
+- It could not go in untouched. Wahapedia writes colours and sizes on its tags for a light page:
+  they are taken out, with its images and links (`richtext.prepare`).
+- Stratagem cards are a table of that same document. The pass that sized each card to its text,
+  and the wheel passed on from the cards to the window, are gone. The search covers the cards and
+  marks every match.
+- The charts are painted as before, on a surface their scrolling area moves: 380 lines for 470.
+  Tooltips are Qt's.
+- `tests/test_qt_views.py` clicks on the charts, searches the rules text and opens both rules
+  windows, without a screen.
 
 The real app, built for Windows with the options of `release.yml` (`main_qt.py`, tkinter left out):
 

@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from tkinter import ttk
 from typing import Callable
 
+from command_center.ui.palette import RAMP, SLOTS, ramp_color  # noqa: F401
 from command_center.ui.theme import C, font_family
 
 INK = C["ink"]
@@ -15,19 +16,7 @@ INK_2 = C["muted"]
 INK_3 = C["dim"]
 GRID = C["grid"]
 SURFACE = C["panel"]
-# sequential blue ramp, light -> dark (steps 100 ... 700)
-RAMP = ["#0d366b", "#104281", "#184f95", "#1c5cab", "#256abf", "#2a78d6", "#3987e5",
-        "#5598e7", "#6da7ec", "#86b6ef", "#9ec5f4", "#b7d3f6", "#cde2fb"]       # low (dark) to high (light)
-# categorical slots, fixed order (slot 1 blue, slot 2 orange, ...)
-SLOTS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
 MISSING = C["field"]
-
-
-def ramp_color(t: float) -> tuple[str, str]:
-    """Fill for a 0..1 magnitude and a readable text ink for it."""
-    t = min(1.0, max(0.0, t))
-    i = round(t * (len(RAMP) - 1))
-    return RAMP[i], ("white" if i <= 6 else "#0b0b0b")
 
 
 class _Tip:
