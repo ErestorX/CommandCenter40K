@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Command Center 40K — web spike</title>
+<style>
+@font-face { font-family: "Caliban Angelus"; src: url("/font.ttf"); }
+:root { /*PALETTE*/ --display: "Caliban Angelus", sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; height: 100vh; display: flex; background: var(--bg); color: var(--ink);
+       font: 10pt "Segoe UI", system-ui, sans-serif; }
+#board { flex: 3; min-width: 0; background: var(--panel); touch-action: none; }
+#side { flex: 2; min-width: 0; padding: 8px 10px; display: flex; flex-direction: column; gap: 8px; }
+h1 { margin: 0; font: bold 17pt var(--display); }
+.muted { color: var(--muted); font-size: 9pt; }
+.bar { display: flex; gap: 6px; align-items: center; }
+button { font: bold 10pt var(--display); color: var(--ink); background: var(--raised); padding: 5px 12px;
+         border: 1px solid var(--line); border-top-color: #4a4a55; border-left-color: #4a4a55; cursor: pointer; }
+button:hover { background: var(--hover); }
+button.on { background: var(--field); color: var(--accent); border-top-color: #08080a; border-left-color: #08080a; }
+button.accent { color: var(--accent); font-size: 11pt; }
+select { flex: 1; color: var(--ink); background: var(--field); border: 1px solid var(--line); padding: 4px 6px; font: inherit; }
+progress { width: 100%; height: 10px; accent-color: var(--accent); }
+.tabs button { color: var(--muted); background: var(--bg); border-color: var(--line); }
+.tabs button.on { color: var(--ink); background: var(--panel); }
+.pane { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--line); background: var(--panel); padding: 8px; }
+table { border-collapse: separate; border-spacing: 2px; width: 100%; }
+th { font-weight: normal; padding: 6px; }
+th.row { text-align: right; white-space: nowrap; }
+td { text-align: center; height: 28px; }
+#rules h3 { color: var(--att); margin: 14px 0 2px; }
+#rules h3 span { color: var(--muted); font-size: 9pt; font-weight: normal; }
+#rules .kwb { font-weight: bold; font-size: 9pt; }
+.token { cursor: grab; }
+.label { font: bold 0.85px "Segoe UI", system-ui, sans-serif; pointer-events: none; }
+</style>
+</head>
+<body>
+<svg id="board" viewBox="0 0 60 44" preserveAspectRatio="xMidYMid meet">
+  <!-- the board in inches, y up: the browser does the scaling, nothing is drawn again on a resize -->
+  <g id="world" transform="translate(0 44) scale(1 -1)">
+    <g id="terrain"></g>
+    <g id="sight" opacity="0.3"></g>   <!-- opaque shapes in a see-through group: no darker where they overlap -->
+    <g id="tokens"></g>
+  </g>
+  <g id="labels"></g>
+</svg>
+<div id="side">
+  <h1>Engagement Optimizer</h1>
+  <div class="muted" id="note"></div>
+  <div class="bar">
+    <button class="on" data-switch>Shooting</button><button data-switch>Fight</button>
+    <select id="dispositions"></select>
+    <label><input type="checkbox"> Cover</label>
+    <button class="accent" id="run">Run tests</button>
+  </div>
+  <progress id="progress" max="100" value="0"></progress>
+  <div class="bar tabs"><button class="on" data-tab="matrix">Matrix</button><button data-tab="rules">Stratagems</button></div>
+  <div class="pane" id="matrix"></div>
+  <div class="pane" id="rules" hidden></div>
+</div>
+<script>
+const SVG = "http://www.w3.org/2000/svg", W = 60, H = 44;
+const ZONE = {attacker: "#f1d3d3", defender: "#d3dff0"}, ZONE_INK = {attacker: "#a3262a", defender: "#1f5288"};
+const TOKEN = {attacker: ["#c9474b", "#6b1417"], defender: ["#3d73b3", "#12304f"]};
+const FEATURE = {DENSE: "#5f584d", LIGHT: "#a8a092"}, OBJECTIVE = {central: "#1d1c1a", expansion: "#3c7d45"};
+const $ = id => document.getElementById(id);
+const get = path => fetch(path).then(r => r.json());
+const sightMs = [];
+let tokens = [], selected = null, asking = false, again = false;
+
+function el(parent, name, attrs) {
+  const e = document.createElementNS(SVG, name);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  parent.appendChild(e);
+  return e;
+}
+const points = pts => pts.map(p => p.join(",")).join(" ");
+
+// what the page must know of the board's geometry to drag at once, without asking the server:
+// command_center.deploy.placement's extent() and clamp(), written again
+function extent(t) {
+  const a = t.angle * Math.PI / 180;
+  return [Math.hypot(t.w * Math.cos(a), t.h * Math.sin(a)), Math.hypot(t.w * Math.sin(a), t.h * Math.cos(a))];
+}
+function clamp(t, x, y) {
+  const [w, h] = extent(t);
+  return [Math.min(Math.max(x, w / 2), W - w / 2), Math.min(Math.max(y, h / 2), H - h / 2)];
+}
+
+function place(t) {
+  t.shape.setAttribute("transform", `translate(${t.x} ${t.y}) rotate(${-t.angle})`);
+  t.text.setAttribute("x", t.x - t.w / 2);
+  t.text.setAttribute("y", H - t.y + t.h / 2 + 1);
+}
+
+async function showSight() {
+  if (asking) { again = true; return; }          // one request at a time: the latest position wins
+  asking = true;
+  do {
+    again = false;
+    const t = selected, group = $("sight");
+    if (!t) { group.replaceChildren(); break; }
+    const t0 = performance.now();
+    const fans = await get(`/api/sight?x=${t.x}&y=${t.y}&w=${t.w}&h=${t.h}&angle=${t.angle}&reach=${t.reach}`);
+    group.replaceChildren();
+    for (const fan of fans) el(group, "polygon", {points: points(fan), fill: "#6e6a63"});
+    sightMs.push(performance.now() - t0);
+  } while (again);
+  asking = false;
+}
+
+function select(t) {
+  if (selected) selected.shape.setAttribute("stroke", TOKEN[selected.role][1]);
+  selected = t;
+  if (t) { t.shape.setAttribute("stroke", "#e0a800"); t.shape.setAttribute("stroke-width", 0.25); }
+  return showSight();
+}
+
+function drawBoard(b) {
+  const lay = b.layout, terrain = $("terrain");
+  el(terrain, "rect", {width: W, height: H, fill: "#f7f5ef"});
+  for (const side of ["attacker", "defender"])
+    for (const zone of (lay.deployment_zones || {})[side] || []) el(terrain, "polygon", {points: points(zone), fill: ZONE[side]});
+  for (const area of lay.terrain || [])
+    for (const fp of area.footprints || [])
+      el(terrain, "polygon", {points: points(fp.points), fill: "#ddd6c8", stroke: "#9b9384", "stroke-width": 0.06});
+  for (const area of lay.terrain || [])
+    for (const f of area.features || []) el(terrain, "polygon", {points: points(f.points), fill: FEATURE[f.category] || "#8a857a"});
+  for (const o of lay.objectives || [])
+    el(terrain, "circle", {cx: o.position[0], cy: o.position[1], r: 0.9, stroke: "white", "stroke-width": 0.15,
+                           fill: o.type === "home" ? ZONE_INK[o.owner] || "#1d1c1a" : OBJECTIVE[o.type] || "#1d1c1a"});
+  el(terrain, "rect", {width: W, height: H, fill: "none", stroke: "#1d1c1a", "stroke-width": 0.06});
+
+  const world = $("world");
+  tokens = b.tokens;
+  for (const t of tokens) {
+    const [fill, line] = TOKEN[t.role];
+    t.shape = el($("tokens"), "ellipse", {rx: t.w / 2, ry: t.h / 2, fill, "fill-opacity": 0.5, stroke: line,
+                                         "stroke-width": 0.08, class: "token"});
+    el(t.shape, "title", {}).textContent = `${t.label}  ·  ${t.w.toFixed(1)}" x ${t.h.toFixed(1)}"`;
+    t.text = el($("labels"), "text", {class: "label", fill: line});
+    t.text.textContent = t.label;
+    place(t);
+    let grab = null;
+    const inches = e => new DOMPoint(e.clientX, e.clientY).matrixTransform(world.getScreenCTM().inverse());
+    t.shape.addEventListener("pointerdown", e => {
+      const p = inches(e);
+      grab = [p.x - t.x, p.y - t.y];
+      t.shape.setPointerCapture(e.pointerId);       // mouse, pen or finger: one kind of event
+      select(t);
+    });
+    t.shape.addEventListener("pointermove", e => {
+      if (!grab) return;
+      const p = inches(e);
+      [t.x, t.y] = clamp(t, p.x - grab[0], p.y - grab[1]);
+      place(t);
+      showSight();
+    });
+    t.shape.addEventListener("pointerup", () => { grab = null; });
+    t.shape.addEventListener("dblclick", () => {
+      t.angle = (t.angle + 30) % 360;
+      [t.x, t.y] = clamp(t, t.x, t.y);
+      place(t);
+      showSight();
+    });
+  }
+  $("note").textContent = `Layout ${lay.id}  ·  drag a unit, double click to turn it, click it for its line of sight`;
+  for (const name of b.dispositions) $("dispositions").add(new Option(name));
+}
+
+function drawMatrix(m) {
+  const table = document.createElement("table"), head = table.insertRow();
+  head.appendChild(document.createElement("th"));
+  for (const c of m.cols) head.appendChild(document.createElement("th")).textContent = c;
+  m.rows.forEach((name, i) => {
+    const row = table.insertRow(), th = row.appendChild(document.createElement("th"));
+    th.textContent = name;
+    th.className = "row";
+    for (const [j, cell] of m.cells[i].entries()) {
+      const td = row.insertCell();
+      td.textContent = cell.value.toFixed(1);
+      td.style.background = cell.fill;
+      td.style.color = cell.ink;
+      td.title = `${name} into ${m.cols[j]}\n${cell.value.toFixed(2)} wounds on average`;
+    }
+  });
+  $("matrix").appendChild(table);
+}
+
+function drawRules(list) {                          // Wahapedia's HTML, as it is
+  $("rules").innerHTML = list.map(s => `<h3>${s.name} <span>${s.cp_cost}CP · ${s.type}</span></h3>` +
+                                       `<p><i>${s.legend}</i></p><p>${s.description}</p>`).join("");
+}
+
+function runTests() {
+  return new Promise(done => {
+    const source = new EventSource("/api/run");     // progress pushed by the server as the work goes
+    source.onmessage = e => {
+      $("progress").value = +e.data;
+      if (+e.data >= 100) { source.close(); done(); }
+    };
+  });
+}
+
+for (const b of document.querySelectorAll("[data-switch]"))
+  b.onclick = () => document.querySelectorAll("[data-switch]").forEach(o => o.classList.toggle("on", o === b));
+for (const b of document.querySelectorAll("[data-tab]"))
+  b.onclick = () => document.querySelectorAll("[data-tab]").forEach(o => {
+    o.classList.toggle("on", o === b);
+    $(o.dataset.tab).hidden = o !== b;
+  });
+$("run").onclick = runTests;
+
+(async () => {
+  const t0 = performance.now();
+  const [board, matrix, rules] = await Promise.all([get("/api/board"), get("/api/matrix"), get("/api/stratagems")]);
+  drawBoard(board);
+  drawMatrix(matrix);
+  drawRules(rules);
+  await select(tokens[1]);                          // the Battlewagon's line of sight, from the start
+  const ready = performance.now() - t0;
+  if (!new URLSearchParams(location.search).has("auto")) return;
+  for (let i = 0; i < 40; i++) {                    // a drag, as the mouse would do it: 40 moves, 40 sights
+    [tokens[1].x, tokens[1].y] = clamp(tokens[1], tokens[1].x + 0.25, tokens[1].y);
+    place(tokens[1]);
+    await showSight();
+  }
+  await runTests();
+  const ms = [...sightMs].sort((a, b) => a - b);
+  await document.fonts.ready;
+  document.title = "measured";
+  await fetch("/api/report", {method: "POST", body: JSON.stringify({
+    page: "server", ready_ms: Math.round(ready), sights: ms.length, sight_median_ms: +ms[ms.length >> 1].toFixed(1),
+    display_font: document.fonts.check('12px "Caliban Angelus"')})});
+})();
+</script>
+</body>
+</html>

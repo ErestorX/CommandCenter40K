@@ -146,4 +146,5 @@ rewrite lacks most, and Qt is what makes it possible.
 
 - Stay on tkinter. Costs nothing. Right if no more drawing features are planned.
 - Qt for the Holomap alone, as a second program. Two toolkits to ship and two looks: worse than either.
-- A web front end. A server, a browser and a second language for an app that is one `.exe` today.
+- A web front end. Audited apart: [web_migration.md](web_migration.md). More work than Qt for the same
+  desktop app; the only way to an app with nothing to install.
