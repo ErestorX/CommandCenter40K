@@ -5,6 +5,10 @@ side's deployment zone and can be dragged anywhere on the board, stopping at its
 half see-through so terrain shows underneath. A click selects a token, a double click turns it 30
 degrees clockwise, a right click releases the selection.
 
+A unit's name is written inside its base, along it, as large as fits and on as many lines as that
+takes; what does not fit, even at the smallest size, is cut short with an ellipsis (fit_label). The
+whole name is in the token's tooltip, and under the map's title while the pointer is on it.
+
 For the selected unit the map can also draw its movement rings (move, advance, charge: lines at that
 distance from its footprint edge), the shortest line from it to each objective, an objective being
 the whole terrain its marker stands on (command_center.deploy.objectives), and its line of sight: what it can
@@ -25,7 +29,7 @@ import re
 from dataclasses import dataclass
 
 from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QPolygonF
+from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPainter, QPainterPath, QPen, QPolygonF
 from PySide6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsPolygonItem, QSizePolicy, QVBoxLayout,
                                QWidget)
 
@@ -54,8 +58,9 @@ SEEN_GLOW = 0.4                   # inches: how far the glow reaches around the 
 PLAN_INK = ZONE_INK["attacker"]
 OVERLAY_DELAY = 30                # ms between overlay redraws while dragging
 OVERLAYS = ("move", "advance", "charge", "objectives", "plan", "plan2", "planall", "sight", "hidden", "ground")
-LABEL_WIDTH = 110                 # pixels: longer board labels wrap onto another line
-HALO = QColor(255, 255, 255, 190)     # behind a unit's label: the board shows through a little
+LABEL_SIZES = (10, 9, 8, 7, 6)    # points: the sizes a unit's name is tried at inside its base, the largest first
+LABEL_MARGIN = 2                  # pixels kept clear between the name and the base's edge
+ELLIPSIS = "…"
 Z_OVERLAY, Z_LINK, Z_TOKEN, Z_CHOSEN = 5, 6, 10, 20       # what is drawn over what
 
 
@@ -84,11 +89,68 @@ class Token:
 
 
 def compact_label(name: str) -> str:
-    """Board label: the unit without a trailing "Squad", attached characters on a second line.
-    "Bladeguard Veteran Squad + Sanguinary Priest" -> "Bladeguard Veteran\\n+ Sanguinary Priest"."""
+    """Board label: the unit without a trailing "Squad": "Bladeguard Veteran Squad + Sanguinary Priest" ->
+    "Bladeguard Veteran + Sanguinary Priest"."""
     parts = [p.strip() for p in name.split(" + ")]
-    first = re.sub(r"\s+Squad\b", "", parts[0])
-    return first + ("\n+ " + " + ".join(parts[1:]) if len(parts) > 1 else "")
+    return " + ".join([re.sub(r"\s+Squad\b", "", parts[0])] + parts[1:])
+
+
+def line_widths(n: int, a: float, b: float, line_height: float) -> list[float] | None:
+    """The widths of n lines of text stacked in the middle of an ellipse of half-axes a (along the lines)
+    and b: each as wide as the ellipse is at the line's edge farthest from the centre, less a margin.
+    None when n lines are too tall for it."""
+    widths = []
+    for i in range(n):
+        edge = abs(i - (n - 1) / 2) * line_height + line_height / 2
+        if edge >= b:
+            return None
+        widths.append(2 * a * math.sqrt(1 - (edge / b) ** 2) - 2 * LABEL_MARGIN)
+    return widths
+
+
+def wrap(words: list[str], widths: list[float], width_of) -> tuple[list[str], list[str]]:
+    """Fill lines of the given widths with words, in order: the lines, and the words left over."""
+    lines, rest = [], list(words)
+    for width in widths:
+        line = ""
+        while rest and width_of((line + " " + rest[0]).strip()) <= width:
+            line = (line + " " + rest.pop(0)).strip()
+        if not line:                                    # the next word is wider than this line
+            break
+        lines.append(line)
+    return lines, rest
+
+
+def fit_label(text: str, a: float, b: float, sizes=LABEL_SIZES, family: str = "") -> tuple[QFont, list[str], float] | None:
+    """A name fitted in an ellipse of half-axes a and b pixels, written along a: the font, the lines and
+    the height of a line. The largest size at which the whole name fits, on as few lines as that takes;
+    at the smallest size, what fits of it, cut short with an ellipsis. None when not even a letter fits."""
+    words = text.split()
+    if not words:
+        return None
+    for size in sizes:
+        font = QFont(family or font_family(), size)
+        font.setBold(True)
+        fm = QFontMetricsF(font)
+        height = fm.height()
+        best: tuple[int, list[str], list[str], list[float]] | None = None      # letters placed, lines, words left, widths
+        n = 1
+        while (widths := line_widths(n, a, b, height)) is not None:
+            lines, rest = wrap(words, widths, fm.horizontalAdvance)
+            if not rest:
+                return font, lines, height                  # all of it, at this size
+            placed = sum(len(line) for line in lines)
+            if best is None or placed > best[0]:
+                best = (placed, lines, rest, widths)
+            n += 1
+        if size != sizes[-1] or best is None:
+            continue
+        _, lines, rest, widths = best                       # the smallest size: what fits, then an ellipsis
+        at = max(len(lines) - 1, 0)
+        last = fm.elidedText(" ".join(lines[at:] + rest), Qt.ElideRight, widths[at])
+        if last.strip(ELLIPSIS).strip():
+            return font, lines[:at] + [last], height
+    return None
 
 
 class TokenItem(QGraphicsPolygonItem):
@@ -101,7 +163,9 @@ class TokenItem(QGraphicsPolygonItem):
         self.setFlags(QGraphicsItem.ItemIsMovable | QGraphicsItem.ItemSendsGeometryChanges)
         self.setAcceptHoverEvents(True)
         self.setCursor(Qt.OpenHandCursor)
+        self.setToolTip(token.label)                    # in full: its base may only have room for a part of it
         self.setPos(token.x, token.y)
+        self._name: tuple[tuple, tuple | None] | None = None        # the name as fitted, and the base's size it was fitted to
         self.shape_it()
 
     def shape_it(self):
@@ -114,6 +178,31 @@ class TokenItem(QGraphicsPolygonItem):
         self.setPen(pen)
         self.setBrush(see_through(fill, TOKEN_OPACITY))
         self.setZValue(Z_CHOSEN if chosen else Z_TOKEN)
+
+    def paint(self, painter: QPainter, option, widget=None):
+        """The base, then the unit's name inside it, along it: in pixels, whatever the board's scale."""
+        super().paint(painter, option, widget)
+        t, k = self.token, self.board.view.pixels_per_inch
+        if k <= 0:
+            return
+        a, b = t.footprint.w * k / 2, t.footprint.h * k / 2
+        size = (round(a), round(b))
+        if self._name is None or self._name[0] != size:       # fitted again only when the base changes size on screen
+            self._name = (size, fit_label(compact_label(t.label), a, b))
+        fitted = self._name[1]
+        if not fitted:
+            return
+        font, lines, height = fitted
+        painter.save()
+        painter.scale(1 / k, -1 / k)                        # pixels, y down, around the unit's centre
+        angle = t.angle % 180                               # along the base, and never upside down
+        painter.rotate(angle - 180 if angle > 90 else angle)
+        painter.setFont(font)
+        painter.setPen(QColor(TOKEN[t.role][1]))
+        for i, line in enumerate(lines):
+            y = (i - (len(lines) - 1) / 2) * height
+            painter.drawText(QRectF(-a, y - height / 2, 2 * a, height), Qt.AlignCenter, line)
+        painter.restore()
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemPositionChange:
@@ -161,7 +250,6 @@ class UnitMap(LayoutMap):
         super().__init__()
         self.tokens: dict[str, Token] = {}
         self.items: dict[str, TokenItem] = {}
-        self.labels: dict[str, PixelText] = {}
         self.rng = random.Random()
         self.selected: str | None = None
         self.on_select = None                                       # callback(map, key or None)
@@ -176,7 +264,7 @@ class UnitMap(LayoutMap):
         self._overlay_timer.setSingleShot(True)
         self._overlay_timer.timeout.connect(lambda: self._redraw_overlays(draft=True))
         self._draft = False                                         # the overlays shown were drawn for a unit on the move
-        self.view.scaled.connect(self._place_labels)               # labels are in pixels: placed again at a new scale
+        self.view.scaled.connect(self._rescaled)
         self.view.right_clicked.connect(lambda: self._select(None))
 
     def set_layout(self, layout: dict | None, message: str = "", show_measurements: bool | None = None):
@@ -191,7 +279,7 @@ class UnitMap(LayoutMap):
 
     def draw(self):
         """The layout, then the units on it: drawing the layout clears the scene."""
-        self.items, self.labels, self._overlay_items, self._link_items = {}, {}, [], []
+        self.items, self._overlay_items, self._link_items = {}, [], []
         super().draw()
         if self.layout_data:
             for t in self.tokens.values():
@@ -210,10 +298,9 @@ class UnitMap(LayoutMap):
 
     def remove_token(self, key: str):
         if self.tokens.pop(key, None):
-            for held in (self.items, self.labels):
-                item = held.pop(key, None)
-                if item is not None:
-                    self.scene.removeItem(item)
+            item = self.items.pop(key, None)
+            if item is not None:
+                self.scene.removeItem(item)
             if self.selected == key:
                 self._select(None)
 
@@ -225,42 +312,10 @@ class UnitMap(LayoutMap):
     def _add_item(self, t: Token):
         item = self.items[t.key] = TokenItem(self, t)
         self.scene.addItem(item)
-        self._label(t)
 
-    def _label(self, t: Token):
-        """A unit's label outside its base, on the side of its player's board edge (attacker at the
-        bottom: below the base); on the other side if it would leave the board; never past an edge."""
-        old = self.labels.pop(t.key, None)
-        if old is not None:
-            self.scene.removeItem(old)
-        k = self.view.pixels_per_inch or 1.0
-        bw, bh = t.box
-        edge = (self.layout_data or {}).get(f"{t.role}_edge", "bottom")
-        align = {"left": Qt.AlignRight, "right": Qt.AlignLeft}.get(edge, Qt.AlignHCenter)
-        tag = PixelText(compact_label(t.label), 0, 0, TOKEN[t.role][1], bold=True, back=HALO, align=align,
-                        width=max(LABEL_WIDTH, bw * k))
-        w, h = (d / k for d in tag.size)                        # its size in inches, at this scale
-        gap = 3 / k
-        spots = {"bottom": (t.x, t.y - bh / 2 - gap - h / 2), "top": (t.x, t.y + bh / 2 + gap + h / 2),
-                 "left": (t.x - bw / 2 - gap - w / 2, t.y), "right": (t.x + bw / 2 + gap + w / 2, t.y)}
-        opposite = {"bottom": "top", "top": "bottom", "left": "right", "right": "left"}
-        edge = edge if edge in spots else "bottom"
-        x, y = spots[edge]
-        if not (w / 2 <= x <= BOARD_W - w / 2 and h / 2 <= y <= BOARD_H - h / 2):
-            x, y = spots[opposite[edge]]
-        x = min(max(x, w / 2 + gap), BOARD_W - w / 2 - gap) if w < BOARD_W else BOARD_W / 2     # keep it on the board
-        y = min(max(y, h / 2 + gap), BOARD_H - h / 2 - gap) if h < BOARD_H else BOARD_H / 2
-        tag.setPos(x, y)
-        tag.setZValue((Z_CHOSEN if self.selected == t.key else Z_TOKEN) + 0.5)
-        tag.setAcceptedMouseButtons(Qt.NoButton)                # a click on it goes to what is under it
-        self.scene.addItem(tag)
-        self.labels[t.key] = tag
-
-    def _place_labels(self):
-        for t in self.tokens.values():
-            if t.key in self.items:
-                self._label(t)
-        self._draw_overlays()                                   # their texts are in pixels too
+    def _rescaled(self):
+        """The board is shown at another size: the texts drawn over it are in pixels, and placed again."""
+        self._draw_overlays()
         self._draw_plan_links()
 
     # ---------------------------------------------------------------- selection, moves
@@ -271,7 +326,6 @@ class UnitMap(LayoutMap):
             for k in (was, self.selected):
                 if k in self.items:
                     self.items[k].shape_it()
-                    self._label(self.tokens[k])
             self._draw_overlays()
             self._draw_plan_links()
 
@@ -292,7 +346,6 @@ class UnitMap(LayoutMap):
         item = self.items[key]
         item.shape_it()
         item.setPos(*clamp(t.x, t.y, *t.box))
-        self._label(t)
         self._redraw_overlays()
 
     def move_token(self, key: str, x: float, y: float):
@@ -301,10 +354,8 @@ class UnitMap(LayoutMap):
         self.token_released()
 
     def token_moved(self, t: Token):
-        """A unit is being dragged: its label follows at once; the overlays at most every OVERLAY_DELAY ms,
-        so that mouse events don't queue up behind line of sight computations."""
-        if t.key in self.labels:
-            self._label(t)
+        """A unit is being dragged: the overlays follow at most every OVERLAY_DELAY ms, so that mouse events
+        don't queue up behind line of sight computations."""
         if not self._overlay_timer.isActive():
             self._overlay_timer.start(OVERLAY_DELAY)
 

@@ -131,8 +131,7 @@ class HolomapTest(unittest.TestCase):
         self.assertIn("turned 30", m.sub.text())
         m.describe(None)
         self.assertIn(m.layout_data["id"], m.sub.text())
-        label = m.labels[key]                                              # its label stays on the board
-        self.assertTrue(0 <= label.x() <= BOARD_W and 0 <= label.y() <= BOARD_H)
+        self.assertEqual(m.items[key].toolTip(), t.label)                  # its whole name, whatever its base has room for
 
     def test_overlays_of_the_selected_unit(self):
         win = self.win
@@ -196,6 +195,32 @@ class HolomapTest(unittest.TestCase):
         before = len(cast_with)
         m.token_released()                                                 # a plain click: nothing to draw again
         self.assertEqual(len(cast_with), before)
+
+    def test_a_name_is_fitted_in_its_base(self):
+        from command_center.ui.tools.holomap.map_view import ELLIPSIS, LABEL_SIZES, compact_label, fit_label
+        self.assertEqual(compact_label("Intercessor Squad + Librarian"), "Intercessor + Librarian")
+        name = "Meganobz + Warboss in Mega Armour"
+        font, lines, height = fit_label(name, 150, 60)                     # a large base: all of it, at the largest size
+        self.assertEqual((font.pointSize(), " ".join(lines)), (LABEL_SIZES[0], name))
+        font, lines, _ = fit_label(name, 60, 30)                           # a smaller one: all of it still, smaller or on more lines
+        self.assertEqual(" ".join(lines), name)
+        self.assertTrue(font.pointSize() < LABEL_SIZES[0] or len(lines) > 1)
+        font, lines, height = fit_label(name, 34, 14)                      # too small for it: what fits, then an ellipsis
+        self.assertEqual(font.pointSize(), LABEL_SIZES[-1])
+        self.assertTrue(lines[-1].endswith(ELLIPSIS))
+        self.assertTrue(name.startswith(" ".join(lines).rstrip(ELLIPSIS).rstrip()))
+        self.assertLessEqual(len(lines) * height, 2 * 14)                  # never taller than the base
+        self.assertIsNone(fit_label(name, 4, 3))                           # no room for a letter
+        self.assertIsNone(fit_label("", 100, 100))
+        from PySide6.QtGui import QFontMetricsF
+        for a, b in ((150, 60), (60, 30), (34, 14), (20, 20), (90, 12)):   # every line inside the ellipse, at its own height
+            fitted = fit_label(name, a, b)
+            if fitted:
+                font, lines, height = fitted
+                for i, line in enumerate(lines):
+                    edge = abs(i - (len(lines) - 1) / 2) * height + height / 2
+                    self.assertLess(edge, b)
+                    self.assertLessEqual(QFontMetricsF(font).horizontalAdvance(line), 2 * a * (1 - (edge / b) ** 2) ** 0.5 + 0.5)
 
     def test_enemy_units_in_the_line_of_sight_glow(self):
         win = self.win

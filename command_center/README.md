@@ -301,7 +301,10 @@ is its base (Wahapedia's base size); a unit is one ellipse holding every base wi
 between neighbours (Leaders and Support characters included). Models without an
 official base size (vehicles: "Use model") get an oval estimated from their Wounds,
 drawn dashed. Units are half see-through so terrain shows underneath, and new ones are
-placed clear of those already on the board when there is room. Hover a unit for its
+placed clear of those already on the board when there is room. A unit's name is
+written inside its base, along it: as large as fits (10 to 6 points), on as many lines
+as that takes, and cut short with an ellipsis when the base is too small for all of it
+(`map_view.fit_label`). Hover a unit for its whole name, its
 models and size; click to select it (one selection for the window, highlighted in the
 roster), double click to turn it 30° clockwise, right click to release the selection.
 
