@@ -1,0 +1,149 @@
+# Moving the app from tkinter to Qt: an evaluation
+
+Branch `QT_migration`, 12 October 2026. Nothing of the app is changed on this branch: it adds this
+document and a spike (`spikes/qt_spike.py`) that the figures below come from.
+
+## Verdict
+
+The migration is feasible and its technical risk is low. It is a rewrite of the front end only:
+about 5,900 lines in 26 files under `command_center/ui/`, and no line of the back end.
+
+It is worth doing if the Field Holomap and the charts are to keep growing, because that is where
+tkinter has run out: every workaround listed below is in drawing, windows or threads. It is not
+worth doing for the app as it stands today, which works, and whose workarounds are already paid for.
+
+What it costs for certain: a download about twice as large (28 MB to 60 MB, measured), and a
+front end with no tests behind it rewritten by hand and by eye.
+
+Recommended: PySide6, in the stages of the plan below, with a decision point after the first tool.
+
+## What was looked at
+
+| | |
+|---|---|
+| Front end | `command_center/ui/`: 5,927 lines, 26 files import tkinter |
+| Back end | `core`, `data`, `lists`, `deploy`, `analysis`: 5,561 lines, none imports tkinter |
+| Outside `ui/` | `cli.py` starts the UI; `tests/test_translucent.py`, `tests/test_ui_registry.py`; `scripts/readme_screenshots.py` |
+| Widgets | 124 `ttk.Label`, 113 `ttk.Frame`, 30 buttons, 16 canvases, 13 drop-downs, 12 top-levels, 10 `tk.Text`, 3 tables |
+| Layout calls | 269 `pack`, 84 `grid`, 3 `place`, 81 `bind` |
+| Canvas drawing | 82 calls drawing a shape or a text, in 7 files; most in `charts.py` and `map_view.py` |
+| Dependencies | numpy only; PyInstaller for the release |
+
+The separation is clean: the back end never reaches into the front end, and windows read their data
+through `AppContext`. That is what makes this a front-end job.
+
+## What tkinter costs today
+
+Each of these is code the app carries because of the toolkit. Qt does it itself.
+
+| In the app today | Where | With Qt |
+|---|---|---|
+| See-through fills: stipples, and on macOS shapes rasterised with numpy into a PNG written by hand | `ui/translucent.py` (81 lines) and its tests | A colour with an alpha value |
+| Shapes drawn without anti-aliasing on Windows | every canvas | Anti-aliased |
+| A board drawn again from nothing on every resize (`delete("all")`) | `map_view.py`, `charts.py` | A scene in inches that the view scales |
+| Dragging: hit-testing, grab offset and clamping by hand; "current" item unreliable after a redraw; clicks 2 and 4 of a run handled apart | `map_view.py` | Movable items; one double-click event |
+| The display font loaded through GDI or CoreText with ctypes | `theme.py` `load_fonts` | `QFontDatabase.addApplicationFont` |
+| Dark title bar asked of DWM with ctypes, again each time a window gets a new frame | `theme.py`, 7 calls | One call for the application |
+| Windows kept maximised by watching `<Configure>`; a title bar's height guessed, then measured | `screen.py` | Window states and frame geometry |
+| DPI awareness set with ctypes, once for the process | `app.py` | Per-monitor, built in |
+| Worker threads polled every 25 to 100 ms through a queue; `gc.collect()` so that no Tk object is finalised on the wrong thread | `auspex/window.py`, `optimizer/window.py`, `updater.py` | Signals delivered on the window's thread |
+| Mouse wheel bound three ways (Windows, macOS, X11) in four places; scrolled frames made of a canvas | `charts.py`, `richtext.py`, `scoresheet.py`, `score_oracle.py` | Scroll areas |
+| Tooltips as borderless top-levels; chart tooltips as canvas items kept inside the view by hand | `widgets.py`, `charts.py` | `setToolTip`, `QToolTip` |
+| Wahapedia's HTML parsed by hand into tagged text | `richtext.py` (about 100 lines) | `QTextBrowser.setHtml` |
+| Right click bound to buttons 2 and 3 for macOS | `charts.py`, `map_view.py` | One event |
+| README screenshots copied from the screen with GDI: Windows only, windows in front, mouse left alone | `scripts/readme_screenshots.py` | `window.grab()`, in front or not, on any system |
+
+Of the 14 commits that touch `ui/`, two exist wholly or partly for the toolkit and not for a
+feature: the macOS fills (df8018e) and the windows filling the screen (68fe67d).
+
+## The spike
+
+`spikes/qt_spike.py`, 350 lines, on the app's real data and back end: layout TH-TH-A, the
+line-of-sight code of `deploy/sight.py`, the palette of `theme.py`, the core stratagems' HTML.
+
+![The spike](qt_spike.png)
+
+What it showed, all run on this machine (Windows 11, Python 3.14.0, PySide6 6.12.0):
+
+- PySide6 installs on Python 3.14 from a wheel, and a PyInstaller build of it starts and draws.
+- The theme carries over as one style sheet of about 25 rules built from the same palette `C`.
+  Caliban Angelus loads from `assets/fonts` with no platform code.
+- The board is drawn once, in inches. Tokens are see-through, dragged by Qt and stopped at the
+  edges by the app's own `clamp`. A turn is one call.
+- Line of sight while dragging: 20 ms per redraw, of which 20 ms is `cast` itself. Qt's drawing does
+  not show in the measure.
+- A window can be pictured without a screen (`QT_QPA_PLATFORM=offscreen`), so windows can be opened
+  in the tests on GitHub's runners. System fonts have to be pointed at (`QT_QPA_FONTDIR`), otherwise
+  every text comes out in the display font.
+
+Two things it tripped on, both small:
+
+- A view does not keep its scene alive in Python: a reference must be held.
+- `pip install` failed in a deeply nested folder (a path over 260 characters inside the package).
+  The project's own path is short enough.
+
+Not tried: macOS. Nothing here was run on it.
+
+## What it costs
+
+Measured on Windows, same PyInstaller options as `release.yml`:
+
+| | tkinter (today) | Qt (the spike) |
+|---|---|---|
+| App folder | 63 MB | 143 MB |
+| Zip to download | 27.6 MB | 59.7 MB |
+| First window, from the source | 0.26 s | 0.53 s |
+| Installed for development | nothing (ships with Python) | 215 MB (`PySide6-Essentials`) |
+
+The Qt folder still holds Tcl/Tk (9 MB: the spike imports the palette from `theme.py`), a software
+OpenGL library (20 MB) and Qt's translations (7 MB). Without them it would be near 105 MB. That is
+an estimate, not a build.
+
+The other costs:
+
+- The app's own update downloads the zip: twice the size at every release.
+- A second dependency. `requirements.txt` is numpy alone today.
+- PySide6 is under the LGPL. A one-folder PyInstaller build, with Qt's libraries as separate
+  files, is the usual way to comply; the licence text must ship with the app. PyQt6 is GPL or
+  paid: not a candidate.
+- The rewrite itself has no safety net. The 2,660 lines of tests cover the back end; of the front
+  end, only the tool registry. What a window must do is in its code and its comments (label
+  placement on the board, the editor closing on a wheel turn, and so on). The eleven README
+  screenshots are the only reference to compare against.
+- macOS: the `.app` grows by Qt's frameworks, unsigned as today. Untested. The release workflow's
+  "start the built app" step would catch a build that does not come up.
+
+## What stays as it is
+
+- All of `core`, `data`, `lists`, `deploy`, `analysis`, `release.py`, `config.py`, `context.py`.
+- The tool registry (`ui/registry.py`): one type hint to change.
+- The release: still a PyInstaller folder holding an `.exe` and `_internal`, so the app's own update
+  installs a Qt version over a tkinter one with no change.
+- The Optimizer's worker processes (`multiprocessing.freeze_support()` in `main.py`).
+- The colours, in `theme.C` and in each module's constants.
+
+## Plan
+
+tkinter and Qt cannot share a process, so there is no window-by-window mix inside one app. The
+stages below are done on this branch, while `main` stays tkinter and can still be released. The
+tkinter windows are left in place until the last stage.
+
+| Stage | What | From (lines) | Notes |
+|---|---|---|---|
+| 1 | Shell: `app`, `toolwindow`, `screen`, `theme`, `widgets`, `updater`, `appupdate`, `launcher` | 972 | `screen.py` and the ctypes of `theme.py` mostly go |
+| 2 | Disposition Cogitator, with `views/scoresheet` | 554 | Needs no list: the smallest whole tool |
+| | **Decision point**: build both zips in the workflow, try the macOS one, compare with the screenshots | | Go on, or stop having spent a quarter of the work |
+| 3 | `charts`, `richtext`, `views/rules` | 899 | Shared by the next two tools; `richtext` shrinks most |
+| 4 | Armies Auspex | 833 | First worker thread |
+| 5 | Engagement Optimizer | 1,173 | The largest; in-place editors in a table |
+| 6 | Field Holomap, Score Oracle | 1,341 | `translucent.py` goes; the spike is its starting point |
+| 7 | Remove tkinter, `release.yml`, both READMEs, `readme_screenshots.py` with `grab()`, window tests | | Drop OpenGL and the translations from the build |
+
+To do alongside, from stage 1: a test that opens each window without a screen. It is what the
+rewrite lacks most, and Qt is what makes it possible.
+
+## Alternatives
+
+- Stay on tkinter. Costs nothing. Right if no more drawing features are planned.
+- Qt for the Holomap alone, as a second program. Two toolkits to ship and two looks: worse than either.
+- A web front end. A server, a browser and a second language for an app that is one `.exe` today.
