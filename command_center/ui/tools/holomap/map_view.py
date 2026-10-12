@@ -2,8 +2,9 @@
 
 Units are tokens (a base, or the ellipse of a whole unit) that start at a random spot in their
 side's deployment zone and can be dragged anywhere on the board, stopping at its edges. They are
-half see-through so terrain shows underneath. A click selects a token, a double click turns it 30
-degrees clockwise, a right click releases the selection.
+half see-through so terrain shows underneath. A click selects a token, a right click on no token
+releases the selection. A right click on a token opens its menu: to the reserves or back (see
+below), and, under "Rotate", a turn of 15 or 45 degrees, clockwise or counter-clockwise.
 
 A unit's name is written inside its base, along it, as large as fits and on as many lines as that
 takes; what does not fit, even at the smallest size, is cut short with an ellipsis (fit_label). The
@@ -19,8 +20,7 @@ While the unit is dragged its line of sight is a draft, cast with fewer rays; it
 soon as the unit is let go.
 
 Under the board, a "Reserves and Transports" space, split in half: the attacker's on the left, the
-defender's on the right. A right click on a unit opens a menu that sends it there, or back to the
-board where it stood. A unit in reserve is dragged about its half only, and has no rings, distances or
+defender's on the right. A unit's menu sends it there, or back to the board where it stood. A unit in reserve is dragged about its half only, and has no rings, distances or
 line of sight; arrows to and from planned targets are drawn all the same, and no line of sight
 from the board gets to it.
 
@@ -37,7 +37,7 @@ from dataclasses import dataclass
 from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPainter, QPainterPath, QPen, QPolygonF
 from PySide6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsPolygonItem, QGraphicsRectItem, QMenu,
-                               QSizePolicy, QVBoxLayout, QWidget)
+                               QSizePolicy, QVBoxLayout, QWidget, QWidgetAction)
 
 from command_center.deploy import Footprint
 from command_center.deploy.movement import rings
@@ -49,11 +49,14 @@ from command_center.ui.theme import C, font_family
 from command_center.ui.views.board import (AREA_FILL, AREA_LINE, BOARD_H, BOARD_INK, BOARD_W, FEATURE_FILL, NO_PEN,
                                            OBJ_FILL, ZONE_FILL, ZONE_INK, BoardView, LayoutMap, PixelText, line_pen,
                                            polygon)
+from command_center.ui.widgets import label
 
 TOKEN = {"attacker": ("#c9474b", "#6b1417"), "defender": ("#3d73b3", "#12304f")}   # fill, outline
 TOKEN_OPACITY = 0.5               # terrain stays visible underneath
 SELECTED = "#e0a800"
-ROTATE_STEP = 30                  # degrees clockwise per double click
+# the turns a unit's menu offers, under its "Rotate" heading: degrees clockwise, and how each is written
+ROTATE = "Rotate"
+ROTATIONS = ((15, "↻  15°"), (45, "↻  45°"), (-15, "↺  15°"), (-45, "↺  45°"))
 RING_INK = ["#2f7d32", "#c26a00", "#7b3fa0"]      # innermost ring first
 DISTANCE_INK = "#1d1c1a"
 DISTANCE_DASH = (5, 2, 1.5, 2)    # dash-dot, in widths of the line: visible without hiding the terrain
@@ -248,10 +251,6 @@ class TokenItem(QGraphicsPolygonItem):
             self.board.pick(self.token.key)
         super().mousePressEvent(event)
 
-    def mouseDoubleClickEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self.board.rotate(self.token.key)
-
     def mouseReleaseEvent(self, event):
         super().mouseReleaseEvent(event)
         self.board.token_released()
@@ -407,17 +406,27 @@ class UnitMap(LayoutMap):
         self._redraw_overlays()
 
     def menu_actions(self, key: str) -> list[tuple[str, object]]:
-        """What a right click on a unit offers: each a name and what it does."""
-        if self.tokens[key].reserve:
-            return [(TO_BOARD, lambda: self.to_board(key))]
-        return [(TO_RESERVES, lambda: self.to_reserves(key))]
+        """What a right click on a unit offers: each a name and what it does; a heading does nothing (None)."""
+        move = (TO_BOARD, lambda: self.to_board(key)) if self.tokens[key].reserve else (
+            TO_RESERVES, lambda: self.to_reserves(key))
+        turns = [(text, lambda degrees=degrees: self.rotate(key, degrees)) for degrees, text in ROTATIONS]
+        return [move, (ROTATE, None)] + turns
 
     def token_menu(self, key: str, at):
         """The menu of a unit, at a point of the screen; the unit is then the selected one."""
         self.pick(key)
         menu = QMenu(self)
         for name, do in self.menu_actions(key):
-            menu.addAction(name).triggered.connect(lambda _checked=False, do=do: do())
+            if do is None:                              # a heading: a rule, then its name, which can't be chosen
+                menu.addSeparator()
+                heading = QWidgetAction(menu)
+                text = label(name.upper(), "muted")
+                text.setContentsMargins(8, 4, 18, 2)
+                heading.setDefaultWidget(text)
+                heading.setEnabled(False)
+                menu.addAction(heading)
+            else:
+                menu.addAction(name).triggered.connect(lambda _checked=False, do=do: do())
         menu.exec(at)
 
     # ---------------------------------------------------------------- units
@@ -476,10 +485,11 @@ class UnitMap(LayoutMap):
         if key != self.selected:
             self._select(key)
 
-    def rotate(self, key: str):
-        """Turn a unit by a step, clockwise; turning can push it past an edge: it is kept on the board."""
+    def rotate(self, key: str, degrees: float):
+        """Turn a unit by so many degrees clockwise (counter-clockwise if negative); turning can push it
+        past an edge: it is kept where it may stand."""
         t = self.tokens[key]
-        t.angle = (t.angle + ROTATE_STEP) % 360
+        t.angle = (t.angle + degrees) % 360
         item = self.items[key]
         item.shape_it()
         item.setPos(*self.keep_in(t, t.x, t.y))

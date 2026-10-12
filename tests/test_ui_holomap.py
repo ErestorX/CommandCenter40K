@@ -123,7 +123,8 @@ class HolomapTest(unittest.TestCase):
         w, h = t.box
         self.assertAlmostEqual(t.x, BOARD_W - w / 2)
         self.assertAlmostEqual(t.y, h / 2)
-        m.rotate(key)
+        m.rotate(key, 45)
+        m.rotate(key, -15)                                                 # and back a little, the other way
         self.assertEqual(t.angle, 30)
         w, h = t.box
         self.assertTrue(w / 2 - 1e-6 <= t.x <= BOARD_W - w / 2 + 1e-6 and h / 2 - 1e-6 <= t.y <= BOARD_H - h / 2 + 1e-6)
@@ -209,7 +210,7 @@ class HolomapTest(unittest.TestCase):
             win.overlay_ticks[name].setChecked(True)
         m.pick(key)
         self.assertGreater(len(m._overlay_items), 0)
-        self.assertEqual([name for name, _ in m.menu_actions(key)], [TO_RESERVES])
+        self.assertEqual(m.menu_actions(key)[0][0], TO_RESERVES)
 
         m.menu_actions(key)[0][1]()                                        # as the menu's entry does
         self.assertTrue(t.reserve)
@@ -223,7 +224,7 @@ class HolomapTest(unittest.TestCase):
         self.assertEqual((m.items[key].x(), m.items[key].y()), (t.x, t.y))
         m.move_token(key, 50, 30)                                          # dragged at the board and the other half
         self.assertTrue(x0 <= t.x - w / 2 + 1e-9 and t.x + w / 2 <= x1 + 1e-9 and t.y + h / 2 <= RESERVE_TOP + 1e-9)
-        m.rotate(key)                                                      # turned: still in its half
+        m.rotate(key, 45)                                                  # turned: still in its half
         w, h = t.box
         self.assertTrue(x0 <= t.x - w / 2 + 1e-9 and t.x + w / 2 <= x1 + 1e-9 and t.y + h / 2 <= RESERVE_TOP + 1e-9)
         self.assertNotIn(key, {k for mm in win.maps[1:] for k, tt in mm.tokens.items() if tt.reserve})      # this map only
@@ -235,7 +236,7 @@ class HolomapTest(unittest.TestCase):
         self.assertNotIn(defenders[0], m.seen)
 
         m.pick(key)
-        self.assertEqual([name for name, _ in m.menu_actions(key)], [TO_BOARD])
+        self.assertEqual(m.menu_actions(key)[0][0], TO_BOARD)
         m.to_board(key)
         self.assertFalse(t.reserve)
         w, h = t.box
@@ -261,6 +262,34 @@ class HolomapTest(unittest.TestCase):
         self.assertEqual(len(m._link_items), on_board)
         m.to_reserves(defenders[0])                                        # and to a target in reserve
         self.assertEqual(len(m._link_items), on_board)
+
+    def test_a_unit_is_turned_from_its_menu(self):
+        from command_center.ui.tools.holomap.map_view import ROTATE
+        attackers, _ = self.place()
+        m, key = self.win.maps[0], attackers[0]
+        t = m.tokens[key]
+        m.move_token(key, 30, 22)
+        entries = m.menu_actions(key)
+        names = [name for name, _ in entries]
+        at = names.index(ROTATE)
+        self.assertIsNone(entries[at][1])                                  # a heading: nothing to choose
+        self.assertEqual(names[at + 1:], ["↻  15°", "↻  45°", "↺  15°", "↺  45°"])
+        turns = [do for _, do in entries[at + 1:]]
+        turns[0]()
+        self.assertEqual(t.angle, 15)                                      # clockwise
+        turns[1]()
+        self.assertEqual(t.angle, 60)
+        turns[2]()
+        self.assertEqual(t.angle, 45)                                      # counter-clockwise
+        turns[3]()
+        turns[3]()
+        self.assertEqual(t.angle, 315)
+        self.assertEqual(m.selected, None)                                 # turning selects nothing by itself
+        at_unit = m.view.mapFromScene(m.items[key].pos())                  # a double click no longer turns it
+        QTest.mouseDClick(m.view.viewport(), Qt.LeftButton, pos=at_unit)
+        self.assertEqual(t.angle, 315)
+        m.to_reserves(key)                                                 # in reserve too
+        self.assertEqual([name for name, _ in m.menu_actions(key)][-4:], names[-4:])
 
     def test_right_button(self):
         from PySide6.QtCore import QPoint

@@ -306,11 +306,12 @@ written inside its base, along it: as large as fits (10 to 6 points), on as many
 as that takes, and cut short with an ellipsis when the base is too small for all of it
 (`map_view.fit_label`). Hover a unit for its whole name, its
 models and size; click to select it (one selection for the window, highlighted in the
-roster), double click to turn it 30° clockwise, right click (on no unit) to release the
-selection.
+roster), right click (on no unit) to release the selection. A right click on a unit opens
+its menu; under "Rotate" it turns the unit by 15° or 45°, clockwise (↻) or
+counter-clockwise (↺).
 
 Under each board is a **Reserves and Transports** space, split in half: the attacker's on
-the left, the defender's on the right. A right click on a unit opens its menu: "To
+the left, the defender's on the right. In a unit's menu, "To
 Reserves..." takes it off the board into its side's half, "To the board..." puts it back
 where it stood. Each board has its own reserves. A unit in reserve is dragged within its
 half only; it has no movement rings, distances or line of sight, and no line of sight
