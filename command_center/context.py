@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from command_center.analysis.army_plans import ArmyPlanStore
+from command_center.analysis.plan import PlanStore
 from command_center.data.missionbook import MissionBook
 from command_center.data.rules import RulesBook
 from command_center.data.wahapedia import Wahapedia
@@ -30,6 +31,7 @@ class AppContext:
         self._army_plans: ArmyPlanStore | None = None
         self._estimates: EstimateStore | None = None
         self._games: GameStore | None = None
+        self.test_plans_path: Path | None = None        # the Engagement Optimizer's tests, when not the user's file
 
     @property
     def rules(self) -> RulesBook:
@@ -66,3 +68,15 @@ class AppContext:
         if self._games is None:
             self._games = GameStore()
         return self._games
+
+    # what is saved for a list file, by its name: to say what goes with it, then to let it go
+    def list_data(self, list_name: str) -> dict[str, int]:
+        """How much is saved for a list: its units' tests (Engagement Optimizer), the army plans and the
+        games (Field Holomap) it is part of."""
+        return {"tests": len(PlanStore(self.test_plans_path).of_list(list_name)),
+                "army plans": len(self.army_plans.of_list(list_name)), "games": len(self.games.of_list(list_name))}
+
+    def forget_list(self, list_name: str) -> dict[str, int]:
+        """Remove what is saved for a list, and nothing of any other list. How much went, as list_data counts it."""
+        return {"tests": PlanStore(self.test_plans_path).forget(list_name),
+                "army plans": self.army_plans.forget(list_name), "games": self.games.forget(list_name)}

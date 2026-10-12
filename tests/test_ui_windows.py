@@ -25,6 +25,7 @@ def fixture_context() -> AppContext:
     ctx._missions = MissionBook(build_json_dir())
     ctx._estimates = EstimateStore(Path(tempfile.mkdtemp()) / "estimates.json")
     ctx._games = GameStore(Path(tempfile.mkdtemp()))
+    ctx.test_plans_path = Path(tempfile.mkdtemp()) / "test_plans.json"
     return ctx
 
 
@@ -51,6 +52,62 @@ class QtWindowsTest(unittest.TestCase):
         from command_center.ui.theme import C, DISPLAY_FAMILY, display_family
         self.assertEqual(display_family(), DISPLAY_FAMILY)                # loaded from assets/fonts
         self.assertEqual(self.app.palette().window().color().name(), C["bg"])
+
+    def test_demonstration_lists_are_apart_and_own_lists_can_be_deleted(self):
+        import shutil
+
+        from command_center.analysis.army_plans import PlanEntry, SavedPlan
+        from command_center.lists.library import DEMO_LISTS
+        from command_center.ui import launcher as launcher_module
+        from command_center.ui.app import App
+        from command_center.ui.launcher import DEMO_TAG
+        lists = Path(tempfile.mkdtemp()) / "lists"
+        lists.mkdir()
+        for name in ("Zeta.txt", "Alpha.txt", *DEMO_LISTS):
+            shutil.copy(FIXTURE_LIST, lists / name)
+        was, launcher_module.LISTS_DIR = launcher_module.LISTS_DIR, lists      # the launcher's folder, for this test
+        self.addCleanup(setattr, launcher_module, "LISTS_DIR", was)
+        ctx = fixture_context()
+        app = App(ctx)
+        self.addCleanup(app.close)
+        att, dfn = app.launcher.att, app.launcher.dfn
+        box = att.listbox
+        texts = [box.item(i).text() for i in range(box.count())]
+        self.assertEqual(texts, ["Alpha", "Zeta", "", f"DemOrks   {DEMO_TAG}", f"TestMarines   {DEMO_TAG}"])    # the user's first
+        self.assertFalse(box.item(2).flags() & Qt.ItemIsSelectable)        # the room between the two: not a list
+        self.assertEqual([p.name for p in att.paths], ["Alpha.txt", "Zeta.txt", *DEMO_LISTS])
+        self.assertEqual((att.selected_path.name, dfn.selected_path.name), ("Alpha.txt", "Zeta.txt"))    # chosen at first
+
+        att.select(lists / DEMO_LISTS[0])                                  # a demonstration list: not to delete
+        self.assertFalse(att.delete_btn.isEnabled())
+        att.delete(ask=False)
+        self.assertTrue((lists / DEMO_LISTS[0]).exists())
+        att.select(FIXTURE_LIST)                                           # nor a file from elsewhere
+        self.assertFalse(att.delete_btn.isEnabled())
+        att.delete(ask=False)
+        self.assertTrue(FIXTURE_LIST.exists())
+
+        ctx.army_plans.put(SavedPlan("Zeta.txt", DEMO_LISTS[0], [PlanEntry("A", ["A"], None, None)], [], {}))
+        ctx.games.save(DEMO_LISTS[1], "Zeta.txt", {"units": []})
+        ctx.games.save(DEMO_LISTS[0], DEMO_LISTS[1], {"units": []})
+        att.select(lists / "Zeta.txt")                                     # one of the user's: deleted, on both sides
+        self.assertTrue(att.delete_btn.isEnabled())
+        self.assertEqual(dfn.selected_path, lists / "Zeta.txt")
+        bin_was, launcher_module.to_bin = launcher_module.to_bin, (lambda path: path.unlink())      # no bin in a test
+        self.addCleanup(setattr, launcher_module, "to_bin", bin_was)
+        att.delete(ask=False)
+        self.assertFalse((lists / "Zeta.txt").exists())
+        for picker in (att, dfn):
+            self.assertNotIn(lists / "Zeta.txt", picker.paths)
+            self.assertIsNone(picker.selected_path)
+            self.assertIsNone(picker.army)
+            self.assertFalse(picker.delete_btn.isEnabled())
+        self.assertIsNone(app.launcher.selection)
+        self.assertEqual(ctx.list_data("Zeta.txt"), {"tests": 0, "army plans": 0, "games": 0})     # what was saved for it too
+        self.assertEqual(len(ctx.games.of_list(DEMO_LISTS[0])), 1)         # the others' is still there
+        self.assertEqual([box.item(i).text() for i in range(box.count())][:3], ["Alpha", "SpaceMarines", ""])    # the file from elsewhere stays listed
+        att.delete(ask=False)                                              # nothing selected: nothing happens
+        self.assertTrue((lists / "Alpha.txt").exists())
 
     def test_launcher_picks_lists(self):
         launcher = self.app.launcher

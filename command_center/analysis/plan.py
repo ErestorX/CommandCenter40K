@@ -83,6 +83,19 @@ class PlanStore:
             self._plans[k] = UnitPlan()
         return self._plans[k]
 
+    def of_list(self, list_name: str) -> list[str]:
+        """The keys of what is saved for a list file (by its name): a plan per side and unit."""
+        return [k for k in self._plans if k.split("|")[0] == list_name]
+
+    def forget(self, list_name: str) -> int:
+        """Drop what is saved for a list file, and save. How many plans went."""
+        gone = self.of_list(list_name)
+        for k in gone:
+            del self._plans[k]
+        if gone:
+            self.save()
+        return len(gone)
+
     def _load(self):
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))

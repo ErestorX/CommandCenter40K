@@ -64,6 +64,11 @@ follow the note in the dialog:
 
 ![Adding a list](assets/screenshots/add-list.png)
 
+Your lists come first in the launcher; the two demonstration lists are under them, tagged
+**[DEMO]**. To remove one of your own lists, select it and click **Delete...**: its file goes to
+your system's bin, and what the app had saved for it (its tests, its army plans, its games) is
+removed with it. The demonstration lists can't be deleted.
+
 The list is saved next to the others (in `lists/`) and selected straight away. Pick an attacker
 and a defender, the **⇄** button swaps them, then choose a tool.
 

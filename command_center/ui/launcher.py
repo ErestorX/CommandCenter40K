@@ -2,25 +2,41 @@
 list have their buttons apart, on the left of the others.
 
 A list can be added from here: "Add..." takes the text copied from NewRecruit (the dialog says how to
-export it), saves it in the lists folder under a new name, and selects it."""
+export it), saves it in the lists folder under a new name, and selects it.
+
+The demonstration lists the app comes with are listed last, a little apart, with a [DEMO] tag. "Delete..."
+removes one of the user's own lists (never a demonstration list, nor a file picked from elsewhere): its
+file goes to the system's bin, and what was saved for it (its tests, the army plans and the games it is
+part of) is removed with it."""
 from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtGui import QFontDatabase, QGuiApplication
-from PySide6.QtWidgets import (QDialog, QFileDialog, QGridLayout, QHBoxLayout, QLineEdit, QListWidget, QPlainTextEdit,
-                               QPushButton, QVBoxLayout, QWidget)
+from PySide6.QtCore import QFile, QSize, Qt
+from PySide6.QtGui import QColor, QFontDatabase, QGuiApplication
+from PySide6.QtWidgets import (QDialog, QFileDialog, QGridLayout, QHBoxLayout, QLineEdit, QListWidget, QListWidgetItem,
+                               QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget)
 
 from command_center.config import ATTRIBUTION_SHORT as ATTRIBUTION, LISTS_DIR, PROJECT_ROOT
 from command_center.lists import ArmyList, parse_list
-from command_center.lists.library import name_problem, save_list, text_problem
+from command_center.lists.library import can_delete, delete_list, is_demo, name_problem, save_list, text_problem
 from command_center.ui.registry import Selection, Tool, tools
 from command_center.ui.screen import screen_height
+from command_center.ui.theme import C
 from command_center.ui.widgets import Panel, button, label, rule
 
 if TYPE_CHECKING:
     from command_center.ui.app import App
+
+DEMO_TAG = "[DEMO]"
+DEMO_TIP = "A demonstration list: it comes with the app, and can't be deleted."
+
+
+def to_bin(path: Path) -> None:
+    """Put a file in the system's bin; where there is none to put it in, delete it."""
+    if not QFile.moveToTrash(str(path)) and path.exists():
+        path.unlink()
 
 
 class ListPicker(Panel):
@@ -45,6 +61,9 @@ class ListPicker(Panel):
         for text, command in (("Browse...", self.browse), ("Refresh", self.refresh), ("Add...", self.add)):
             btns.addWidget(button(text, command))
         btns.addStretch(1)
+        self.delete_btn = button("Delete...", self.delete, tip="Delete the selected list, and what was saved for it")
+        self.delete_btn.setEnabled(False)
+        btns.addWidget(self.delete_btn)
         col.addLayout(btns)
         col.addSpacing(8)
         self.preview = label("No list selected", "muted", wrap=True)
@@ -52,11 +71,35 @@ class ListPicker(Panel):
         self.refresh()
 
     def _fill(self):
-        """The list as `paths` has it, nothing selected; no one is told."""
+        """The lists of `paths`, nothing selected; no one is told. The user's own first, then, a little
+        apart and tagged, the demonstration lists."""
+        own = [p for p in self.paths if not is_demo(p, LISTS_DIR)]
+        demo = [p for p in self.paths if is_demo(p, LISTS_DIR)]
+        self.paths = own + demo
         self.listbox.blockSignals(True)
         self.listbox.clear()
-        self.listbox.addItems([p.stem for p in self.paths])
+        for p in own:
+            self._item(p.stem, p)
+        if own and demo:
+            gap = QListWidgetItem("")                           # a little room between the two: nothing to select
+            gap.setFlags(Qt.NoItemFlags)
+            gap.setSizeHint(QSize(0, 10))
+            self.listbox.addItem(gap)
+        for p in demo:
+            item = self._item(f"{p.stem}   {DEMO_TAG}", p)
+            item.setForeground(QColor(C["muted"]))
+            item.setToolTip(DEMO_TIP)
         self.listbox.blockSignals(False)
+
+    def _item(self, text: str, path: Path) -> QListWidgetItem:
+        item = QListWidgetItem(text)
+        item.setData(Qt.UserRole, path)
+        self.listbox.addItem(item)
+        return item
+
+    def _item_of(self, path: Path) -> QListWidgetItem | None:
+        return next((it for it in (self.listbox.item(i) for i in range(self.listbox.count()))
+                     if it.data(Qt.UserRole) == path), None)
 
     def refresh(self):
         keep = self.selected_path
@@ -68,8 +111,8 @@ class ListPicker(Panel):
 
     @property
     def selected_path(self) -> Path | None:
-        row = self.listbox.currentRow() if self.listbox.selectedItems() else -1
-        return self.paths[row] if 0 <= row < len(self.paths) else None
+        chosen = self.listbox.selectedItems()
+        return chosen[0].data(Qt.UserRole) if chosen else None
 
     def select(self, path: Path | None):
         if path is not None and path not in self.paths:
@@ -77,8 +120,9 @@ class ListPicker(Panel):
             self._fill()
         self.listbox.blockSignals(True)
         self.listbox.clearSelection()
+        self.listbox.setCurrentItem(None)
         if path is not None:
-            self.listbox.setCurrentRow(self.paths.index(path))
+            self.listbox.setCurrentItem(self._item_of(path))
         self.listbox.blockSignals(False)
         self._on_select()
 
@@ -93,6 +137,35 @@ class ListPicker(Panel):
         """Paste a list's text, name it: it is saved with the others and selected here."""
         AddListDialog(self, self.app, self.role, self._added).open()
 
+    def delete(self, ask: bool = True):
+        """Delete the selected list, if it is one of the user's own: its file goes to the system's bin, and
+        what was saved for it is removed. Asked first, saying what goes with it."""
+        path = self.selected_path
+        if path is None or not can_delete(path, LISTS_DIR):
+            return
+        ctx = self.app.ctx
+        saved = [f"{n} {what}" for what, n in ctx.list_data(path.name).items() if n]
+        if ask and QMessageBox.question(
+                self, "Command Center 40K",
+                f'Delete the list "{path.stem}"?\n\nIts file goes to the bin.'
+                + (f"\nWhat was saved for it is removed for good: {', '.join(saved)}." if saved else "")) != QMessageBox.Yes:
+            return
+        try:
+            delete_list(path, LISTS_DIR, remove=to_bin)
+        except (OSError, ValueError) as e:
+            self.preview.setText(f"The list could not be deleted: {e}")
+            return
+        ctx.forget_list(path.name)
+        for picker in (self.launcher.att, self.launcher.dfn):   # gone from both sides, selected or not
+            picker.forget(path)
+
+    def forget(self, path: Path):
+        """A list is gone: it is no longer listed here, nor selected."""
+        keep = self.selected_path
+        self.paths = [p for p in self.paths if p != path]
+        self._fill()
+        self.select(keep if keep != path else None)
+
     def _added(self, path: Path):
         for picker in (self.launcher.att, self.launcher.dfn):   # both sides list it; this one selects it
             picker.refresh()
@@ -101,6 +174,7 @@ class ListPicker(Panel):
     def _on_select(self):
         p = self.selected_path
         self.army = None
+        self.delete_btn.setEnabled(p is not None and can_delete(p, LISTS_DIR))
         if p:
             try:
                 self.army = parse_list(p, self.app.ctx.wd)

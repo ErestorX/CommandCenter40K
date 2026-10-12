@@ -4,7 +4,8 @@ from pathlib import Path
 
 from command_center import config
 from command_center.lists import formats, parse_list, target_for, weapon_loads
-from command_center.lists.library import clean_name, name_problem, save_list, text_problem
+from command_center.lists.library import (DEMO_LISTS, can_delete, clean_name, delete_list, is_demo, name_problem,
+                                          save_list, text_problem)
 from command_center.lists.newrecruit import split_items
 from tests.helpers import FIXTURES, FIXTURE_LIST, fixture_wd
 
@@ -52,6 +53,76 @@ class AddListTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 save_list("something else", "my marines", lists)
             self.assertEqual(path.read_text(encoding="utf-8"), text.strip() + "\n")       # untouched
+
+
+class DeleteListTest(unittest.TestCase):
+    """The user's own lists can be deleted; the demonstration lists, and files from elsewhere, can't."""
+
+    def setUp(self):
+        self.lists = Path(tempfile.mkdtemp()) / "lists"
+        self.lists.mkdir()
+        text = FIXTURE_LIST.read_text(encoding="utf-8")
+        for name in ("Mine.txt", *DEMO_LISTS, "notes.md"):
+            (self.lists / name).write_text(text, encoding="utf-8")
+        self.elsewhere = Path(tempfile.mkdtemp()) / "Mine.txt"
+        self.elsewhere.write_text(text, encoding="utf-8")
+
+    def test_which_lists_are_whose(self):
+        for name in DEMO_LISTS:
+            self.assertTrue(is_demo(self.lists / name, self.lists))
+            self.assertFalse(can_delete(self.lists / name, self.lists))
+        self.assertFalse(is_demo(self.lists / "Mine.txt", self.lists))
+        self.assertTrue(can_delete(self.lists / "Mine.txt", self.lists))
+        self.assertFalse(is_demo(self.elsewhere.with_name(DEMO_LISTS[0]), self.lists))    # that name, but not in the folder
+        self.assertFalse(can_delete(self.elsewhere, self.lists))                           # a file picked from elsewhere
+        self.assertFalse(can_delete(self.lists / "notes.md", self.lists))                  # not a list
+        self.assertFalse(can_delete(self.lists / "Gone.txt", self.lists))                  # not there
+
+    def test_deleting(self):
+        delete_list(self.lists / "Mine.txt", self.lists)
+        self.assertFalse((self.lists / "Mine.txt").exists())
+        for path in (self.lists / DEMO_LISTS[0], self.elsewhere, self.lists / "Mine.txt", self.lists / "notes.md"):
+            with self.assertRaises(ValueError):
+                delete_list(path, self.lists)
+        self.assertTrue(all((self.lists / name).exists() for name in DEMO_LISTS))
+        self.assertTrue(self.elsewhere.exists())
+        (self.lists / "Other.txt").write_text("x", encoding="utf-8")
+        binned = []
+        delete_list(self.lists / "Other.txt", self.lists, remove=binned.append)           # how it goes is the caller's
+        self.assertEqual(binned, [self.lists / "Other.txt"])
+
+    def test_what_was_saved_for_a_list_goes_with_it_and_nothing_else(self):
+        from command_center.analysis.army_plans import ArmyPlanStore, PlanEntry, SavedPlan
+        from command_center.analysis.plan import ATTACKER, DEFENDER, PlanStore
+        from command_center.context import AppContext
+        from command_center.deploy.games import GameStore
+        folder = Path(tempfile.mkdtemp())
+        mine = parse_list(self.lists / "Mine.txt", fixture_wd())
+        demo = parse_list(self.lists / DEMO_LISTS[0], fixture_wd())
+        plans = PlanStore(folder / "test_plans.json")
+        for army, role in ((mine, ATTACKER), (mine, DEFENDER), (demo, ATTACKER)):
+            plans.get(army, role, army.units[0]).set_included(True, role)
+        plans.save()
+        ctx = AppContext(fixture_wd().data_dir)
+        ctx.test_plans_path = folder / "test_plans.json"
+        ctx._army_plans = ArmyPlanStore(folder / "army_plans.json")
+        ctx._games = GameStore(folder / "games")
+        for a, d in (("Mine.txt", DEMO_LISTS[0]), (DEMO_LISTS[0], "Mine.txt"), (DEMO_LISTS[0], DEMO_LISTS[1]), ("Mine2.txt", "Other.txt")):
+            ctx.army_plans.put(SavedPlan(a, d, [PlanEntry("A", ["A"], None, None)], [], {}))
+            ctx.games.save(a, d, {"units": []})
+        self.assertEqual(ctx.list_data("Mine.txt"), {"tests": 2, "army plans": 2, "games": 2})
+        self.assertEqual(ctx.list_data("Never.txt"), {"tests": 0, "army plans": 0, "games": 0})
+        self.assertEqual(ctx.forget_list("Mine.txt"), {"tests": 2, "army plans": 2, "games": 2})
+        self.assertEqual(ctx.list_data("Mine.txt"), {"tests": 0, "army plans": 0, "games": 0})
+        # on disk too, and the other lists' are all there: one whose name only starts the same included
+        self.assertEqual(len(PlanStore(folder / "test_plans.json").of_list(DEMO_LISTS[0])), 1)
+        again = ArmyPlanStore(folder / "army_plans.json")
+        self.assertIsNotNone(again.get(DEMO_LISTS[0], DEMO_LISTS[1]))
+        self.assertIsNotNone(again.get("Mine2.txt", "Other.txt"))
+        self.assertIsNone(again.get("Mine.txt", DEMO_LISTS[0]))
+        self.assertEqual(sorted(p.name for p in (folder / "games").glob("*.json")),
+                         ["DemOrks vs TestMarines.json", "Mine2 vs Other.json"])
+        self.assertEqual(ctx.forget_list("Mine.txt"), {"tests": 0, "army plans": 0, "games": 0})      # nothing left to remove
 
 
 class NewRecruitTest(unittest.TestCase):

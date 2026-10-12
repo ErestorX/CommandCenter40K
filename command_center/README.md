@@ -69,6 +69,12 @@ tests, per list file, side and unit), `army_plans.json` (its army plans, per pai
 `games/<attacker's list> vs <defender's list>.json` (the Field Holomap's game for a pair of
 lists: see below).
 
+Deleting a list from the launcher (`lists.library.delete_list`: one of the user's own, in the
+lists folder; never a demonstration list, nor a file picked from elsewhere) removes what is saved
+for it and for no other list (`AppContext.forget_list`): its units' tests, the army plans and the
+games it is part of, as attacker or as defender. Estimates are per pairing of Force Dispositions,
+not per list: they stay. The file itself goes to the system's bin.
+
 Look: `command_center/ui/palette.py` holds the dark palette (`C`); `command_center/ui/theme.py` makes
 Qt's palette and style sheet of it, and loads the fonts. A widget takes a style by its `role`
 (`command_center/ui/widgets.py`).
@@ -117,7 +123,8 @@ command_center/
     missionbook.py        primary missions and layouts from missions/json (lazy), per disposition pairing
   lists/
     registry.py           pluggable list formats
-    library.py            the lists folder: a pasted list checked and saved under a new name
+    library.py            the lists folder: a pasted list checked and saved under a new name, a list deleted;
+                          which lists are the demonstration ones (DEMO_LISTS)
     newrecruit.py         NewRecruit text export
     model.py              ArmyList / ListUnit (format-independent)
     linking.py            list -> datasheets, weapon loads, targets
@@ -148,7 +155,8 @@ command_center/
                           floating ones opened from them are as tall as it (screen_height)
     updater.py            the data check at start-up (once a day), in a window of its own
     appupdate.py          the packaged app's update at start-up: the offer, the download window
-    launcher.py           choose attacker/defender lists, then a tool (list-free tools: apart, on the left)
+    launcher.py           choose attacker/defender lists, then a tool (list-free tools: apart, on the left);
+                          add a list, delete one of the user's own (the demonstration lists are apart, and stay)
     palette.py, theme.py  the dark theme: its colours as plain values; Qt's palette, style sheet and fonts
     widgets.py            shared widgets: labels and buttons by role, tables, drop-downs, tick boxes
     worker.py             work on another thread, its result back through a signal

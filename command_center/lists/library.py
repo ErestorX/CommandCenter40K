@@ -1,7 +1,13 @@
-"""The folder of army lists: adding one from its pasted text, under a new name.
+"""The folder of army lists: adding one from its pasted text, under a new name, and deleting one.
 
     problem = name_problem("My list", lists_dir) or text_problem(text, wd)      # None: fine
     path = save_list(text, "My list", lists_dir)
+    if can_delete(path, lists_dir):
+        delete_list(path, lists_dir)
+
+The demonstration lists the app comes with (DEMO_LISTS) are not the user's: they are never deleted.
+What was saved for a list (tests, army plans, games) is not in this folder: command_center.context
+forgets it.
 """
 from __future__ import annotations
 
@@ -13,6 +19,35 @@ from command_center import config
 from command_center.data.wahapedia import Wahapedia
 
 FORBIDDEN = '\\/:*?"<>|'          # not allowed in a file name
+DEMO_LISTS = ("DemOrks.txt", "TestMarines.txt")     # the demonstration lists, by file name
+
+
+def in_folder(path: Path, lists_dir: Path) -> bool:
+    """Is this file directly in the lists folder (and not one picked from elsewhere)?"""
+    try:
+        return Path(path).resolve().parent == Path(lists_dir).resolve()
+    except OSError:
+        return False
+
+
+def is_demo(path: Path, lists_dir: Path) -> bool:
+    """One of the demonstration lists the app comes with, in the lists folder."""
+    return Path(path).name in DEMO_LISTS and in_folder(path, lists_dir)
+
+
+def can_delete(path: Path, lists_dir: Path) -> bool:
+    """A list of the user's own, in the lists folder: not a demonstration list, not a file from elsewhere."""
+    path = Path(path)
+    return path.suffix.lower() == ".txt" and path.is_file() and in_folder(path, lists_dir) and not is_demo(path, lists_dir)
+
+
+def delete_list(path: Path, lists_dir: Path, remove=None) -> None:
+    """Delete a list's file. ValueError for one that can't be (see can_delete). remove(path): how the file
+    goes (to the system's bin, say); without it, it is deleted for good."""
+    path = Path(path)
+    if not can_delete(path, lists_dir):
+        raise ValueError(f"{path.name} can't be deleted: it is not one of your lists in {lists_dir}")
+    (remove or Path.unlink)(path)
 
 
 def clean_name(name: str) -> str:

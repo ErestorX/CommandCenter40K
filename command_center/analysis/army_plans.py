@@ -128,6 +128,19 @@ class ArmyPlanStore:
         for fn in list(self._listeners):
             fn(plan)
 
+    def of_list(self, list_name: str) -> list[str]:
+        """The keys of the plans a list file (by its name) is part of, as attacker or as defender."""
+        return [k for k in self._plans if list_name in k.split("|")]
+
+    def forget(self, list_name: str) -> int:
+        """Drop the plans a list file is part of, and save. How many went."""
+        gone = self.of_list(list_name)
+        for k in gone:
+            del self._plans[k]
+        if gone:
+            self.save()
+        return len(gone)
+
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")

@@ -39,6 +39,25 @@ class GameStore:
             return {}
         return game if isinstance(game, dict) else {}
 
+    def of_list(self, list_name: str) -> list[Path]:
+        """The files of the games a list file (by its name) is part of, as attacker or as defender."""
+        found = []
+        for path in sorted(self.folder.glob("*.json")) if self.folder.is_dir() else []:
+            try:
+                game = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if isinstance(game, dict) and list_name in (game.get("attacker"), game.get("defender")):
+                found.append(path)
+        return found
+
+    def forget(self, list_name: str) -> int:
+        """Delete the games a list file is part of. How many went."""
+        gone = self.of_list(list_name)
+        for path in gone:
+            path.unlink(missing_ok=True)
+        return len(gone)
+
     def save(self, attacker_list: str | Path, defender_list: str | Path, game: dict) -> None:
         path = self.path(attacker_list, defender_list)
         path.parent.mkdir(parents=True, exist_ok=True)
