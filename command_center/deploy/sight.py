@@ -293,6 +293,11 @@ def reaching_fans(rays: Rays, polygon: list[tuple[float, float]]) -> list[list[t
     return out
 
 
+def sees(rays: Rays | None, polygon: list[tuple[float, float]]) -> bool:
+    """Whether any of the rays gets to `polygon` (a unit's outline): the unit is seen, be it by a corner."""
+    return rays is not None and bool(np.isfinite(reaching(rays, polygon)).any())
+
+
 def reaching(rays: Rays, polygon: list[tuple[float, float]]) -> np.ndarray:
     """For each ray, how far along it reaches `polygon` (a target's outline) within what it sees; inf
     where it doesn't get there."""

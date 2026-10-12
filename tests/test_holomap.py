@@ -16,7 +16,7 @@ from command_center.deploy.movement import parse_move, rings
 from command_center.deploy.objectives import (contact_length, distance_to_region, objective_regions, terrain_pieces,
                                               touching)
 from command_center.deploy.sight import (GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, cast, piece_crossings,
-                                         ray_lengths, reaching, reaching_fans, visibility)
+                                         ray_lengths, reaching, reaching_fans, sees, visibility)
 from command_center.deploy.placement import (clamp, ellipse_polygon, extent, nearest_on_outline, offset_ellipse,
                                              overlaps, random_spot)
 from command_center.deploy.roster import roster
@@ -272,6 +272,15 @@ class SightTest(unittest.TestCase):
         self.assertFalse(np.isfinite(reaching(rays, square(44, 29, 4, 4))).any())   # behind the wall
         self.assertFalse(np.isfinite(reaching(cast(ellipse_polygon(5, 30, 2, 2, n=36), 10,
                                                     Obstacles.from_layout(self.LAYOUT)), open_target)).any())
+
+    def test_a_unit_is_seen_or_not(self):
+        obstacles = Obstacles.from_layout(self.LAYOUT)
+        rays = cast(ellipse_polygon(5, 30, 2, 2, n=36), 48, obstacles)
+        self.assertTrue(sees(rays, square(20, 29, 4, 2)))                    # in the open
+        self.assertFalse(sees(rays, square(44, 29, 4, 4)))                   # behind the wall
+        self.assertTrue(sees(rays, square(20, 40, 4, 2)))                    # off to one side: by other rays
+        self.assertFalse(sees(cast(ellipse_polygon(5, 30, 2, 2, n=36), 10, obstacles), square(20, 29, 4, 2)))   # out of range
+        self.assertFalse(sees(None, square(20, 29, 4, 2)))                   # nothing was cast
 
     def test_reaching_fans_cover_the_rays_reaching_a_target(self):
         rays = cast(ellipse_polygon(5, 30, 2, 2, n=36), 48, Obstacles.from_layout(self.LAYOUT))

@@ -197,6 +197,29 @@ class HolomapTest(unittest.TestCase):
         m.token_released()                                                 # a plain click: nothing to draw again
         self.assertEqual(len(cast_with), before)
 
+    def test_enemy_units_in_the_line_of_sight_glow(self):
+        win = self.win
+        attackers, defenders = self.place()
+        m = win.maps[0]
+        key = next((k for k in attackers if m.tokens[k].ranges), None)
+        if key is None:
+            self.skipTest("the fixture's attackers have no ranged weapon")
+        reach = max(m.tokens[key].ranges)
+        m.move_token(key, 10, 22)
+        m.move_token(defenders[0], 10 + min(reach, 12) / 2 + 4, 22)        # next to it, nothing between: seen
+        m.move_token(attackers[1], 10, 30)                                 # one of its own side, as near
+        m.pick(key)
+        self.assertEqual(m.seen, set())                                    # line of sight is not shown yet
+        before = len(m._overlay_items)
+        win.overlay_ticks["sight"].setChecked(True)
+        self.assertIn(defenders[0], m.seen)
+        self.assertTrue(m.seen <= set(defenders))                          # enemy units only, never its own side
+        self.assertGreater(len(m._overlay_items), before + len(m.seen))
+        m.pick(defenders[0])                                               # the other way round: from the defender
+        self.assertTrue(m.seen <= set(attackers))
+        win.overlay_ticks["sight"].setChecked(False)
+        self.assertEqual(m.seen, set())
+
     def test_planned_targets(self):
         win = self.win
         self.assertTrue(win.plan_note.isVisibleTo(win))                    # no army plan yet: said so

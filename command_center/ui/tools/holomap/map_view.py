@@ -10,6 +10,7 @@ distance from its footprint edge), the shortest line from it to each objective, 
 the whole terrain its marker stands on (command_center.deploy.objectives), and its line of sight: what it can
 see up to its longest weapon range (command_center.deploy.sight), with a circle per weapon range; with the
 planned targets shown too, the part of it reaching its 1st target (and 2nd, with "plan2") is green.
+Every enemy unit that line of sight gets to, be it by a corner of its base, has a faint glow around it.
 While the unit is dragged its line of sight is a draft, cast with fewer rays; it is cast in full as
 soon as the unit is let go.
 
@@ -33,7 +34,7 @@ from command_center.deploy.movement import rings
 from command_center.deploy.objectives import distance_to_region, objective_regions
 from command_center.deploy.placement import clamp, ellipse_polygon, extent, offset_ellipse, random_spot
 from command_center.deploy.sight import (DRAFT_DIRECTIONS, DRAFT_ORIGINS, GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles,
-                                         cast, fans, reaching_fans)
+                                         cast, fans, reaching_fans, sees)
 from command_center.ui.theme import C, font_family
 from command_center.ui.views.board import (AREA_FILL, AREA_LINE, BOARD_H, BOARD_W, FEATURE_FILL, NO_PEN, OBJ_FILL,
                                            ZONE_FILL, ZONE_INK, LayoutMap, PixelText, line_pen, polygon)
@@ -48,6 +49,8 @@ DISTANCE_DASH = (5, 2, 1.5, 2)    # dash-dot, in widths of the line: visible wit
 SIGHT_FILL, SIGHT_OPACITY = "#6e6a63", 0.125      # very light grey
 RANGE_INK = "#55524c"
 TARGET_FILL, TARGET_OPACITY = "#2e9e44", 0.25     # faint green: the sight reaching its planned target(s)
+SEEN_FILL, SEEN_OPACITY = "#f2c230", 0.6          # a faint glow around an enemy unit the line of sight gets to
+SEEN_GLOW = 0.4                   # inches: how far the glow reaches around the unit
 PLAN_INK = ZONE_INK["attacker"]
 OVERLAY_DELAY = 30                # ms between overlay redraws while dragging
 OVERLAYS = ("move", "advance", "charge", "objectives", "plan", "plan2", "planall", "sight", "hidden", "ground")
@@ -166,6 +169,7 @@ class UnitMap(LayoutMap):
         self.regions: list[dict] = []                               # objectives as terrain, per layout
         self.obstacles: Obstacles | None = None                    # what blocks line of sight, per layout
         self.plan_links: list[tuple[str, str, str]] = []           # (attacker key, target key, rank)
+        self.seen: set[str] = set()                                 # the enemy units the selected one's line of sight gets to
         self._overlay_items: list[QGraphicsItem] = []
         self._link_items: list[QGraphicsItem] = []
         self._overlay_timer = QTimer(self)
@@ -405,6 +409,7 @@ class UnitMap(LayoutMap):
         items = self._overlay_items
         self._clear(items)
         self._draft = draft
+        self.seen = set()
         t = self.tokens.get(self.selected or "")
         if not t or not self.layout_data:
             return
@@ -417,6 +422,19 @@ class UnitMap(LayoutMap):
             few = dict(origins=DRAFT_ORIGINS, directions=DRAFT_DIRECTIONS) if draft else {}
             rays = cast(outline, max(t.ranges), self.obstacles, hidden=hidden, **few)
             self._shade(items, fans(rays), SIGHT_FILL, SIGHT_OPACITY, Z_OVERLAY)       # union: what it sees
+            for o in self.tokens.values():                      # the enemy units in it: a glow around each
+                of = o.footprint
+                if o.role != t.role and sees(rays, ellipse_polygon(o.x, o.y, of.w, of.h, o.angle, n=36)):
+                    self.seen.add(o.key)
+                    ring = QPainterPath()                       # around the unit, not under it: its own colour stays
+                    ring.addPolygon(polygon(offset_ellipse(o.x, o.y, of.w, of.h, o.angle, SEEN_GLOW)))
+                    ring.closeSubpath()
+                    ring.addPolygon(polygon(ellipse_polygon(o.x, o.y, of.w, of.h, o.angle)))
+                    ring.closeSubpath()
+                    glow = QGraphicsPathItem(ring)
+                    glow.setPen(NO_PEN)
+                    glow.setBrush(see_through(SEEN_FILL, SEEN_OPACITY))
+                    self._add(items, glow, Z_OVERLAY + 0.6)
             if rays is not None and self.overlays["plan"]:      # what of it reaches its targets: green
                 reaching = []
                 for a_key, d_key, rank in self.plan_links:

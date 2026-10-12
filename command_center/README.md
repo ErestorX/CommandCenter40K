@@ -330,7 +330,9 @@ ray every 3 degrees while the unit is dragged, the full count again once it is l
 cross one terrain edge (see into a ruin, not through it), two when it starts inside one.
 A piece of terrain counts as one whole, as for objectives: the footprints of an area, and
 areas touching along an edge, have no inner borders (seams up to 0.3" wide included).
-Light features don't block; the board edges do; elevation is ignored. Its sub-option
+Light features don't block; the board edges do; elevation is ignored. Every enemy unit the
+line of sight gets to, be it by a corner of its base, has a faint glow around it
+(`deploy.sight.sees`); units don't hide one another. Its sub-option
 Hidden: nothing inside a terrain area can be seen from more than 15" - a ray entering a
 terrain area stops 15" from its source (or at the area's edge if it gets there beyond 15");
 and Hidden's own sub-option Go to Ground brings that down to 12".
