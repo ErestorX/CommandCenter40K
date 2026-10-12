@@ -82,8 +82,7 @@ The windows are tested without a screen (`tests/test_ui_*.py`, on Qt's "offscree
 a worker thread in such a test goes through Qt's event loop (`tests.test_ui_auspex.wait_until`), never
 `QTest.qWait`, which keeps Python's lock. Two things to know when writing a window: an attribute named
 as a method of its Qt class replaces that method silently (`metric`, `actions`, `hide`...), and a
-maximised window that was hidden is shown again through `screen.show_again`. How the front end came
-from tkinter to Qt, and what was measured on the way: `docs/qt_migration.md`.
+maximised window that was hidden is shown again through `screen.show_again`.
 
 Qt is used under the LGPL: `assets/licenses/` ships with the packaged app, where Qt's libraries stay
 separate files.
