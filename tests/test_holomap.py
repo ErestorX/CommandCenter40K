@@ -11,6 +11,7 @@ import numpy as np
 
 from command_center.data.layouts import parse_layouts
 from command_center.deploy import parse_base, unit_footprint
+from command_center.deploy.bases import remaining_bases
 from command_center.deploy.bases import COHERENCY, COMPACT, ELLIPSE, FORMATIONS, LINE, REACH, SPACED, SPREAD, TUBE
 from command_center.deploy.arrange import arrange
 from command_center.deploy.movement import parse_move, rings
@@ -176,6 +177,26 @@ class BasesTest(unittest.TestCase):
             lone = unit_footprint([(parse_base("40mm"), 1)], name)
             self.assertEqual((round(lone.w, 6), round(lone.h, 6), lone.shape), (round(40 / 25.4, 6), round(40 / 25.4, 6), ELLIPSE))
         self.assertEqual(unit_footprint(boyz, "no such formation"), by[SPACED])
+
+    def test_models_lost(self):
+        small, large, hero = parse_base("25mm"), parse_base("40mm"), parse_base("32mm")
+        bases, characters = [(large, 2), (small, 3), (hero, 1)], [False, False, True]
+        left = lambda lost: remaining_bases(bases, characters, lost)
+        self.assertEqual(left(0), bases)
+        self.assertEqual(left(1), [(large, 2), (small, 2), (hero, 1)])       # the smallest bases first
+        self.assertEqual(left(3), [(large, 2), (hero, 1)])
+        self.assertEqual(left(4), [(large, 1), (hero, 1)])                   # then the larger ones
+        self.assertEqual(left(5), [(hero, 1)])                               # the character last, smaller base or not
+        self.assertEqual(left(6), [])
+        self.assertEqual(left(60), [])
+        self.assertEqual(left(-1), bases)
+        self.assertEqual(remaining_bases(bases, [], 4), [(large, 2)])        # no character told: by size alone
+        self.assertEqual(bases, [(large, 2), (small, 3), (hero, 1)])         # what it started with is not touched
+        rows = roster(parse_list(FIXTURE_LIST, fixture_wd()), fixture_wd())
+        for row in rows:                                                     # the roster says which lines are characters'
+            self.assertEqual(len(row.characters), len(row.bases))
+            self.assertEqual(sum(n for _, n in row.bases), row.models)
+        self.assertTrue(any(any(row.characters) for row in rows))
 
     def test_tube(self):
         tube = tube_polygon(10, 20, 8, 2, 0, n=72)

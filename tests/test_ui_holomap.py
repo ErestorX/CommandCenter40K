@@ -304,7 +304,7 @@ class HolomapTest(unittest.TestCase):
         entries = m.menu_actions(key)
         at = [e.name for e in entries].index(FORMATION)
         self.assertIsNone(entries[at].do)
-        choices = entries[at + 1:]
+        choices = entries[at + 1:at + 5]
         self.assertEqual([e.name for e in choices], ["Compact", '1" space', "Max spread", "Line spread"])
         self.assertEqual([e.ticked for e in choices], [False, True, False, False])     # as it starts: 1" apart
         spaced = (t.footprint.w, t.footprint.h)
@@ -313,7 +313,7 @@ class HolomapTest(unittest.TestCase):
         choices[0].do()                                                    # Compact: smaller
         self.assertEqual(t.formation, COMPACT)
         self.assertLess(t.footprint.w, spaced[0])
-        self.assertEqual([e.ticked for e in m.menu_actions(key)[at + 1:]], [True, False, False, False])
+        self.assertEqual([e.ticked for e in m.menu_actions(key)[at + 1:at + 5]], [True, False, False, False])
         self.assertEqual((t.x, t.y), (30, 22))                             # where it stood
         compact = area()
         m.set_formation(key, SPREAD)                                       # Max spread: larger than 1" apart
@@ -345,6 +345,73 @@ class HolomapTest(unittest.TestCase):
         lone = next((k for k in m.tokens if m.tokens[k].footprint.models == 1), None)
         if lone:                                                           # a lone model has no formation to choose
             self.assertNotIn(FORMATION, [e.name for e in m.menu_actions(lone)])
+
+    def test_a_unit_loses_models_and_is_destroyed(self):
+        from command_center.deploy.bases import unit_footprint
+        from command_center.ui.tools.holomap.map_view import ADD_MODEL, DESTROYED, FORMATION, GONE, LOSE_MODEL, TOKEN, UNIT
+        attackers, _ = self.place(4)
+        m = self.win.maps[0]
+        key = next((k for k in attackers if m.tokens[k].footprint.models > 2), None)
+        if key is None:
+            self.skipTest("the fixture's attackers have two models at most")
+        t, item = m.tokens[key], m.items[key]
+        m.move_token(key, 30, 22)
+        started, full = t.strength, (t.footprint.w, t.footprint.h)
+        self.assertEqual((t.models, t.lost), (started, 0))
+
+        def unit_entries():
+            entries = m.menu_actions(key)
+            at = [e.name for e in entries].index(UNIT)
+            self.assertEqual([e.name for e in entries[at + 1:]], [LOSE_MODEL, ADD_MODEL, DESTROYED])
+            return entries[at + 1:]
+        lose, add, destroy = unit_entries()
+        self.assertEqual((lose.enabled, add.enabled, destroy.enabled), (True, False, True))       # at full strength: none to give back
+        self.assertIsNone(item._count)
+
+        lose.do()                                                          # one model fewer: a smaller token, its count above
+        self.assertEqual((t.models, t.footprint.models), (started - 1, started - 1))
+        self.assertLess(t.footprint.w * t.footprint.h, full[0] * full[1])
+        self.assertEqual(item._count.text, f"{started - 1}/{started}")
+        self.assertIs(item._count.parentItem(), item)
+        self.assertEqual((t.x, t.y), (30, 22))                             # where it stood
+        self.assertTrue(unit_entries()[1].enabled)
+        self.assertEqual(t.footprint, unit_footprint(t.bases_left(), t.formation))
+        add = unit_entries()[1]
+        add.do()                                                           # and back: as it started
+        self.assertEqual((t.models, (t.footprint.w, t.footprint.h)), (started, full))
+        self.assertIsNone(item._count)
+        m.add_model(key)                                                   # never more than it started with
+        self.assertEqual(t.models, started)
+
+        for _ in range(started - 1):                                       # down to its last model
+            m.lose_model(key)
+        self.assertEqual((t.models, t.destroyed), (1, False))
+        self.assertNotIn(FORMATION, [e.name for e in m.menu_actions(key)])     # one model: no formation to choose
+        m.lose_model(key)                                                  # its last one: destroyed
+        self.assertTrue(t.destroyed and t.reserve)                         # grey, and off to the reserves
+        self.assertEqual((t.models, item._count.text), (0, f"0/{started}"))
+        self.assertEqual(item.brush().color().name(), GONE[0])
+        self.assertLess(item.brush().color().alphaF(), 0.3)
+        lose, add, destroy = unit_entries()
+        self.assertEqual((lose.enabled, add.enabled, destroy.enabled), (False, True, False))
+        m.to_board(key)                                                    # it can be put back on the board, still grey
+        self.assertTrue(t.destroyed and not t.reserve)
+        self.win.overlay_ticks["move"].setChecked(True)
+        m.pick(key)
+        self.assertEqual(m._overlay_items, [])                             # nothing is measured from it
+        m.add_model(key)                                                   # a model back: its colour too
+        self.assertEqual((t.destroyed, t.models), (False, 1))
+        self.assertEqual(item.brush().color().name(), TOKEN[t.role][0])
+        self.assertEqual(item._count.text, f"1/{started}")
+        self.assertGreater(len(m._overlay_items), 0)
+
+        for _ in range(started):
+            m.add_model(key)
+        self.assertEqual((t.models, (t.footprint.w, t.footprint.h)), (started, full))
+        unit_entries()[2].do()                                             # Destroyed, straight from full strength
+        self.assertTrue(t.destroyed and t.reserve and t.models == 0)
+        self.assertEqual((t.footprint.w, t.footprint.h), full)             # it keeps the size it had
+        self.assertEqual(self.win.maps[1].tokens[key].models, started)     # each board its own
 
     def test_right_button(self):
         from PySide6.QtCore import QPoint

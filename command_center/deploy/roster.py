@@ -20,6 +20,7 @@ class RosterRow:
     move: float = 0.0             # inches: the slowest model's Move (a unit moves at its slowest)
     ranges: list[float] = field(default_factory=list)   # distinct ranged weapon ranges, inches, shortest first
     bases: list[tuple[Base, int]] = field(default_factory=list)     # (base, count) of every model: its footprint in another formation
+    characters: list[bool] = field(default_factory=list)            # for each line of bases: a character's (the last models to go)
 
 
 def unit_bases(u: ListUnit) -> list[tuple[Base, int]]:
@@ -54,10 +55,11 @@ def roster(army: ArmyList, wd) -> list[RosterRow]:
             continue
         group = [u] + joined.get(u.uid, [])
         name = " + ".join(x.label or x.name for x in group) + ("" if u.datasheet else "  (no datasheet)")
-        bases = [b for x in group for b in unit_bases(x)]
+        lines = [(b, x.is_character) for x in group for b in unit_bases(x)]
+        bases = [b for b, _ in lines]
         rows.append(RosterRow(f"u{u.uid}", group, name, sum(x.model_count for x in group),
                               sum(x.points for x in group), unit_footprint(bases), unit_move(group),
-                              weapon_ranges(group), bases))
+                              weapon_ranges(group), bases, [character for _, character in lines]))
     return rows
 
 

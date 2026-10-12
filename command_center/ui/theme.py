@@ -85,6 +85,7 @@ QSlider::handle:horizontal:hover {{ background: {hover}; }}
 QMenu {{ background: {raised}; color: {ink}; border: 1px solid {line}; padding: 3px; }}
 QMenu::item {{ padding: 4px 18px; }}
 QMenu::item:selected {{ background: {select}; color: white; }}
+QMenu::item:disabled {{ color: {dim}; background: transparent; }}
 QGroupBox {{ border: 1px solid {line}; margin-top: 9px; padding-top: 4px; }}
 QGroupBox::title {{ subcontrol-origin: margin; left: 8px; padding: 0px 3px; color: {muted}; }}
 QComboBox {{ background: {field}; color: {ink}; border: 1px solid {line}; padding: 2px 6px; }}

@@ -140,6 +140,19 @@ def _line(bases: list[tuple[Base, int]]) -> tuple[float, float]:
     return row + gap * (per_row - 1), rows * width + gap * (rows - 1)
 
 
+def remaining_bases(bases: list[tuple[Base, int]], characters: list[bool], lost: int) -> list[tuple[Base, int]]:
+    """The bases a unit has left once it has lost `lost` models. Models go in this order: those that are
+    not characters first (`characters`: whether each line of `bases` is a character's), and among them
+    the smallest bases first; then the characters, smallest first."""
+    flags = list(characters) + [False] * (len(bases) - len(characters))
+    left = [n for _, n in bases]
+    for i in sorted(range(len(bases)), key=lambda i: (flags[i], bases[i][0].area)):
+        gone = min(left[i], max(lost, 0))
+        left[i] -= gone
+        lost -= gone
+    return [(b, n) for (b, _), n in zip(bases, left) if n > 0]
+
+
 def unit_footprint(bases: list[tuple[Base, int]], formation: str = SPACED) -> Footprint:
     """What a unit of `bases` [(base, count)] takes on the table in a formation (a lone model: its base)."""
     bases = [(b, n) for b, n in bases if n > 0]

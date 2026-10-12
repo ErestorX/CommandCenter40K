@@ -9,6 +9,13 @@ several models, under "Formation", how its models stand, which sets the size and
 (command_center.deploy.bases: compact, 1" apart as it starts, spread as far as it may, or in a line,
 which is a tube and not an ellipse). Each board keeps its own.
 
+Under "Unit", the menu counts the unit's models on that board: "-1 Model" takes one off (those that
+are not characters first, the smallest bases first), "+1 Model" puts one back, up to the strength it
+started at, and the token is sized again for the models left; while some are missing, "left/started"
+is written above it. "Destroyed" takes them all: the token turns grey and fainter and goes to the
+reserves (it can be brought back to the board), with nothing measured or seen from it; "+1 Model"
+gives it its first model, and its colour, back.
+
 A unit's name is written inside its base, along it, as large as fits and on as many lines as that
 takes; what does not fit, even at the smallest size, is cut short with an ellipsis (fit_label). The
 whole name is in the token's tooltip, and under the map's title while the pointer is on it.
@@ -44,7 +51,7 @@ from PySide6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsPolygo
                                QSizePolicy, QVBoxLayout, QWidget, QWidgetAction)
 
 from command_center.deploy import Footprint
-from command_center.deploy.bases import FORMATIONS, SPACED, TUBE, Base, unit_footprint
+from command_center.deploy.bases import FORMATIONS, SPACED, TUBE, Base, remaining_bases, unit_footprint
 from command_center.deploy.movement import rings
 from command_center.deploy.objectives import distance_to_region, objective_regions
 from command_center.deploy.placement import clamp, extent, offset_outline, outline, overlaps, random_spot
@@ -62,6 +69,10 @@ SELECTED = "#e0a800"
 # the turns a unit's menu offers, under its "Rotate" heading: degrees clockwise, and how each is written
 ROTATE = "Rotate"
 FORMATION = "Formation"           # the heading of the formations (command_center.deploy.bases.FORMATIONS) in that menu
+UNIT, LOSE_MODEL, ADD_MODEL, DESTROYED = "Unit", "-1 Model", "+1 Model", "Destroyed"       # and of the unit's models
+GONE = ("#8d8d8d", "#6a6a6a")     # a destroyed unit: fill, outline
+GONE_OPACITY = 0.25               # and fainter than a unit still there
+COUNT_BACK = QColor(255, 255, 255, 200)       # behind the "left/started" written above a unit short of models
 ROTATIONS = ((15, "↻  15°"), (45, "↻  45°"), (-15, "↺  15°"), (-45, "↺  45°"))
 RING_INK = ["#2f7d32", "#c26a00", "#7b3fa0"]      # innermost ring first
 DISTANCE_INK = "#1d1c1a"
@@ -122,6 +133,22 @@ class Token:
     reserve: bool = False       # in the reserves space, not on the board
     bases: tuple[tuple[Base, int], ...] = ()      # (base, count) of its models: what its footprint is made from
     formation: str = SPACED     # how its models stand: its footprint's size and shape
+    characters: tuple[bool, ...] = ()             # for each line of bases: a character's (the last models to go)
+    lost: int = 0               # models it has lost
+    destroyed: bool = False     # all of them: grey, until one is given back
+
+    @property
+    def strength(self) -> int:
+        """The models it started with."""
+        return sum(n for _, n in self.bases) if self.bases else self.footprint.models
+
+    @property
+    def models(self) -> int:
+        """The models it has left."""
+        return self.strength - self.lost
+
+    def bases_left(self) -> list[tuple[Base, int]]:
+        return remaining_bases(list(self.bases), list(self.characters), self.lost)
     board_spot: tuple[float, float] | None = None       # where it stood on the board, to go back there
 
     @property
@@ -142,10 +169,11 @@ class Token:
 
 class MenuEntry(NamedTuple):
     """An entry of a unit's menu: its name and what it does (None: a heading); ticked or not, for a
-    choice among several (None: not such a choice)."""
+    choice among several (None: not such a choice); whether it can be chosen now."""
     name: str
     do: Callable[[], None] | None = None
     ticked: bool | None = None
+    enabled: bool = True
 
 
 def compact_label(name: str) -> str:
@@ -229,19 +257,31 @@ class TokenItem(QGraphicsPolygonItem):
         self.setToolTip(token.label)                    # in full: its base may only have room for a part of it
         self.setPos(token.x, token.y)
         self._name: tuple[tuple, tuple | None] | None = None        # the name as fitted, and the base's size it was fitted to
+        self._count: PixelText | None = None                # its models left over those it started with, when some are missing
         self.shape_it()
 
     def shape_it(self):
-        """Its outline, for the angle it is turned at, and its look: selected or not."""
+        """Its outline, for the angle it is turned at, and its look: selected or not, destroyed or not,
+        with its models left over those it started with above it when some are missing."""
         t = self.token
         fp = t.footprint
         self.setPolygon(polygon(outline(0, 0, fp.w, fp.h, t.angle, shape=fp.shape)))
-        fill, line = TOKEN[t.role]
+        fill, line = GONE if t.destroyed else TOKEN[t.role]
         chosen = self.board.selected == t.key
         pen = line_pen(SELECTED if chosen else line, 3 if chosen else 1.5, (3, 1.5) if t.footprint.estimated else None)
         self.setPen(pen)
-        self.setBrush(see_through(fill, TOKEN_OPACITY))
+        self.setBrush(see_through(fill, GONE_OPACITY if t.destroyed else TOKEN_OPACITY))
         self.setZValue(Z_CHOSEN if chosen else Z_TOKEN)
+        if self._count is not None:
+            self._count.setParentItem(None)
+            if self._count.scene() is not None:
+                self._count.scene().removeItem(self._count)
+            self._count = None
+        if t.lost:
+            count = self._count = PixelText(f"{t.models}/{t.strength}", 0, t.box[1] / 2, line, bold=True, back=COUNT_BACK)
+            count.offset = (0, -count.size[1] / 2 - 3)      # above the token, whatever the board's scale
+            count.setAcceptedMouseButtons(Qt.NoButton)
+            count.setParentItem(self)                       # it goes where the token goes
 
     def paint(self, painter: QPainter, option, widget=None):
         """The base, then the unit's name inside it, along it: in pixels, whatever the board's scale."""
@@ -262,7 +302,7 @@ class TokenItem(QGraphicsPolygonItem):
         angle = t.angle % 180                               # along the base, and never upside down
         painter.rotate(angle - 180 if angle > 90 else angle)
         painter.setFont(font)
-        painter.setPen(QColor(TOKEN[t.role][1]))
+        painter.setPen(QColor(GONE[1] if t.destroyed else TOKEN[t.role][1]))
         for i, line in enumerate(lines):
             y = (i - (len(lines) - 1) / 2) * height
             painter.drawText(QRectF(-a, y - height / 2, 2 * a, height), Qt.AlignCenter, line)
@@ -442,18 +482,64 @@ class UnitMap(LayoutMap):
         entries = [MenuEntry(TO_BOARD, lambda: self.to_board(key)) if t.reserve else
                    MenuEntry(TO_RESERVES, lambda: self.to_reserves(key)), MenuEntry(ROTATE)]
         entries += [MenuEntry(text, lambda degrees=degrees: self.rotate(key, degrees)) for degrees, text in ROTATIONS]
-        if t.bases and t.footprint.models > 1:
+        if t.bases and t.models > 1:
             entries.append(MenuEntry(FORMATION))
             entries += [MenuEntry(text, lambda name=name: self.set_formation(key, name), t.formation == name)
                         for name, text in FORMATIONS.items()]
+        if t.bases:
+            entries += [MenuEntry(UNIT),
+                        MenuEntry(LOSE_MODEL, lambda: self.lose_model(key), enabled=not t.destroyed),
+                        MenuEntry(ADD_MODEL, lambda: self.add_model(key), enabled=t.lost > 0),
+                        MenuEntry(DESTROYED, lambda: self.destroy(key), enabled=not t.destroyed)]
         return entries
+
+    def lose_model(self, key: str):
+        """Take a model off a unit: its last one, and the unit is destroyed."""
+        t = self.tokens[key]
+        if not t.bases or t.destroyed:
+            return
+        if t.models <= 1:
+            return self.destroy(key)
+        t.lost += 1
+        self._resized(t)
+
+    def add_model(self, key: str):
+        """Give a unit a model back, up to those it started with; a destroyed unit is one no longer."""
+        t = self.tokens[key]
+        if not t.bases or t.lost <= 0:
+            return
+        t.lost -= 1
+        t.destroyed = False
+        self._resized(t)
+
+    def destroy(self, key: str):
+        """A unit has lost all its models: grey where it is drawn, and off to the reserves, where it keeps
+        the size it had (it can be put back on the board)."""
+        t = self.tokens[key]
+        if not t.bases or t.destroyed:
+            return
+        t.destroyed, t.lost = True, t.strength
+        if key in self.items:
+            self.items[key].shape_it()
+        if t.reserve:
+            self._redraw_overlays()
+        else:
+            self.to_reserves(key)
+
+    def _resized(self, t: Token):
+        """A unit's models changed: its token is sized again for those it has, in its formation, where it is."""
+        t.footprint = unit_footprint(t.bases_left(), t.formation)
+        if t.key in self.items:
+            self.items[t.key].shape_it()
+            self.items[t.key].setPos(*self.keep_in(t, t.x, t.y))
+        self._redraw_overlays()
 
     def set_formation(self, key: str, formation: str):
         """Have a unit's models stand another way: its token takes that formation's size and shape, where it is."""
         t = self.tokens[key]
-        if formation not in FORMATIONS or not t.bases or t.footprint.models <= 1:
+        if formation not in FORMATIONS or not t.bases or t.models <= 1:
             return
-        t.formation, t.footprint = formation, unit_footprint(list(t.bases), formation)
+        t.formation, t.footprint = formation, unit_footprint(t.bases_left(), formation)
         if key in self.items:
             self.items[key].shape_it()
             self.items[key].setPos(*self.keep_in(t, t.x, t.y))     # larger, it may have to move in from an edge
@@ -463,7 +549,7 @@ class UnitMap(LayoutMap):
         """The menu of a unit, at a point of the screen; the unit is then the selected one."""
         self.pick(key)
         menu = QMenu(self)
-        for name, do, ticked in self.menu_actions(key):
+        for name, do, ticked, enabled in self.menu_actions(key):
             if do is None:                              # a heading: a rule, then its name, which can't be chosen
                 menu.addSeparator()
                 heading = QWidgetAction(menu)
@@ -474,6 +560,7 @@ class UnitMap(LayoutMap):
                 menu.addAction(heading)
             else:
                 action = menu.addAction(name)
+                action.setEnabled(enabled)
                 if ticked is not None:
                     action.setCheckable(True)
                     action.setChecked(ticked)
@@ -482,9 +569,10 @@ class UnitMap(LayoutMap):
 
     # ---------------------------------------------------------------- units
     def add_token(self, key: str, role: str, label: str, footprint: Footprint, move: float = 0.0,
-                  ranges: tuple[float, ...] = (), bases=()):
-        """bases: (base, count) of the unit's models, for it to take other formations than the one of `footprint`."""
-        t = Token(key, role, label, footprint, move, tuple(ranges), bases=tuple(bases))
+                  ranges: tuple[float, ...] = (), bases=(), characters=()):
+        """bases: (base, count) of the unit's models, for it to take other formations than the one of
+        `footprint` and to lose models; characters: for each of them, whether it is a character's."""
+        t = Token(key, role, label, footprint, move, tuple(ranges), bases=tuple(bases), characters=tuple(characters))
         self._place(t)
         self.tokens[key] = t
         if self.layout_data:
@@ -665,7 +753,7 @@ class UnitMap(LayoutMap):
         self._draft = draft
         self.seen = set()
         t = self.tokens.get(self.selected or "")
-        if not t or not self.layout_data or t.reserve:          # off the board: nothing to measure or to see from there
+        if not t or not self.layout_data or t.reserve or t.destroyed:       # off the board, or gone: nothing to measure or to see from there
             return
         if self.overlays["sight"] and t.ranges and self.obstacles:
             edge = t.outline(72)
@@ -676,7 +764,7 @@ class UnitMap(LayoutMap):
             rays = cast(edge, max(t.ranges), self.obstacles, hidden=hidden, **few)
             self._shade(items, fans(rays), SIGHT_FILL, SIGHT_OPACITY, Z_OVERLAY)       # union: what it sees
             for o in self.tokens.values():                      # the enemy units in it: a glow around each
-                if o.role != t.role and not o.reserve and sees(rays, o.outline()):
+                if o.role != t.role and not o.reserve and not o.destroyed and sees(rays, o.outline()):
                     self.seen.add(o.key)
                     ring = QPainterPath()                       # around the unit, not under it: its own colour stays
                     ring.addPolygon(polygon(o.around(SEEN_GLOW)))

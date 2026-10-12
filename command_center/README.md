@@ -326,6 +326,20 @@ one too large even as a circle has its gaps narrowed until it fits.
 
 Rings, distances, line of sight and target arrows follow the token's shape.
 
+Under **Unit**, the menu counts the unit's models on that board:
+
+- **-1 Model** takes a model off: those that are not characters first, and among them
+  the smallest bases first; then the characters (`bases.remaining_bases`). Taking the
+  last one destroys the unit.
+- **+1 Model** gives one back, up to the strength the unit started at (greyed out there).
+- **Destroyed** takes them all: the token turns grey and fainter, keeps the size it had
+  and goes to the reserves; it can be put back on the board, where nothing is measured
+  or seen from it and no line of sight glows on it. Only "+1 Model" gives it its colour
+  back, with its first model.
+
+The token is sized again for the models left, in its formation, and while some are
+missing "left/started" (6/11) is written above it.
+
 Under each board is a **Reserves and Transports** space, split in half: the attacker's on
 the left, the defender's on the right. In a unit's menu, "To
 Reserves..." takes it off the board into its side's half, "To the board..." puts it back

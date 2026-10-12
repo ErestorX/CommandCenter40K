@@ -215,7 +215,7 @@ class HolomapWindow(ToolWindow):
         key = f"{role}:{row.key}"
         for m in self.maps:
             if on:
-                m.add_token(key, role, row.name, row.footprint, row.move, row.ranges, row.bases)
+                m.add_token(key, role, row.name, row.footprint, row.move, row.ranges, row.bases, row.characters)
             else:
                 m.remove_token(key)
         if on:
