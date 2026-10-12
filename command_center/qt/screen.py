@@ -33,7 +33,9 @@ def show_again(win: QWidget) -> None:
     """Show a window that put_away() hid, as it was. A maximised window shown again fills the screen, but
     Qt lays its content out for the size it would have if it were not (Windows): it is told its size."""
     win.show()
-    win.setGeometry(win._shown_at)
+    was = getattr(win, "_shown_at", None)
+    if was is not None:
+        win.setGeometry(was)
 
 
 def available(win: QWidget | None = None):

@@ -68,6 +68,20 @@ QTreeWidget::item {{ padding: 2px 3px; }}
 QTreeWidget::item:selected {{ background: {select}; color: white; }}
 QHeaderView::section {{ background: {raised}; color: {ink}; font-size: 9pt; padding: 3px 4px; border: none;
     border-right: 1px solid {line}; border-bottom: 1px solid {line}; }}
+QTreeWidget[role="filters"] {{ background: {field}; }}
+QTabWidget::pane {{ border: 1px solid {line}; background: {panel}; top: -1px; }}
+QTabBar::tab {{ font-family: "{display}"; font-weight: bold; color: {muted}; background: {bg}; padding: 5px 14px;
+    border: 1px solid {line}; margin-right: 2px; }}
+QTabBar::tab:hover {{ color: {ink}; background: {raised}; }}
+QTabBar::tab:selected {{ color: {ink}; background: {panel}; border-bottom-color: {panel}; }}
+QSplitter::handle {{ background: {bg}; }}
+QSplitter::handle:horizontal {{ width: 6px; }}
+QSplitter::handle:vertical {{ height: 6px; }}
+QSpinBox {{ background: {field}; color: {ink}; border: 1px solid {line}; padding: 2px 4px; }}
+QSlider::groove:horizontal {{ height: 6px; background: {field}; border: 1px solid {line}; }}
+QSlider::handle:horizontal {{ width: 12px; margin: -6px 0; background: {raised}; border: 1px solid {line};
+    border-top-color: #4a4a55; border-left-color: #4a4a55; }}
+QSlider::handle:horizontal:hover {{ background: {hover}; }}
 QGroupBox {{ border: 1px solid {line}; margin-top: 9px; padding-top: 4px; }}
 QGroupBox::title {{ subcontrol-origin: margin; left: 8px; padding: 0px 3px; color: {muted}; }}
 QComboBox {{ background: {field}; color: {ink}; border: 1px solid {line}; padding: 2px 6px; }}

@@ -144,7 +144,7 @@ rewrite lacks most, and Qt is what makes it possible.
 
 ## Progress
 
-Stages 1 to 4 are done, in `command_center/qt/`, next to the tkinter front end, which is untouched
+Stages 1 to 5 are done, in `command_center/qt/`, next to the tkinter front end, which is untouched
 but for its colours moving to `command_center/ui/palette.py` so that both read the same ones.
 
 ```bash
@@ -152,7 +152,7 @@ pip install -r requirements-qt.txt
 python main_qt.py                 # or: python -m command_center qt
 ```
 
-The Qt launcher offers the tools it has: the Disposition Cogitator and the Armies Auspex so far. `main.py`, `run_app.bat`
+The Qt launcher offers the tools it has: every one but the Field Holomap. `main.py`, `run_app.bat`
 and the release still start the tkinter app.
 
 What stages 1 and 2 showed:
@@ -197,6 +197,19 @@ the first with work on another thread. What it showed:
 - Drop-downs had to be given their arrow by hand (`widgets.Combo`), as tick boxes were.
 - Waiting for a worker thread in a test must go through Qt's event loop: `QTest.qWait` keeps
   Python's lock, and the simulation took 6 s for 0.1 s.
+
+Stage 5 is the Engagement Optimizer (`qt/tools/optimizer/`): the two unit panels, the run on worker
+processes, and the results window with its five views. What it showed:
+
+- The run reports its progress through a signal as tests finish, in place of a poll every 100 ms.
+  The worker processes are the back end's, unchanged.
+- A value is edited in its cell with a drop-down the table holds there: tkinter placed one over the
+  cell by its pixel position and closed it when the table scrolled.
+- A Qt widget has many methods, and an attribute of ours with the same name replaces one silently:
+  a drop-down named `metric` broke every repaint of its window. Two names were changed; a method
+  that hides tests is `hide_records`, since `hide` is the window's own.
+- Splitters share their room by the sizes they are given, not by stretch factors, when what they
+  hold has no size of its own (the charts).
 
 The real app, built for Windows with the options of `release.yml` (`main_qt.py`, tkinter left out):
 

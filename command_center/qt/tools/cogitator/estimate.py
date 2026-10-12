@@ -49,7 +49,7 @@ class EstimatePanel(QWidget):
             self.scores[1] = self.scores[0][::-1]
         self.goes_first = 0                                     # the Estimate shown: the player going first
         # the actions of each player's primary mission, as on its card
-        self.actions = [(book.primary_mission(*p) or {}).get("actions", []) for p in pairing]
+        self.card_actions = [(book.primary_mission(*p) or {}).get("actions", []) for p in pairing]
 
         body = QVBoxLayout(self)
         body.setContentsMargins(0, 0, 0, 0)
@@ -144,7 +144,7 @@ class EstimatePanel(QWidget):
             lb.setContentsMargins(0, top, 0, 2)
             g.addWidget(lb, row, 0, 1, WIDE)
             row += 1
-        for a in self.actions[i]:
+        for a in self.card_actions[i]:
             line(f"{a.get('name', '').title()}  ·  {a.get('type', '').capitalize()}", "total", 12)
             for key, text in a.items():
                 if key not in ("name", "type"):

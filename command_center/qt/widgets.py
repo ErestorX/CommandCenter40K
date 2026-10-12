@@ -183,6 +183,26 @@ class Table(QTreeWidget):
     def keys(self) -> list:
         return [self.topLevelItem(i).data(0, Qt.UserRole) for i in range(self.topLevelItemCount())]
 
+    def row(self, key) -> QTreeWidgetItem | None:
+        """The row with this key."""
+        keys = self.keys()
+        return self.topLevelItem(keys.index(key)) if key in keys else None
+
+    def set_row(self, key, values, color: str | None = None):
+        """Write a row again, where it is. color None: the table's own ink."""
+        item = self.row(key)
+        for i, v in enumerate(values):
+            item.setText(i, str(v))
+            item.setData(i, Qt.ForegroundRole, QColor(color) if color else None)
+
+    def set_cell(self, key, column: int, text):
+        self.row(key).setText(column, str(text))
+
+    def sort_by_heading(self, on_sort: Callable[[int], None]):
+        """A click on a column's heading calls on_sort(column): the table's owner puts the rows in order."""
+        self.header().setSectionsClickable(True)
+        self.header().sectionClicked.connect(on_sort)
+
     def selected_key(self):
         items = self.selectedItems()
         return items[0].data(0, Qt.UserRole) if items else None
