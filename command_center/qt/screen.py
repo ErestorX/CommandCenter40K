@@ -23,6 +23,19 @@ def fill_screen(win: QWidget) -> None:
     win.installEventFilter(win._stay_maximised)
 
 
+def put_away(win: QWidget) -> None:
+    """Hide a main window until show_again()."""
+    win._shown_at = win.geometry()
+    win.hide()
+
+
+def show_again(win: QWidget) -> None:
+    """Show a window that put_away() hid, as it was. A maximised window shown again fills the screen, but
+    Qt lays its content out for the size it would have if it were not (Windows): it is told its size."""
+    win.show()
+    win.setGeometry(win._shown_at)
+
+
 def available(win: QWidget | None = None):
     """The part of the screen windows may take (without the taskbar): that of `win`'s screen."""
     screen = (win.screen() if win is not None else None) or QGuiApplication.primaryScreen()

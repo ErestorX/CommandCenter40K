@@ -14,7 +14,7 @@ from command_center.lists.library import install_demo
 from command_center.qt.appupdate import update_app
 from command_center.qt.launcher import Launcher
 from command_center.qt.registry import Selection, discover, get_tool
-from command_center.qt.screen import fill_screen
+from command_center.qt.screen import fill_screen, put_away, show_again
 from command_center.qt.theme import app_identity, setup_style
 from command_center.qt.updater import refresh_data
 from command_center.release import use_bundled_certificates
@@ -49,14 +49,14 @@ class App(QWidget):
         win = get_tool(key).open(self, selection)
         self.open_windows.append(win)
         win.show()
-        self.hide()
+        put_away(self)
         return win
 
     def on_tool_closed(self, win: QWidget) -> None:
         if win in self.open_windows:
             self.open_windows.remove(win)
         if not self.open_windows:
-            self.show()
+            show_again(self)
 
 
 def main(data_dir: str | None = None) -> None:

@@ -128,6 +128,7 @@ class QtWindowsTest(unittest.TestCase):
 
     def test_cogitator(self):
         names = self.ctx.missions.dispositions
+        size = self.app.launcher.size()
         win = self.app.open_tool("cogitator", None)
         self.assertFalse(self.app.isVisible())                             # the launcher gives way
         self.assertEqual(len(win.cells), len(names) ** 2)
@@ -161,6 +162,7 @@ class QtWindowsTest(unittest.TestCase):
         win.back()
         self.assertTrue(self.app.isVisible())                              # no tool left open: the launcher is back
         self.assertEqual(self.app.open_windows, [])
+        self.assertEqual(self.app.launcher.size(), size)                   # and takes the room it had
 
 
 if __name__ == "__main__":
