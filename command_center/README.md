@@ -65,7 +65,9 @@ copy until it is moved). From the source there is no version and nothing is chec
 
 Saved state, all in `user_data/` (git-ignored): `test_plans.json` (the Engagement Optimizer's
 tests, per list file, side and unit), `army_plans.json` (its army plans, per pair of lists),
-`estimates.json` (the Disposition Cogitator's Estimates, per pairing and first player).
+`estimates.json` (the Disposition Cogitator's Estimates, per pairing and first player),
+`games/<attacker's list> vs <defender's list>.json` (the Field Holomap's game for a pair of
+lists: see below).
 
 Look: `command_center/ui/palette.py` holds the dark palette (`C`); `command_center/ui/theme.py` makes
 Qt's palette and style sheet of it, and loads the fonts. A widget takes a style by its `role`
@@ -128,6 +130,7 @@ command_center/
     arrange.py            where the boards viewed and the info panel go, boards as large as possible
     estimates.py          saved Estimates (primary scoring per pairing and first player), user_data/estimates.json
     scoring.py            score sheet maths: primary scoring options, VP per round, caps, Battle Ready, WTC result
+    games.py              a game under way, saved per pair of lists: user_data/games/
     territory.py          the line between the two players' territories (the halves holding their zones)
     sight.py              line of sight by ray casting (dense terrain, ruin edges, board edges)
   analysis/               Engagement Optimizer back end (no UI)
@@ -403,11 +406,33 @@ and one for the end of the battle.
   by default). VP above a cap can be entered and don't count: the round's total shows a "!".
 - CP gained and used per round (- n +), and what remains, carried over.
 - The header gives the WTC result: the VP difference as a 20-point split.
+- **Reset sheet** starts the sheet again from nothing (the players' names stay), after
+  asking: the sheet is otherwise kept, see below.
 - **Import Estimate** fills the two primaries from the Cogitator's Estimate of the game's
   pairing, with the player ticked "Went first" going first (`game_estimate()`: Player 1 is the
   disposition that comes first in the matrix; in a mirror game, the attacker). The circle next
   to it has that Estimate's difficulty colour, from the attacker's point of view; it is empty
   when there is none, or when nobody is ticked "Went first" yet.
+
+### The game is kept
+
+The Field Holomap keeps its game per pair of lists (`deploy/games.py`), in
+`user_data/games/<attacker's list> vs <defender's list>.json`; the same lists the other
+way round are another game. It is saved a moment after each change and when the window
+closes, and put back when the two lists are opened again, in this run of the app or a
+later one:
+
+- the Score Oracle's sheet: names, went first, Battle Ready, what was scored on the
+  primaries (kept only for the mission it was scored on), the secondary missions and
+  their cells, the CP;
+- the layouts viewed;
+- the units put on the maps and, for each layout, where each stands, how it is turned,
+  whether it is in reserve (and where it stood on the board), its formation and its
+  models (lost, destroyed).
+
+What is only a way of looking at the board is not kept: table-setup measurements, the
+selected unit and its options (movement, distances, targets, line of sight). A unit that
+is no longer in its list is left out; a file that can't be read is no game.
 
 ## Adding a new window (tool)
 

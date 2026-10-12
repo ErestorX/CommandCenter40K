@@ -13,6 +13,7 @@ from command_center.data.missionbook import MissionBook
 from command_center.data.rules import RulesBook
 from command_center.data.wahapedia import Wahapedia
 from command_center.deploy.estimates import EstimateStore
+from command_center.deploy.games import GameStore
 
 
 @dataclass
@@ -28,6 +29,7 @@ class AppContext:
         self._missions: MissionBook | None = None
         self._army_plans: ArmyPlanStore | None = None
         self._estimates: EstimateStore | None = None
+        self._games: GameStore | None = None
 
     @property
     def rules(self) -> RulesBook:
@@ -57,3 +59,10 @@ class AppContext:
         if self._estimates is None:
             self._estimates = EstimateStore()
         return self._estimates
+
+    @property
+    def games(self) -> GameStore:
+        """The games under way, one per pair of lists: what the Field Holomap and its Score Oracle keep."""
+        if self._games is None:
+            self._games = GameStore()
+        return self._games

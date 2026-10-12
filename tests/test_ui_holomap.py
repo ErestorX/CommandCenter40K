@@ -11,6 +11,7 @@ from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
 
 from command_center.analysis.army_plans import ArmyPlanStore, PlanEntry, PlanTarget, SavedPlan
+from command_center.deploy.games import GameStore
 from command_center.deploy.placement import BOARD_H, BOARD_W
 from command_center.lists import parse_list
 from tests.helpers import FIXTURE_LIST
@@ -37,12 +38,21 @@ class HolomapTest(unittest.TestCase):
         cls.app.close()
 
     def setUp(self):
+        self.ctx._games = GameStore(Path(tempfile.mkdtemp()))              # each test its own game: none saved before it
         self.win = self.app.open_tool("holomap", self.selection)
         self.win.setWindowState(Qt.WindowNoState)
         self.win.resize(1500, 900)
-        self.addCleanup(self.win.close)
+        self.addCleanup(self.shut, self.win)
         self.assertTrue(wait_until(lambda: not self.win._arrange_timer.isActive()))
         self.qt.processEvents()
+
+    @staticmethod
+    def shut(win):
+        """Close a window, if it is still there (a test may have closed it to open it again)."""
+        try:
+            win.close()
+        except RuntimeError:
+            pass
 
     def place(self, n: int = 2):
         """n units of each side on the maps; their token keys, attackers first."""
@@ -425,6 +435,115 @@ class HolomapTest(unittest.TestCase):
         m.restore(key)                                                     # nothing to give back: nothing happens
         self.assertEqual(t.models, started)
         self.assertEqual(self.win.maps[1].tokens[key].models, started)     # each board its own
+
+    def reopen(self):
+        """Close the Field Holomap and open it again on the same two lists, as another run of the app would."""
+        self.win.close()
+        self.win = self.app.open_tool("holomap", self.selection)
+        self.win.setWindowState(Qt.WindowNoState)
+        self.win.resize(1500, 900)
+        self.addCleanup(self.shut, self.win)
+        self.assertTrue(wait_until(lambda: not self.win._arrange_timer.isActive()))
+        return self.win
+
+    def test_the_game_is_kept(self):
+        win = self.win
+        path = self.ctx.games.path(self.selection.attacker.path, self.selection.defender.path)
+        self.assertFalse(path.exists())                                    # nothing to keep yet
+        attackers, defenders = self.place()
+        m = win.maps[0]
+        moved, turned, reserve, gone = attackers[0], attackers[1], defenders[0], defenders[1]
+        big = next((k for k in attackers + defenders if m.tokens[k].strength > 2), None)
+        m.move_token(moved, 31.5, 20.25)
+        m.rotate(turned, 45)
+        m.move_token(reserve, 12, 30)
+        m.to_reserves(reserve)
+        if big:
+            m.set_formation(big, "line")
+            m.lose_model(big)
+        m.destroy(gone)
+        for name in ("sight", "move"):                                     # ways of looking at the board: not kept
+            win.overlay_ticks[name].setChecked(True)
+        win.measure.setChecked(True)
+        m.pick(moved)
+        win.shown[2].setChecked(False)
+        self.assertTrue(wait_until(lambda: not win._save_timer.isActive() and path.exists()))     # saved as it changes
+        was = {k: (round(t.x, 3), round(t.y, 3), t.angle, t.reserve, t.formation, t.lost, t.destroyed,
+                   round(t.footprint.w, 6), round(t.footprint.h, 6), t.footprint.shape) for k, t in m.tokens.items()}
+        others = [(k, round(t.x, 3), round(t.y, 3)) for k, t in win.maps[1].tokens.items()] if win.maps[1].layout_data else None
+
+        win = self.reopen()
+        m = win.maps[0]
+        self.assertEqual(set(win.placed), set(attackers + defenders))      # the same units on the maps, ticked in the roster
+        for role, keys in (("attacker", attackers), ("defender", defenders)):
+            for key in keys:
+                self.assertEqual(win.side.trees[role].row(key.split(":")[1]).text(0), "✓")
+        now = {k: (round(t.x, 3), round(t.y, 3), t.angle, t.reserve, t.formation, t.lost, t.destroyed,
+                   round(t.footprint.w, 6), round(t.footprint.h, 6), t.footprint.shape) for k, t in m.tokens.items()}
+        self.assertEqual(now, was)                                         # each where it stood, and as it was
+        self.assertEqual((m.tokens[moved].x, m.tokens[moved].y, m.tokens[turned].angle), (31.5, 20.25, 45))
+        self.assertTrue(m.tokens[reserve].reserve and m.tokens[reserve].board_spot == (12.0, 30.0))
+        self.assertTrue(m.tokens[gone].destroyed and m.tokens[gone].reserve)
+        self.assertEqual((m.items[moved].x(), m.items[moved].y()), (31.5, 20.25))       # and drawn there
+        if big:
+            self.assertEqual((m.tokens[big].formation, m.tokens[big].lost), ("line", 1))
+            self.assertIsNotNone(m.items[big]._count)
+        if others is not None:                                             # each layout its own places
+            self.assertEqual([(k, round(t.x, 3), round(t.y, 3)) for k, t in win.maps[1].tokens.items()], others)
+        self.assertEqual([tick.isChecked() for tick in win.shown], [True, True, False])
+        self.assertFalse(win.maps[2].isVisible())
+        self.assertFalse(win.measure.isChecked() or win.overlay_ticks["sight"].isChecked())     # not kept
+        self.assertIsNone(win.selected)
+        self.assertFalse(win._save_timer.isActive())                       # putting it back is not a change to save
+
+        m.to_board(reserve)                                                # back where it stood before the reserves
+        self.assertEqual((m.tokens[reserve].x, m.tokens[reserve].y), (12.0, 30.0))
+        win.side.toggle("attacker", moved.split(":")[1])                   # a unit taken off the maps stays off
+        win = self.reopen()
+        self.assertNotIn(moved, win.placed)
+        self.assertEqual(win.side.trees["attacker"].row(moved.split(":")[1]).text(0), "")
+        self.assertFalse(win.maps[0].tokens[reserve].reserve)
+
+    def test_the_score_sheet_is_kept(self):
+        win = self.win
+        oracle = win.open_score_oracle()
+        a = oracle.scores["attacker"]
+        oracle.names["attacker"].setText("Hugo")
+        oracle.cells["defender"]["went_first"].setChecked(True)
+        oracle.cells["attacker"]["battle_ready"].setChecked(False)
+        (i, col), _ = next(iter(oracle.cells["attacker"]["primary"].shown.items()))
+        oracle.cells["attacker"]["primary"]._score(i, col, 1)
+        oracle._add_secondary("attacker")
+        boxes, pick = oracle.cells["attacker"]["secondary_boxes"][0]
+        boxes[1].setCurrentText("4")
+        pick(1)
+        QTest.mouseClick(oracle.cells["attacker"]["cp"]["CP gained", 0].layout().itemAt(2).widget(), Qt.LeftButton)
+        sheet = (a.primary_total, a.secondary_total, a.secondaries[0].name, list(a.cp_gained), a.total, oracle.score_lbl.text())
+        self.assertGreater(a.primary_total, 0)
+
+        oracle.close()                                                     # closed and opened again: the same sheet
+        self.assertTrue(wait_until(lambda: win.oracle is None))
+        oracle = win.open_score_oracle()
+        a, d = oracle.scores["attacker"], oracle.scores["defender"]
+        self.assertEqual((a.primary_total, a.secondary_total, a.secondaries[0].name, list(a.cp_gained), a.total,
+                          oracle.score_lbl.text()), sheet)
+        self.assertEqual((a.name, oracle.names["attacker"].text(), a.battle_ready, d.went_first), ("Hugo", "Hugo", False, True))
+        self.assertTrue(oracle.cells["defender"]["went_first"].isChecked())
+        self.assertFalse(oracle.cells["attacker"]["battle_ready"].isChecked())
+        self.assertEqual(oracle.cells["attacker"]["cp"]["CP gained", 0].count.text(), "1")
+
+        win = self.reopen()                                                # and with the whole window closed in between
+        oracle = win.open_score_oracle()
+        a = oracle.scores["attacker"]
+        self.assertEqual((a.primary_total, a.secondary_total, a.secondaries[0].name, list(a.cp_gained), a.total,
+                          oracle.score_lbl.text()), sheet)
+        self.assertIn("HUGO", oracle.result_lbl.text() + oracle.names["attacker"].text().upper())
+
+        oracle.reset(ask=False)                                            # from nothing again; the names stay
+        a = oracle.scores["attacker"]
+        self.assertEqual((a.total - (10 if a.battle_ready else 0), a.secondaries, a.name), (0, [], "Hugo"))
+        win = self.reopen()
+        self.assertEqual(win.open_score_oracle().scores["attacker"].secondaries, [])
 
     def test_right_button(self):
         from PySide6.QtCore import QPoint

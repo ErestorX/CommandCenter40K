@@ -6,7 +6,13 @@ whole unit) on each map, at a random spot of its side's deployment zone, to be d
 Each layout can be taken off the view (next to the legend). The layouts viewed and the info panel
 (legend, options) are placed in the right two thirds so that the boards are as large as they can be
 (command_center.deploy.arrange): the panel in a cell next to the boards, in a column on their right, or in a
-strip under them."""
+strip under them.
+
+The game is kept, per pair of lists (command_center.deploy.games): the layouts viewed, the units put on
+the maps and, on each layout, where every unit stands and how (turned, in reserve, its formation, its
+models), with the Score Oracle's sheet. It is saved a moment after each change and when the window
+closes, and is there again the next time the two lists are opened, in this run of the app or another.
+What is only a way of looking at the board (measurements, the selected unit's options) is not kept."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -27,6 +33,7 @@ if TYPE_CHECKING:
     from command_center.ui.app import App
 
 GAP = 6                         # between the boards, the info panel and its two parts
+SAVE_DELAY = 400                # ms after the last change before the game is saved
 
 
 class BoardArea(QWidget):
@@ -68,10 +75,19 @@ class HolomapWindow(ToolWindow):
         self._arrange_timer = QTimer(self)
         self._arrange_timer.setSingleShot(True)
         self._arrange_timer.timeout.connect(self.arrange)
+        self._save_timer = QTimer(self)
+        self._save_timer.setSingleShot(True)
+        self._save_timer.timeout.connect(self.save_game)
+        self._loading = True                                    # nothing is saved while the game is being put back
+        self.game: dict = self.ctx.games.load(selection.attacker.path, selection.defender.path)
         self.info_cell = self._build_info()
         self._built = True
         self.refresh()
         self._update_plan_links()
+        self._load_game()
+        self._loading = False
+        for m in self.maps:
+            m.on_change = self.changed
 
     def _build_info(self) -> QWidget:
         """The info panel, in two parts (arrange stacks them or sets them side by side): the board
@@ -146,12 +162,51 @@ class HolomapWindow(ToolWindow):
         self._sub_options()
         return cell
 
+    # ---------------------------------------------------------------- the game, kept per pair of lists
+    def _load_game(self):
+        """Put the saved game back: the layouts viewed, the units on the maps, and each as it was on each layout."""
+        game = self.game
+        shown = game.get("shown")
+        if isinstance(shown, list) and len(shown) == len(self.shown) and any(v is True for v in shown):
+            for tick, on in zip(self.shown, shown):
+                tick.setChecked(on is True)
+        for key in game.get("units") if isinstance(game.get("units"), list) else []:
+            role, _, row = str(key).partition(":")
+            if role in self.side.rows and row in self.side.rows[role] and key not in self.placed:
+                self.side.toggle(role, row)
+        boards = game.get("boards") if isinstance(game.get("boards"), dict) else {}
+        for m in self.maps:
+            if m.layout_data:
+                m.apply_state(boards.get(m.layout_data.get("id")))
+
+    def changed(self):
+        """Something of the game changed: it is saved shortly, once for a burst of changes."""
+        if not self._loading:
+            self._save_timer.start(SAVE_DELAY)
+
+    def save_score(self, score: dict):
+        """The Score Oracle's sheet, as it is now."""
+        self.game["score"] = score
+        self.changed()
+
+    def save_game(self):
+        """Write the game as it stands: the layouts' units replace those saved for the same layouts, the
+        others' (of another pairing of Force Dispositions) are kept."""
+        self._save_timer.stop()
+        boards = dict(self.game.get("boards")) if isinstance(self.game.get("boards"), dict) else {}
+        for m in self.maps:
+            if m.layout_data:
+                boards[m.layout_data.get("id")] = m.units_state()
+        self.game.update(shown=[tick.isChecked() for tick in self.shown], units=list(self.placed), boards=boards)
+        self.ctx.games.save(self.selection.attacker.path, self.selection.defender.path, self.game)
+
     # ---------------------------------------------------------------- the boards viewed, and their place
     def _toggle_layouts(self):
         for m, tick in zip(self.maps, self.shown):
             if not tick.isChecked() and m.selected:             # no selection left on a board out of view
                 m._select(None)
         self.arrange()
+        self.changed()
 
     def _arrange_later(self):
         """Arrange again once the info panel has its new size (its texts changed)."""
@@ -267,6 +322,8 @@ class HolomapWindow(ToolWindow):
     def closeEvent(self, event):
         self._unsubscribe()
         self._arrange_timer.stop()
+        if self._save_timer.isActive():                         # a change not saved yet
+            self.save_game()
         super().closeEvent(event)                               # the Score Oracle is this window's: it closes with it
 
     def _toggle_overlays(self):

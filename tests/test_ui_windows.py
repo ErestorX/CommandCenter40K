@@ -13,15 +13,18 @@ from PySide6.QtTest import QTest
 from command_center.context import AppContext
 from command_center.data.missionbook import MissionBook
 from command_center.deploy.estimates import EstimateStore
+from command_center.deploy.games import GameStore
 from tests.helpers import FIXTURE_DATA, FIXTURE_LIST
 from tests.test_holomap import build_json_dir
 
 
 def fixture_context() -> AppContext:
-    """The app's context on the fixtures: their missions and layouts, Estimates saved in a temporary file."""
+    """The app's context on the fixtures: their missions and layouts, Estimates and games saved in a
+    temporary folder."""
     ctx = AppContext(FIXTURE_DATA)
     ctx._missions = MissionBook(build_json_dir())
     ctx._estimates = EstimateStore(Path(tempfile.mkdtemp()) / "estimates.json")
+    ctx._games = GameStore(Path(tempfile.mkdtemp()))
     return ctx
 
 

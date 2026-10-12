@@ -16,6 +16,10 @@ is written above it. "Destroyed" takes them all: the token turns grey and fainte
 reserves (it can be brought back to the board), with nothing measured or seen from it; "+1 Model"
 gives it its first model, and its colour, back, and "Full strength" all of them.
 
+Where each unit stands and how (turned, in reserve, its formation, its models) can be taken as plain
+values (units_state) and put back (apply_state): the Field Holomap saves them with its game. on_change
+is called whenever any of it changes.
+
 A unit's name is written inside its base, along it, as large as fits and on as many lines as that
 takes; what does not fit, even at the smallest size, is cut short with an ellipsis (fit_label). The
 whole name is in the token's tooltip, and under the map's title while the pointer is on it.
@@ -379,6 +383,8 @@ class UnitMap(LayoutMap):
         self.rng = random.Random()
         self.selected: str | None = None
         self.on_select = None                                       # callback(map, key or None)
+        self.on_change = None                                       # callback(): a unit was moved, turned, resized, added, removed
+        self._moved = False                                         # a unit is being dragged: told once it is let go
         self.overlays: dict[str, bool] = {name: False for name in OVERLAYS}
         self.regions: list[dict] = []                               # objectives as terrain, per layout
         self.obstacles: Obstacles | None = None                    # what blocks line of sight, per layout
@@ -475,6 +481,62 @@ class UnitMap(LayoutMap):
         if t.key in self.items:
             self.items[t.key].setPos(*spot)
         self._redraw_overlays()
+        self._changed()
+
+    def _changed(self):
+        self._moved = False
+        if self.on_change:
+            self.on_change()
+
+    # ---------------------------------------------------------------- what is kept of the units
+    def units_state(self) -> dict[str, dict]:
+        """Every unit on this map as plain values: where it stands, how it is turned, whether it is in
+        reserve (and where it stood on the board), its formation, the models it has lost."""
+        return {t.key: {"x": round(t.x, 3), "y": round(t.y, 3), "angle": t.angle, "reserve": t.reserve,
+                        "board_spot": [round(v, 3) for v in t.board_spot] if t.board_spot else None,
+                        "formation": t.formation, "lost": t.lost, "destroyed": t.destroyed,
+                        "sized_for": t.footprint.models}
+                for t in self.tokens.values()}
+
+    def apply_state(self, state) -> None:
+        """Put units back as units_state had them: those of `state` that are on this map. Whatever in it
+        is not what was written is left as the unit has it; no one is told of these changes."""
+        if not isinstance(state, dict):
+            return
+        number = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)
+        for key, s in state.items():
+            t = self.tokens.get(key)
+            if t is None or not isinstance(s, dict):
+                continue
+            if s.get("formation") in FORMATIONS:
+                t.formation = s["formation"]
+            if t.bases:
+                lost = s.get("lost")
+                t.lost = min(max(int(lost), 0), t.strength) if number(lost) else 0
+                t.destroyed = s.get("destroyed") is True
+                if t.destroyed:
+                    t.lost = t.strength
+                # a destroyed unit keeps the size it had: that of the models it was sized for
+                sized = s.get("sized_for") if t.destroyed and number(s.get("sized_for")) else t.models
+                sized = min(max(int(sized), 1), t.strength)
+                t.footprint = unit_footprint(remaining_bases(list(t.bases), list(t.characters), t.strength - sized),
+                                             t.formation)
+            if number(s.get("angle")):
+                t.angle = float(s["angle"]) % 360
+            t.reserve = s.get("reserve") is True
+            spot = s.get("board_spot")
+            t.board_spot = (float(spot[0]), float(spot[1])) if (isinstance(spot, list) and len(spot) == 2
+                                                                and all(number(v) for v in spot)) else None
+            if number(s.get("x")) and number(s.get("y")):
+                t.x, t.y = self.keep_in(t, float(s["x"]), float(s["y"]))
+            elif t.reserve:
+                t.x, t.y = self._reserve_spot(t)
+            if key in self.items:
+                self.items[key].shape_it()
+                was, self.on_change = self.on_change, None      # set where it was: not a move to tell of
+                self.items[key].setPos(t.x, t.y)
+                self.on_change, self._moved = was, False
+        self._redraw_overlays()
 
     def menu_actions(self, key: str) -> list[MenuEntry]:
         """What a right click on a unit offers: where it goes, its turns, and, for a unit of several
@@ -533,6 +595,7 @@ class UnitMap(LayoutMap):
             self.items[key].shape_it()
         if t.reserve:
             self._redraw_overlays()
+            self._changed()
         else:
             self.to_reserves(key)
 
@@ -543,6 +606,7 @@ class UnitMap(LayoutMap):
             self.items[t.key].shape_it()
             self.items[t.key].setPos(*self.keep_in(t, t.x, t.y))
         self._redraw_overlays()
+        self._changed()
 
     def set_formation(self, key: str, formation: str):
         """Have a unit's models stand another way: its token takes that formation's size and shape, where it is."""
@@ -554,6 +618,7 @@ class UnitMap(LayoutMap):
             self.items[key].shape_it()
             self.items[key].setPos(*self.keep_in(t, t.x, t.y))     # larger, it may have to move in from an edge
         self._redraw_overlays()
+        self._changed()
 
     def token_menu(self, key: str, at):
         """The menu of a unit, at a point of the screen; the unit is then the selected one."""
@@ -587,6 +652,7 @@ class UnitMap(LayoutMap):
         self.tokens[key] = t
         if self.layout_data:
             self._add_item(t)
+        self._changed()
 
     def remove_token(self, key: str):
         if self.tokens.pop(key, None):
@@ -595,6 +661,7 @@ class UnitMap(LayoutMap):
                 self.scene.removeItem(item)
             if self.selected == key:
                 self._select(None)
+            self._changed()
 
     def _place(self, t: Token):
         if t.reserve:                                 # it stays in reserve, on whatever board
@@ -644,6 +711,7 @@ class UnitMap(LayoutMap):
         item.shape_it()
         item.setPos(*self.keep_in(t, t.x, t.y))
         self._redraw_overlays()
+        self._changed()
 
     def move_token(self, key: str, x: float, y: float):
         """Put a unit somewhere on the board, as a drag would (it stops at the edges)."""
@@ -653,6 +721,7 @@ class UnitMap(LayoutMap):
     def token_moved(self, t: Token):
         """A unit is being dragged: the overlays follow at most every OVERLAY_DELAY ms, so that mouse events
         don't queue up behind line of sight computations."""
+        self._moved = True
         if not self._overlay_timer.isActive():
             self._overlay_timer.start(OVERLAY_DELAY)
 
@@ -660,6 +729,8 @@ class UnitMap(LayoutMap):
         """End of a drag: draw the overlays for where the unit ended up, now and in full."""
         if self._overlay_timer.isActive() or self._draft:
             self._redraw_overlays()
+        if self._moved:
+            self._changed()
 
     def _redraw_overlays(self, draft: bool = False):
         """draft: the unit is still on the move, and this will be drawn again in a moment."""

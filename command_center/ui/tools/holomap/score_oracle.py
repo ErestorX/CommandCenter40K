@@ -1,6 +1,9 @@
 """Score Oracle: a floating window next to the Field Holomap holding the game's score sheet.
 
 One per Field Holomap: opening it again brings it to the front; it closes with the Field Holomap.
+The sheet is part of the game the Field Holomap keeps for the two lists (command_center.deploy.games):
+saved as it is filled, and there again when the window is opened again, in this run of the app or
+another. "Reset sheet" starts it again from nothing.
 
 The sheet puts the two players face to face: a header (players, the WTC result and the VP), then one
 grid per player, side by side, with a column per battle round and one for the end of the battle: went
@@ -23,9 +26,10 @@ from string import capwords
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLineEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLineEdit, QMessageBox, QVBoxLayout, QWidget
 
 from command_center.deploy.estimates import difficulty, game_estimate
+from command_center.deploy.games import score_from_dict, score_to_dict
 from command_center.deploy.scoring import (BATTLE_READY, COLUMNS, PRIMARY_MAX, ROUND_MAX, ROUNDS, SECONDARY_CELLS,
                                            SECONDARY_MAX, SECONDARY_MISSION_MAX, PlayerScore, SecondaryRow,
                                            primary_options, wtc)
@@ -58,6 +62,7 @@ class ScoreOracle(QWidget):
         self.scores = {role: PlayerScore(name=role.title()) for role in ROLES}
         self.cells: dict[str, dict] = {role: {} for role in ROLES}
         self.primary_names = {role: "Primary mission" for role in ROLES}
+        self._loaded = False                                # nothing is saved before the saved sheet is on show
 
         body = QVBoxLayout(self)
         body.setContentsMargins(10, 10, 10, 10)
@@ -70,6 +75,8 @@ class ScoreOracle(QWidget):
         for role in ROLES:
             self._build_player(role)
         self.refresh()
+        self._load()
+        self._loaded = True
 
     # ---------------------------------------------------------------- header
     def _build_header(self) -> Panel:
@@ -86,6 +93,7 @@ class ScoreOracle(QWidget):
         imp.addStretch(1)
         self.import_note = label("", "muted")
         imp.addWidget(self.import_note)
+        imp.addWidget(button("Reset sheet", self.reset))
         imp.addWidget(button("Import Estimate", self.import_estimate))
         self.estimate_dot = Dots([NO_ESTIMATE])
         imp.addWidget(self.estimate_dot)
@@ -115,6 +123,36 @@ class ScoreOracle(QWidget):
             mid.addWidget(w)
         g.addLayout(mid, 1, 1)
         return h
+
+    # ---------------------------------------------------------------- the sheet, kept with the game
+    def _load(self):
+        """Put the saved sheet on show (refresh has given each player its primary mission's options)."""
+        saved = self.holomap.game.get("score")
+        if not isinstance(saved, dict):
+            return
+        for role in ROLES:
+            score_from_dict(self.scores[role], saved.get(role), self.primary_names[role])
+            self.names[role].setText(self.scores[role].name)
+            self._build_player(role)
+        self.show_estimate()
+
+    def _save(self):
+        if self._loaded:
+            self.holomap.save_score({role: score_to_dict(self.scores[role], self.primary_names[role]) for role in ROLES})
+
+    def reset(self, ask: bool = True):
+        """Start the sheet again from nothing (the players' names stay); asked first, it can't be undone."""
+        if ask and QMessageBox.question(self, "Score Oracle", "Start the score sheet again from nothing?\n\n"
+                                        "Everything scored for these two lists is cleared.") != QMessageBox.Yes:
+            return
+        for role in ROLES:
+            fresh = PlayerScore(name=self.scores[role].name)
+            fresh.set_options(self.scores[role].options)
+            self.scores[role] = fresh
+            self._build_player(role)
+        self.import_note.setText("")
+        self.show_estimate()
+        self._save()
 
     # ---------------------------------------------------------------- one player's grid
     def _build_player(self, role: str):
@@ -165,7 +203,7 @@ class ScoreOracle(QWidget):
             cb.setCurrentText(sec.name)
             # the missions on the player's other rows are left out of the list
             cb.on_popup = lambda cb=cb, sec=sec: self._fill_secondaries(cb, s, sec)
-            cb.currentTextChanged.connect(lambda text, sec=sec: setattr(sec, "name", text))
+            cb.currentTextChanged.connect(lambda text, sec=sec: (setattr(sec, "name", text), self._save()))
             cell.addWidget(cb, 1)
             cell.addWidget(button("✕", lambda role=role, i=i: self._remove_secondary(role, i), "step"))
             g.addLayout(cell, row, 0)
@@ -257,6 +295,7 @@ class ScoreOracle(QWidget):
             tick.setChecked(False)
             tick.blockSignals(False)
         self.show_estimate()
+        self._save()
 
     def show_estimate(self):
         """The circle by "Import Estimate": the difficulty colour of the Estimate that would be imported,
@@ -333,6 +372,7 @@ class ScoreOracle(QWidget):
         self.result_lbl.setText(text)
         self.result_lbl.setStyleSheet(f'font-family: "{display_family()}"; font-size: 13pt; font-weight: bold; color: {ink};')
         self.points_lbl.setText(f"WTC  ·  Points: {a.total} - {d.total}")
+        self._save()                                        # every edit ends here: the game has the sheet as it is
 
     def refresh(self):
         """Armies, dispositions and primary missions, as the Field Holomap shows them."""
