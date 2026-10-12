@@ -28,8 +28,11 @@ from command_center.deploy.placement import BOARD_H, BOARD_W, inside
 BOARD_EDGES = [((0, 0), (BOARD_W, 0)), ((BOARD_W, 0), (BOARD_W, BOARD_H)), ((BOARD_W, BOARD_H), (0, BOARD_H)),
                ((0, BOARD_H), (0, 0))]
 
-ORIGINS = 12          # points sampled around the base
-DIRECTIONS = 120      # rays per point, every 3 degrees (only those facing outward are cast)
+ORIGINS = 24          # points sampled around the base
+DIRECTIONS = 180      # rays per point, every 2 degrees (only those facing outward are cast)
+# fewer rays, a third of the work: for a line of sight drawn again and again while its unit is dragged
+DRAFT_ORIGINS = 12
+DRAFT_DIRECTIONS = 120    # every 3 degrees
 EPS = 1e-6
 GAP_CLOSE = 0.3       # inches: a gap this narrow between two footprints of a piece is a seam, not ground
 HIDDEN_RANGE = 15.0         # inches

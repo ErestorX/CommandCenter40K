@@ -325,7 +325,9 @@ of sight to that target.
 
 Line of sight (option): what the unit sees up to its longest ranged weapon, shaded very
 lightly, with a circle (and its distance) per weapon range, all from the base edge. Rays
-leave from points around the base; a dense terrain feature stops a ray, and a ray can
+leave from points around the base (24 points, a ray every 2 degrees; half the points and a
+ray every 3 degrees while the unit is dragged, the full count again once it is let go:
+`deploy/sight.py`); a dense terrain feature stops a ray, and a ray can
 cross one terrain edge (see into a ruin, not through it), two when it starts inside one.
 A piece of terrain counts as one whole, as for objectives: the footprints of an area, and
 areas touching along an edge, have no inner borders (seams up to 0.3" wide included).

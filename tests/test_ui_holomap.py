@@ -164,6 +164,39 @@ class HolomapTest(unittest.TestCase):
         self.assertEqual(m._overlay_items, [])                             # nothing selected: nothing to show
         self.assertFalse(win.grab().isNull())
 
+    def test_line_of_sight_is_a_draft_while_its_unit_moves(self):
+        from command_center.deploy import sight
+        from command_center.ui.tools.holomap import map_view
+        win = self.win
+        attackers, _ = self.place()
+        m = win.maps[0]
+        key = next((k for k in attackers if m.tokens[k].ranges), None)
+        if key is None:
+            self.skipTest("the fixture's attackers have no ranged weapon")
+        cast_with = []                                                     # the points and directions of each cast
+        real = map_view.cast
+
+        def cast(outline, reach, obstacles, origins=sight.ORIGINS, directions=sight.DIRECTIONS, hidden=None):
+            cast_with.append((origins, directions))
+            return real(outline, reach, obstacles, origins, directions, hidden)
+        map_view.cast = cast
+        self.addCleanup(setattr, map_view, "cast", real)
+        full, draft = (sight.ORIGINS, sight.DIRECTIONS), (sight.DRAFT_ORIGINS, sight.DRAFT_DIRECTIONS)
+        self.assertGreater(full[0] * full[1], draft[0] * draft[1])
+        win.overlay_ticks["sight"].setChecked(True)
+        m.pick(key)
+        self.assertEqual(cast_with[-1], full)                              # at rest: in full
+        m.items[key].setPos(30, 22)                                        # on the move, not let go yet
+        self.assertTrue(wait_until(lambda: not m._overlay_timer.isActive()))
+        self.assertEqual(cast_with[-1], draft)
+        self.assertTrue(m._draft)
+        m.token_released()
+        self.assertEqual(cast_with[-1], full)                              # let go: in full again
+        self.assertFalse(m._draft)
+        before = len(cast_with)
+        m.token_released()                                                 # a plain click: nothing to draw again
+        self.assertEqual(len(cast_with), before)
+
     def test_planned_targets(self):
         win = self.win
         self.assertTrue(win.plan_note.isVisibleTo(win))                    # no army plan yet: said so

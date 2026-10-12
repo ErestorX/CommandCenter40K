@@ -10,6 +10,8 @@ distance from its footprint edge), the shortest line from it to each objective, 
 the whole terrain its marker stands on (command_center.deploy.objectives), and its line of sight: what it can
 see up to its longest weapon range (command_center.deploy.sight), with a circle per weapon range; with the
 planned targets shown too, the part of it reaching its 1st target (and 2nd, with "plan2") is green.
+While the unit is dragged its line of sight is a draft, cast with fewer rays; it is cast in full as
+soon as the unit is let go.
 
 The map can also draw arrows to planned targets (the Engagement Optimizer's army plan): set_plan_links() gives
 the pairs; the "plan" overlay shows the selected unit's 1st target (or, for a selected defender, the
@@ -30,7 +32,8 @@ from command_center.deploy import Footprint
 from command_center.deploy.movement import rings
 from command_center.deploy.objectives import distance_to_region, objective_regions
 from command_center.deploy.placement import clamp, ellipse_polygon, extent, offset_ellipse, random_spot
-from command_center.deploy.sight import GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles, cast, fans, reaching_fans
+from command_center.deploy.sight import (DRAFT_DIRECTIONS, DRAFT_ORIGINS, GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles,
+                                         cast, fans, reaching_fans)
 from command_center.ui.theme import C, font_family
 from command_center.ui.views.board import (AREA_FILL, AREA_LINE, BOARD_H, BOARD_W, FEATURE_FILL, NO_PEN, OBJ_FILL,
                                            ZONE_FILL, ZONE_INK, LayoutMap, PixelText, line_pen, polygon)
@@ -167,7 +170,8 @@ class UnitMap(LayoutMap):
         self._link_items: list[QGraphicsItem] = []
         self._overlay_timer = QTimer(self)
         self._overlay_timer.setSingleShot(True)
-        self._overlay_timer.timeout.connect(self._redraw_overlays)
+        self._overlay_timer.timeout.connect(lambda: self._redraw_overlays(draft=True))
+        self._draft = False                                         # the overlays shown were drawn for a unit on the move
         self.view.scaled.connect(self._place_labels)               # labels are in pixels: placed again at a new scale
         self.view.right_clicked.connect(lambda: self._select(None))
 
@@ -301,13 +305,14 @@ class UnitMap(LayoutMap):
             self._overlay_timer.start(OVERLAY_DELAY)
 
     def token_released(self):
-        """End of a drag: draw the overlays for where the unit ended up, now."""
-        if self._overlay_timer.isActive():
+        """End of a drag: draw the overlays for where the unit ended up, now and in full."""
+        if self._overlay_timer.isActive() or self._draft:
             self._redraw_overlays()
 
-    def _redraw_overlays(self):
+    def _redraw_overlays(self, draft: bool = False):
+        """draft: the unit is still on the move, and this will be drawn again in a moment."""
         self._overlay_timer.stop()
-        self._draw_overlays()
+        self._draw_overlays(draft)
         self._draw_plan_links()
 
     def describe(self, t: Token | None):
@@ -394,10 +399,12 @@ class UnitMap(LayoutMap):
             self._add(items, ArrowHead(q, p, PLAN_INK), Z_LINK)
             self._halo_text(items, (p[0] + q[0]) / 2, (p[1] + q[1]) / 2, "1st" if first else "2nd", PLAN_INK, Z_LINK)
 
-    def _draw_overlays(self):
-        """Movement rings, objective distances and line of sight of the selected unit, under the tokens."""
+    def _draw_overlays(self, draft: bool = False):
+        """Movement rings, objective distances and line of sight of the selected unit, under the tokens.
+        draft: the line of sight with fewer rays, for a unit being dragged."""
         items = self._overlay_items
         self._clear(items)
+        self._draft = draft
         t = self.tokens.get(self.selected or "")
         if not t or not self.layout_data:
             return
@@ -407,7 +414,8 @@ class UnitMap(LayoutMap):
             hidden = None
             if self.overlays["hidden"]:
                 hidden = GO_TO_GROUND_RANGE if self.overlays["ground"] else HIDDEN_RANGE
-            rays = cast(outline, max(t.ranges), self.obstacles, hidden=hidden)
+            few = dict(origins=DRAFT_ORIGINS, directions=DRAFT_DIRECTIONS) if draft else {}
+            rays = cast(outline, max(t.ranges), self.obstacles, hidden=hidden, **few)
             self._shade(items, fans(rays), SIGHT_FILL, SIGHT_OPACITY, Z_OVERLAY)       # union: what it sees
             if rays is not None and self.overlays["plan"]:      # what of it reaches its targets: green
                 reaching = []
