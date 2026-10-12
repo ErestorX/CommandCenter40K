@@ -306,7 +306,17 @@ written inside its base, along it: as large as fits (10 to 6 points), on as many
 as that takes, and cut short with an ellipsis when the base is too small for all of it
 (`map_view.fit_label`). Hover a unit for its whole name, its
 models and size; click to select it (one selection for the window, highlighted in the
-roster), double click to turn it 30° clockwise, right click to release the selection.
+roster), double click to turn it 30° clockwise, right click (on no unit) to release the
+selection.
+
+Under each board is a **Reserves and Transports** space, split in half: the attacker's on
+the left, the defender's on the right. A right click on a unit opens its menu: "To
+Reserves..." takes it off the board into its side's half, "To the board..." puts it back
+where it stood. Each board has its own reserves. A unit in reserve is dragged within its
+half only; it has no movement rings, distances or line of sight, and no line of sight
+from the board gets to it, but the arrows to and from planned targets are drawn all the
+same. The boards are drawn a little smaller to make room for it (`map_view.DRAWN`,
+which `deploy.arrange` is told).
 
 Options for the selected unit (under the legend), following it as it moves:
 movement range (M, the slowest model's), advance (M + 3.5", the average D6), charge

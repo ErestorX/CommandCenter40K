@@ -18,6 +18,12 @@ Every enemy unit that line of sight gets to, be it by a corner of its base, has 
 While the unit is dragged its line of sight is a draft, cast with fewer rays; it is cast in full as
 soon as the unit is let go.
 
+Under the board, a "Reserves and Transports" space, split in half: the attacker's on the left, the
+defender's on the right. A right click on a unit opens a menu that sends it there, or back to the
+board where it stood. A unit in reserve is dragged about its half only, and has no rings, distances or
+line of sight; arrows to and from planned targets are drawn all the same, and no line of sight
+from the board gets to it.
+
 The map can also draw arrows to planned targets (the Engagement Optimizer's army plan): set_plan_links() gives
 the pairs; the "plan" overlay shows the selected unit's 1st target (or, for a selected defender, the
 attackers aiming at it), "plan2" adds 2nd targets, "planall" shows every attacker's."""
@@ -28,20 +34,21 @@ import random
 import re
 from dataclasses import dataclass
 
-from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
+from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QPainter, QPainterPath, QPen, QPolygonF
-from PySide6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsPolygonItem, QSizePolicy, QVBoxLayout,
-                               QWidget)
+from PySide6.QtWidgets import (QGraphicsItem, QGraphicsPathItem, QGraphicsPolygonItem, QGraphicsRectItem, QMenu,
+                               QSizePolicy, QVBoxLayout, QWidget)
 
 from command_center.deploy import Footprint
 from command_center.deploy.movement import rings
 from command_center.deploy.objectives import distance_to_region, objective_regions
-from command_center.deploy.placement import clamp, ellipse_polygon, extent, offset_ellipse, random_spot
+from command_center.deploy.placement import clamp, ellipse_polygon, extent, offset_ellipse, overlaps, random_spot
 from command_center.deploy.sight import (DRAFT_DIRECTIONS, DRAFT_ORIGINS, GO_TO_GROUND_RANGE, HIDDEN_RANGE, Obstacles,
                                          cast, fans, reaching_fans, sees)
 from command_center.ui.theme import C, font_family
-from command_center.ui.views.board import (AREA_FILL, AREA_LINE, BOARD_H, BOARD_W, FEATURE_FILL, NO_PEN, OBJ_FILL,
-                                           ZONE_FILL, ZONE_INK, LayoutMap, PixelText, line_pen, polygon)
+from command_center.ui.views.board import (AREA_FILL, AREA_LINE, BOARD_H, BOARD_INK, BOARD_W, FEATURE_FILL, NO_PEN,
+                                           OBJ_FILL, ZONE_FILL, ZONE_INK, BoardView, LayoutMap, PixelText, line_pen,
+                                           polygon)
 
 TOKEN = {"attacker": ("#c9474b", "#6b1417"), "defender": ("#3d73b3", "#12304f")}   # fill, outline
 TOKEN_OPACITY = 0.5               # terrain stays visible underneath
@@ -63,6 +70,28 @@ LABEL_MARGIN = 2                  # pixels kept clear between the name and the b
 ELLIPSIS = "…"
 Z_OVERLAY, Z_LINK, Z_TOKEN, Z_CHOSEN = 5, 6, 10, 20       # what is drawn over what
 
+# the space under the board for units that are not on it, in board inches (y goes up: it is below 0)
+RESERVES = "Reserves and Transports"
+RESERVE_GAP, RESERVE_H = 1.8, 9.0                 # between the board and it (its name is written there); its height
+RESERVE_TOP, RESERVE_BOTTOM = -RESERVE_GAP, -(RESERVE_GAP + RESERVE_H)
+DRAWN = (BOARD_W, BOARD_H + RESERVE_GAP + RESERVE_H)      # what a map draws: the board and that space
+TO_RESERVES, TO_BOARD = "To Reserves...", "To the board..."     # the unit's menu
+Box = tuple[float, float, float, float]           # x from, x to, y from, y to
+
+
+def reserve_half(role: str) -> Box:
+    """A side's half of the reserves space: the attacker's on the left, the defender's on the right."""
+    return (0, BOARD_W / 2, RESERVE_BOTTOM, RESERVE_TOP) if role == "attacker" else (BOARD_W / 2, BOARD_W, RESERVE_BOTTOM,
+                                                                                    RESERVE_TOP)
+
+
+def keep_inside(x: float, y: float, w: float, h: float, box: Box) -> tuple[float, float]:
+    """Keep a w x h footprint centred at (x, y) inside a box: it bumps into its edges (one too large for
+    it sits in its middle)."""
+    x0, x1, y0, y1 = box
+    return (min(max(x, x0 + w / 2), x1 - w / 2) if w < x1 - x0 else (x0 + x1) / 2,
+            min(max(y, y0 + h / 2), y1 - h / 2) if h < y1 - y0 else (y0 + y1) / 2)
+
 
 def see_through(color: str, opacity: float) -> QColor:
     c = QColor(color)
@@ -81,6 +110,8 @@ class Token:
     x: float = 0.0              # centre, board inches
     y: float = 0.0
     angle: float = 0.0          # degrees clockwise, as seen from above
+    reserve: bool = False       # in the reserves space, not on the board
+    board_spot: tuple[float, float] | None = None       # where it stood on the board, to go back there
 
     @property
     def box(self) -> tuple[float, float]:
@@ -206,7 +237,7 @@ class TokenItem(QGraphicsPolygonItem):
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.ItemPositionChange:
-            return QPointF(*clamp(value.x(), value.y(), *self.token.box))
+            return QPointF(*self.board.keep_in(self.token, value.x(), value.y()))
         if change == QGraphicsItem.ItemPositionHasChanged:
             self.token.x, self.token.y = self.x(), self.y()
             self.board.token_moved(self.token)
@@ -245,9 +276,34 @@ class ArrowHead(QGraphicsPolygonItem):
         self.setRotation(math.degrees(math.atan2(-(at[1] - towards[1]), at[0] - towards[0])))
 
 
+class UnitView(BoardView):
+    """The board's view, with what the right button does: `menu_asked` with the unit it was clicked on
+    and where on the screen, `right_clicked` when it was clicked on none."""
+
+    right_clicked = Signal()
+    menu_asked = Signal(str, object)
+
+    def token_at(self, pos) -> str | None:
+        return next((item.token.key for item in self.items(pos) if isinstance(item, TokenItem)), None)
+
+    def mousePressEvent(self, event):
+        if event.button() != Qt.RightButton:
+            super().mousePressEvent(event)
+        elif self.token_at(event.position().toPoint()) is None:
+            self.right_clicked.emit()
+
+    def contextMenuEvent(self, event):
+        key = self.token_at(event.pos())
+        if key is not None:
+            self.menu_asked.emit(key, event.globalPos())
+
+
 class UnitMap(LayoutMap):
+    view_class = UnitView
+
     def __init__(self):
         super().__init__()
+        self.scene.setSceneRect(QRectF(0, RESERVE_BOTTOM, *DRAWN))     # the board, and the reserves under it
         self.tokens: dict[str, Token] = {}
         self.items: dict[str, TokenItem] = {}
         self.rng = random.Random()
@@ -266,6 +322,7 @@ class UnitMap(LayoutMap):
         self._draft = False                                         # the overlays shown were drawn for a unit on the move
         self.view.scaled.connect(self._rescaled)
         self.view.right_clicked.connect(lambda: self._select(None))
+        self.view.menu_asked.connect(self.token_menu)
 
     def set_layout(self, layout: dict | None, message: str = "", show_measurements: bool | None = None):
         changed = (layout or {}).get("id") != (self.layout_data or {}).get("id")
@@ -282,10 +339,86 @@ class UnitMap(LayoutMap):
         self.items, self._overlay_items, self._link_items = {}, [], []
         super().draw()
         if self.layout_data:
+            # what is drawn for the selected unit (rings, line of sight...) stops at the board's edges:
+            # it is drawn in this frame, which cuts what goes past it
+            self._on_board = QGraphicsRectItem(0, 0, BOARD_W, BOARD_H)
+            self._on_board.setPen(NO_PEN)
+            self._on_board.setFlag(QGraphicsItem.ItemClipsChildrenToShape)
+            self._on_board.setZValue(Z_OVERLAY)
+            self._on_board.setAcceptedMouseButtons(Qt.NoButton)
+            self.scene.addItem(self._on_board)
+            self._draw_reserves()
             for t in self.tokens.values():
                 self._add_item(t)
             self._draw_overlays()
             self._draw_plan_links()
+
+    # ---------------------------------------------------------------- reserves
+    def _draw_reserves(self):
+        """The space under the board: its name between the two, a half per side, each in its side's colour."""
+        scene = self.scene
+        scene.addItem(PixelText(RESERVES.upper(), BOARD_W / 2, -RESERVE_GAP / 2, C["muted"], bold=True))
+        for role in ("attacker", "defender"):
+            x0, x1, y0, y1 = reserve_half(role)
+            scene.addRect(x0, y0, x1 - x0, y1 - y0, NO_PEN, QColor(ZONE_FILL[role]))
+            name = PixelText(self.role_names[role].upper(), x0, y1, ZONE_INK[role], bold=True)
+            w, h = name.size
+            name.offset = (w / 2 + 4, h / 2 + 3)                # in its half's top left corner
+            scene.addItem(name)
+        scene.addRect(0, RESERVE_BOTTOM, BOARD_W, RESERVE_H, line_pen(BOARD_INK))
+        scene.addLine(BOARD_W / 2, RESERVE_BOTTOM, BOARD_W / 2, RESERVE_TOP, line_pen(BOARD_INK))
+
+    def keep_in(self, t: Token, x: float, y: float) -> tuple[float, float]:
+        """Where a unit asked at (x, y) may stand: on the board, or in its side's half of the reserves."""
+        return keep_inside(x, y, *t.box, reserve_half(t.role)) if t.reserve else clamp(x, y, *t.box)
+
+    def _reserve_spot(self, t: Token) -> tuple[float, float]:
+        """A spot for a unit in its side's half of the reserves, clear of the units already there when there is room."""
+        x0, x1, y0, y1 = reserve_half(t.role)
+        w, h = t.box
+        others = [(o.x, o.y, *o.box) for o in self.tokens.values() if o is not t and o.reserve and o.role == t.role]
+        spot = keep_inside((x0 + x1) / 2, (y0 + y1) / 2, w, h, (x0, x1, y0, y1))
+        for _ in range(300):
+            spot = keep_inside(self.rng.uniform(x0, x1), self.rng.uniform(y0, y1), w, h, (x0, x1, y0, y1))
+            if not any(overlaps((*spot, w, h), o, gap=0.3) for o in others):
+                break
+        return spot
+
+    def to_reserves(self, key: str):
+        """Take a unit off the board, into its side's half of the reserves."""
+        t = self.tokens[key]
+        if not t.reserve:
+            t.board_spot, t.reserve = (t.x, t.y), True
+            self._moved_to(t, self._reserve_spot(t))
+
+    def to_board(self, key: str):
+        """Put a unit of the reserves back on the board: where it stood, or in its side's deployment zone."""
+        t = self.tokens[key]
+        if t.reserve:
+            t.reserve = False
+            if t.board_spot is None:
+                self._place(t)
+            self._moved_to(t, clamp(*(t.board_spot or (t.x, t.y)), *t.box))
+
+    def _moved_to(self, t: Token, spot: tuple[float, float]):
+        t.x, t.y = spot
+        if t.key in self.items:
+            self.items[t.key].setPos(*spot)
+        self._redraw_overlays()
+
+    def menu_actions(self, key: str) -> list[tuple[str, object]]:
+        """What a right click on a unit offers: each a name and what it does."""
+        if self.tokens[key].reserve:
+            return [(TO_BOARD, lambda: self.to_board(key))]
+        return [(TO_RESERVES, lambda: self.to_reserves(key))]
+
+    def token_menu(self, key: str, at):
+        """The menu of a unit, at a point of the screen; the unit is then the selected one."""
+        self.pick(key)
+        menu = QMenu(self)
+        for name, do in self.menu_actions(key):
+            menu.addAction(name).triggered.connect(lambda _checked=False, do=do: do())
+        menu.exec(at)
 
     # ---------------------------------------------------------------- units
     def add_token(self, key: str, role: str, label: str, footprint: Footprint, move: float = 0.0,
@@ -305,8 +438,12 @@ class UnitMap(LayoutMap):
                 self._select(None)
 
     def _place(self, t: Token):
+        if t.reserve:                                 # it stays in reserve, on whatever board
+            t.board_spot = None
+            t.x, t.y = self._reserve_spot(t)
+            return
         zones = (self.layout_data or {}).get("deployment_zones", {}).get(t.role, [])
-        others = [(o.x, o.y, *o.box) for o in self.tokens.values() if o is not t]
+        others = [(o.x, o.y, *o.box) for o in self.tokens.values() if o is not t and not o.reserve]
         t.x, t.y = random_spot(zones, *t.box, self.rng, avoid=others)
 
     def _add_item(self, t: Token):
@@ -345,7 +482,7 @@ class UnitMap(LayoutMap):
         t.angle = (t.angle + ROTATE_STEP) % 360
         item = self.items[key]
         item.shape_it()
-        item.setPos(*clamp(t.x, t.y, *t.box))
+        item.setPos(*self.keep_in(t, t.x, t.y))
         self._redraw_overlays()
 
     def move_token(self, key: str, x: float, y: float):
@@ -388,19 +525,22 @@ class UnitMap(LayoutMap):
     def _add(self, items: list, item: QGraphicsItem, z: float) -> QGraphicsItem:
         item.setZValue(z)
         item.setAcceptedMouseButtons(Qt.NoButton)
-        if item.scene() is None:
+        if items is self._overlay_items:                        # the selected unit's: kept to the board
+            item.setParentItem(self._on_board)
+        elif item.scene() is None:
             self.scene.addItem(item)
         items.append(item)
         return item
 
     def _halo_text(self, items: list, x: float, y: float, text: str, ink: str, z: float, above: bool = False):
-        """A small text on a white box, kept on the board; `above`: it sits on the point, not around it."""
+        """A small text on a white box, kept on what the map draws; `above`: it sits on the point, not around it."""
         tag = PixelText(text, 0, 0, ink, bold=True, back="white")
         k = self.view.pixels_per_inch or 1.0
         w, h = (d / k for d in tag.size)
         if above:
             y += h / 2
-        tag.setPos(min(max(x, w / 2 + 2 / k), BOARD_W - w / 2 - 2 / k), min(max(y, h / 2 + 2 / k), BOARD_H - h / 2 - 2 / k))
+        tag.setPos(min(max(x, w / 2 + 2 / k), BOARD_W - w / 2 - 2 / k),
+                   min(max(y, RESERVE_BOTTOM + h / 2 + 2 / k), BOARD_H - h / 2 - 2 / k))
         self._add(items, tag, z + 0.5)
 
     def _shade(self, items: list, polygons, color: str, opacity: float, z: float):
@@ -462,7 +602,7 @@ class UnitMap(LayoutMap):
         self._draft = draft
         self.seen = set()
         t = self.tokens.get(self.selected or "")
-        if not t or not self.layout_data:
+        if not t or not self.layout_data or t.reserve:          # off the board: nothing to measure or to see from there
             return
         fp = t.footprint
         if self.overlays["sight"] and t.ranges and self.obstacles:
@@ -475,7 +615,7 @@ class UnitMap(LayoutMap):
             self._shade(items, fans(rays), SIGHT_FILL, SIGHT_OPACITY, Z_OVERLAY)       # union: what it sees
             for o in self.tokens.values():                      # the enemy units in it: a glow around each
                 of = o.footprint
-                if o.role != t.role and sees(rays, ellipse_polygon(o.x, o.y, of.w, of.h, o.angle, n=36)):
+                if o.role != t.role and not o.reserve and sees(rays, ellipse_polygon(o.x, o.y, of.w, of.h, o.angle, n=36)):
                     self.seen.add(o.key)
                     ring = QPainterPath()                       # around the unit, not under it: its own colour stays
                     ring.addPolygon(polygon(offset_ellipse(o.x, o.y, of.w, of.h, o.angle, SEEN_GLOW)))
@@ -490,7 +630,7 @@ class UnitMap(LayoutMap):
                 reaching = []
                 for a_key, d_key, rank in self.plan_links:
                     d = self.tokens.get(d_key)
-                    if a_key != t.key or not d or (rank == "secondary" and not self.overlays["plan2"]):
+                    if a_key != t.key or not d or d.reserve or (rank == "secondary" and not self.overlays["plan2"]):
                         continue
                     target = ellipse_polygon(d.x, d.y, d.footprint.w, d.footprint.h, d.angle, n=36)
                     for fan in reaching_fans(rays, target):

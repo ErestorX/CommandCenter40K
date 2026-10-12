@@ -341,6 +341,16 @@ class ArrangeTest(unittest.TestCase):
     def arranged(self, n, w=990, h=880):
         return arrange(n, w, h, self.TALL, self.WIDE, chrome=(26, 70))
 
+    def test_boards_drawn_with_more_than_the_board(self):
+        plain = arrange(3, 1200, 900, self.TALL, self.WIDE, chrome=(26, 70))
+        taller = arrange(3, 1200, 900, self.TALL, self.WIDE, chrome=(26, 70), drawn=(60, 55))      # reserves under each
+        self.assertLess(taller.scale, plain.scale)
+        for a in (plain, taller):
+            self.assertEqual(len(a.boards), 3)
+        x, y, w, h = taller.boards[0]
+        self.assertLessEqual(taller.scale * 55, h - 70 + 1e-6)             # what is drawn fits its cell
+        self.assertLessEqual(taller.scale * 60, w - 26 + 1e-6)
+
     def test_three_boards_keep_the_grid(self):
         a = self.arranged(3)                                  # 2 x 2, the info panel in the fourth cell
         self.assertEqual(a.boards, [(0, 0, 495, 440), (495, 0, 495, 440), (0, 440, 495, 440)])

@@ -88,11 +88,10 @@ class PixelText(QGraphicsItem):
 
 
 class BoardView(QGraphicsView):
-    """Shows the whole board, as large as its room allows. `scaled` is emitted when that size changed,
-    `right_clicked` on a click of the right button."""
+    """Shows the whole scene (the board, unless more is drawn with it), as large as its room allows.
+    `scaled` is emitted when that size changed."""
 
     scaled = Signal()
-    right_clicked = Signal()
 
     def __init__(self):
         board = QGraphicsScene(0, 0, BOARD_W, BOARD_H)
@@ -108,21 +107,17 @@ class BoardView(QGraphicsView):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.fitInView(QRectF(0, 0, BOARD_W, BOARD_H), Qt.KeepAspectRatio)
+        self.fitInView(self.sceneRect(), Qt.KeepAspectRatio)
         self.scaled.emit()
 
     @property
     def pixels_per_inch(self) -> float:
         return self.transform().m11()
 
-    def mousePressEvent(self, event):
-        if event.button() == Qt.RightButton:
-            self.right_clicked.emit()
-        else:
-            super().mousePressEvent(event)
-
 
 class LayoutMap(Panel):
+    view_class = BoardView          # what shows the scene: a map with more to it has its own
+
     def __init__(self):
         super().__init__()
         col = QVBoxLayout(self)
@@ -133,7 +128,7 @@ class LayoutMap(Panel):
         self.sub = label("", "muted")
         col.addWidget(self.sub)
         col.addSpacing(4)
-        self.view = BoardView()
+        self.view = self.view_class()
         self.scene = self.view.board
         self.note = label("", "muted", wrap=True, align=Qt.AlignCenter)        # shown when there is no layout
         self.stack = QStackedWidget()

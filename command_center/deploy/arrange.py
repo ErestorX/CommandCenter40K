@@ -33,15 +33,17 @@ def _grid(n: int, x: int, y: int, w: int, h: int, cols: int) -> list[Rect]:
     return [(x + (i % cols) * cw, y + (i // cols) * ch, cw, ch) for i in range(n)]
 
 
-def arrange(n: int, width: int, height: int, tall: Size, wide: Size, chrome: Size = (0, 0)) -> Arrangement:
+def arrange(n: int, width: int, height: int, tall: Size, wide: Size, chrome: Size = (0, 0),
+            drawn: tuple[float, float] = (BOARD_W, BOARD_H)) -> Arrangement:
     """n boards and the info panel in a width x height space.
     tall, wide: the size the info panel asks for in each shape.
-    chrome: what a board's cell needs around the board itself (frame, title)."""
+    chrome: what a board's cell needs around the board itself (frame, title).
+    drawn: the inches a board's picture takes, when more than the board is drawn with it."""
     if n <= 0:
         return Arrangement([], (0, 0, width, height), False, 0.0)
 
     def scale(cell: Rect) -> float:
-        return min((cell[2] - chrome[0]) / BOARD_W, (cell[3] - chrome[1]) / BOARD_H)
+        return min((cell[2] - chrome[0]) / drawn[0], (cell[3] - chrome[1]) / drawn[1])
 
     found: list[Arrangement] = []
     least = tall[1] * SQUEEZE

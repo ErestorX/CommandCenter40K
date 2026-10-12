@@ -196,6 +196,98 @@ class HolomapTest(unittest.TestCase):
         m.token_released()                                                 # a plain click: nothing to draw again
         self.assertEqual(len(cast_with), before)
 
+    def test_reserves(self):
+        from command_center.ui.tools.holomap.map_view import (RESERVE_BOTTOM, RESERVE_TOP, TO_BOARD, TO_RESERVES,
+                                                              reserve_half)
+        win = self.win
+        attackers, defenders = self.place()
+        m = win.maps[0]
+        key = next((k for k in attackers if m.tokens[k].ranges), attackers[0])
+        t = m.tokens[key]
+        m.move_token(key, 20, 22)
+        for name in ("move", "objectives", "sight"):
+            win.overlay_ticks[name].setChecked(True)
+        m.pick(key)
+        self.assertGreater(len(m._overlay_items), 0)
+        self.assertEqual([name for name, _ in m.menu_actions(key)], [TO_RESERVES])
+
+        m.menu_actions(key)[0][1]()                                        # as the menu's entry does
+        self.assertTrue(t.reserve)
+        self.assertEqual(t.board_spot, (20, 22))
+        x0, x1, y0, y1 = reserve_half("attacker")
+        w, h = t.box
+        self.assertTrue(x0 <= t.x - w / 2 + 1e-9 and t.x + w / 2 <= x1 + 1e-9)          # in its side's half, under the board
+        self.assertTrue(RESERVE_BOTTOM <= t.y - h / 2 + 1e-9 and t.y + h / 2 <= RESERVE_TOP + 1e-9)
+        self.assertEqual(m.selected, key)
+        self.assertEqual(m._overlay_items, [])                             # no rings, distances or line of sight from there
+        self.assertEqual((m.items[key].x(), m.items[key].y()), (t.x, t.y))
+        m.move_token(key, 50, 30)                                          # dragged at the board and the other half
+        self.assertTrue(x0 <= t.x - w / 2 + 1e-9 and t.x + w / 2 <= x1 + 1e-9 and t.y + h / 2 <= RESERVE_TOP + 1e-9)
+        m.rotate(key)                                                      # turned: still in its half
+        w, h = t.box
+        self.assertTrue(x0 <= t.x - w / 2 + 1e-9 and t.x + w / 2 <= x1 + 1e-9 and t.y + h / 2 <= RESERVE_TOP + 1e-9)
+        self.assertNotIn(key, {k for mm in win.maps[1:] for k, tt in mm.tokens.items() if tt.reserve})      # this map only
+
+        m.to_reserves(defenders[0])                                        # the defender's are on the right
+        d = m.tokens[defenders[0]]
+        self.assertGreaterEqual(d.x - d.box[0] / 2 + 1e-9, reserve_half("defender")[0])
+        m.pick(attackers[1] if attackers[1] != key else attackers[0])      # from the board, a unit in reserve is not seen
+        self.assertNotIn(defenders[0], m.seen)
+
+        m.pick(key)
+        self.assertEqual([name for name, _ in m.menu_actions(key)], [TO_BOARD])
+        m.to_board(key)
+        self.assertFalse(t.reserve)
+        w, h = t.box
+        self.assertTrue(w / 2 - 1e-6 <= t.x <= BOARD_W - w / 2 + 1e-6 and h / 2 - 1e-6 <= t.y <= BOARD_H - h / 2 + 1e-6)
+        self.assertGreater(len(m._overlay_items), 0)                       # on the board again: its overlays too
+        win.measure.setChecked(True)                                       # the board is drawn again: who is in reserve stays
+        self.assertTrue(m.tokens[defenders[0]].reserve and defenders[0] in m.items)
+
+    def test_planned_targets_reach_into_the_reserves(self):
+        win = self.win
+        attackers, defenders = self.place()
+        rows = win.placed
+        name = lambda key: rows[key].units[0].label or rows[key].units[0].name
+        a, d = name(attackers[0]), name(defenders[0])
+        self.ctx.army_plans.put(SavedPlan(self.selection.attacker.path.name, self.selection.defender.path.name,
+                                          [PlanEntry(a, [a], PlanTarget(d, [d], 0.5, 40.0), None)], [], {}))
+        m = win.maps[0]
+        win.overlay_ticks["plan"].setChecked(True)
+        m.pick(attackers[0])
+        on_board = len(m._link_items)
+        self.assertGreater(on_board, 0)
+        m.to_reserves(attackers[0])                                        # the attacker in reserve: its arrow is still drawn
+        self.assertEqual(len(m._link_items), on_board)
+        m.to_reserves(defenders[0])                                        # and to a target in reserve
+        self.assertEqual(len(m._link_items), on_board)
+
+    def test_right_button(self):
+        from PySide6.QtCore import QPoint
+        attackers, _ = self.place()
+        m = self.win.maps[0]
+        key = attackers[0]
+        m.move_token(key, 30, 22)
+        m.pick(key)
+        on_unit = m.view.mapFromScene(m.items[key].pos())
+        self.assertEqual(m.view.token_at(on_unit), key)
+        QTest.mousePress(m.view.viewport(), Qt.RightButton, pos=on_unit)   # on a unit: its menu follows, it stays selected
+        self.assertEqual(m.selected, key)
+        asked = []
+        m.view.menu_asked.disconnect(m.token_menu)                         # the menu itself would wait for a choice
+        m.view.menu_asked.connect(lambda k, at: asked.append(k))
+        from PySide6.QtGui import QContextMenuEvent
+        from PySide6.QtWidgets import QApplication
+        QApplication.sendEvent(m.view.viewport(), QContextMenuEvent(QContextMenuEvent.Mouse, on_unit,
+                                                                    m.view.viewport().mapToGlobal(on_unit)))
+        self.assertEqual(asked, [key])
+        off = m.view.mapFromScene(1, 1)
+        self.assertIsNone(m.view.token_at(off))
+        QTest.mousePress(m.view.viewport(), Qt.RightButton, pos=off)       # on no unit: the selection is released
+        self.assertIsNone(m.selected)
+        QApplication.sendEvent(m.view.viewport(), QContextMenuEvent(QContextMenuEvent.Mouse, off, m.view.viewport().mapToGlobal(off)))
+        self.assertEqual(asked, [key])                                     # and no menu
+
     def test_a_name_is_fitted_in_its_base(self):
         from command_center.ui.tools.holomap.map_view import ELLIPSIS, LABEL_SIZES, compact_label, fit_label
         self.assertEqual(compact_label("Intercessor Squad + Librarian"), "Intercessor + Librarian")

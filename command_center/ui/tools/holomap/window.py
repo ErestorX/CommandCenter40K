@@ -17,7 +17,7 @@ from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QSizePolicy, QVBoxLayout
 from command_center.analysis.army_plans import pair_key
 from command_center.deploy.arrange import Rect, arrange
 from command_center.ui.registry import Selection, register_tool
-from command_center.ui.tools.holomap.map_view import OVERLAYS, Legend, UnitMap
+from command_center.ui.tools.holomap.map_view import DRAWN, OVERLAYS, Legend, UnitMap
 from command_center.ui.tools.holomap.score_oracle import ScoreOracle
 from command_center.ui.tools.holomap.side_panel import ROLES, SidePanel
 from command_center.ui.toolwindow import ToolWindow
@@ -172,7 +172,7 @@ class HolomapWindow(ToolWindow):
         shown = [m for m, tick in zip(self.maps, self.shown) if tick.isChecked()]
         a = arrange(len(shown), area.width(), area.height(),
                     tall=(max(tw, bw) + GAP, th + bh + 2 * GAP), wide=(tw + bw + 2 * GAP, max(th, bh) + GAP),
-                    chrome=chrome)
+                    chrome=chrome, drawn=DRAWN)               # a map draws its reserves under its board
 
         def put(w: QWidget, rect: Rect):
             x, y, width, height = rect

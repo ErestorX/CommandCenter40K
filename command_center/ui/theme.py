@@ -82,6 +82,9 @@ QSlider::groove:horizontal {{ height: 6px; background: {field}; border: 1px soli
 QSlider::handle:horizontal {{ width: 12px; margin: -6px 0; background: {raised}; border: 1px solid {line};
     border-top-color: #4a4a55; border-left-color: #4a4a55; }}
 QSlider::handle:horizontal:hover {{ background: {hover}; }}
+QMenu {{ background: {raised}; color: {ink}; border: 1px solid {line}; padding: 3px; }}
+QMenu::item {{ padding: 4px 18px; }}
+QMenu::item:selected {{ background: {select}; color: white; }}
 QGroupBox {{ border: 1px solid {line}; margin-top: 9px; padding-top: 4px; }}
 QGroupBox::title {{ subcontrol-origin: margin; left: 8px; padding: 0px 3px; color: {muted}; }}
 QComboBox {{ background: {field}; color: {ink}; border: 1px solid {line}; padding: 2px 6px; }}
