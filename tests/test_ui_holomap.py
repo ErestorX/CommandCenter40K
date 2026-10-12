@@ -348,7 +348,8 @@ class HolomapTest(unittest.TestCase):
 
     def test_a_unit_loses_models_and_is_destroyed(self):
         from command_center.deploy.bases import unit_footprint
-        from command_center.ui.tools.holomap.map_view import ADD_MODEL, DESTROYED, FORMATION, GONE, LOSE_MODEL, TOKEN, UNIT
+        from command_center.ui.tools.holomap.map_view import (ADD_MODEL, DESTROYED, FORMATION, FULL_STRENGTH, GONE, LOSE_MODEL,
+                                                              TOKEN, UNIT)
         attackers, _ = self.place(4)
         m = self.win.maps[0]
         key = next((k for k in attackers if m.tokens[k].footprint.models > 2), None)
@@ -362,10 +363,11 @@ class HolomapTest(unittest.TestCase):
         def unit_entries():
             entries = m.menu_actions(key)
             at = [e.name for e in entries].index(UNIT)
-            self.assertEqual([e.name for e in entries[at + 1:]], [LOSE_MODEL, ADD_MODEL, DESTROYED])
+            self.assertEqual([e.name for e in entries[at + 1:]], [LOSE_MODEL, ADD_MODEL, FULL_STRENGTH, DESTROYED])
             return entries[at + 1:]
-        lose, add, destroy = unit_entries()
-        self.assertEqual((lose.enabled, add.enabled, destroy.enabled), (True, False, True))       # at full strength: none to give back
+        lose, add, full_strength, destroy = unit_entries()
+        self.assertEqual((lose.enabled, add.enabled, full_strength.enabled, destroy.enabled),
+                         (True, False, False, True))                       # at full strength: none to give back
         self.assertIsNone(item._count)
 
         lose.do()                                                          # one model fewer: a smaller token, its count above
@@ -392,8 +394,8 @@ class HolomapTest(unittest.TestCase):
         self.assertEqual((t.models, item._count.text), (0, f"0/{started}"))
         self.assertEqual(item.brush().color().name(), GONE[0])
         self.assertLess(item.brush().color().alphaF(), 0.3)
-        lose, add, destroy = unit_entries()
-        self.assertEqual((lose.enabled, add.enabled, destroy.enabled), (False, True, False))
+        lose, add, full_strength, destroy = unit_entries()
+        self.assertEqual((lose.enabled, add.enabled, full_strength.enabled, destroy.enabled), (False, True, True, False))
         m.to_board(key)                                                    # it can be put back on the board, still grey
         self.assertTrue(t.destroyed and not t.reserve)
         self.win.overlay_ticks["move"].setChecked(True)
@@ -408,9 +410,20 @@ class HolomapTest(unittest.TestCase):
         for _ in range(started):
             m.add_model(key)
         self.assertEqual((t.models, (t.footprint.w, t.footprint.h)), (started, full))
-        unit_entries()[2].do()                                             # Destroyed, straight from full strength
+        unit_entries()[3].do()                                             # Destroyed, straight from full strength
         self.assertTrue(t.destroyed and t.reserve and t.models == 0)
         self.assertEqual((t.footprint.w, t.footprint.h), full)             # it keeps the size it had
+        unit_entries()[2].do()                                             # Full strength: every model back at once
+        self.assertEqual((t.models, t.destroyed, t.reserve), (started, False, True))       # where it is: still in reserve
+        self.assertEqual(item.brush().color().name(), TOKEN[t.role][0])
+        self.assertIsNone(item._count)
+        m.to_board(key)
+        for _ in range(3):
+            m.lose_model(key)
+        m.restore(key)                                                     # and from a few models down
+        self.assertEqual((t.models, (t.footprint.w, t.footprint.h)), (started, full))
+        m.restore(key)                                                     # nothing to give back: nothing happens
+        self.assertEqual(t.models, started)
         self.assertEqual(self.win.maps[1].tokens[key].models, started)     # each board its own
 
     def test_right_button(self):

@@ -11,10 +11,10 @@ which is a tube and not an ellipse). Each board keeps its own.
 
 Under "Unit", the menu counts the unit's models on that board: "-1 Model" takes one off (those that
 are not characters first, the smallest bases first), "+1 Model" puts one back, up to the strength it
-started at, and the token is sized again for the models left; while some are missing, "left/started"
+started at, "Full strength" puts them all back at once, and the token is sized again for the models left; while some are missing, "left/started"
 is written above it. "Destroyed" takes them all: the token turns grey and fainter and goes to the
 reserves (it can be brought back to the board), with nothing measured or seen from it; "+1 Model"
-gives it its first model, and its colour, back.
+gives it its first model, and its colour, back, and "Full strength" all of them.
 
 A unit's name is written inside its base, along it, as large as fits and on as many lines as that
 takes; what does not fit, even at the smallest size, is cut short with an ellipsis (fit_label). The
@@ -69,7 +69,8 @@ SELECTED = "#e0a800"
 # the turns a unit's menu offers, under its "Rotate" heading: degrees clockwise, and how each is written
 ROTATE = "Rotate"
 FORMATION = "Formation"           # the heading of the formations (command_center.deploy.bases.FORMATIONS) in that menu
-UNIT, LOSE_MODEL, ADD_MODEL, DESTROYED = "Unit", "-1 Model", "+1 Model", "Destroyed"       # and of the unit's models
+# and of the unit's models
+UNIT, LOSE_MODEL, ADD_MODEL, FULL_STRENGTH, DESTROYED = "Unit", "-1 Model", "+1 Model", "Full strength", "Destroyed"
 GONE = ("#8d8d8d", "#6a6a6a")     # a destroyed unit: fill, outline
 GONE_OPACITY = 0.25               # and fainter than a unit still there
 COUNT_BACK = QColor(255, 255, 255, 200)       # behind the "left/started" written above a unit short of models
@@ -490,6 +491,7 @@ class UnitMap(LayoutMap):
             entries += [MenuEntry(UNIT),
                         MenuEntry(LOSE_MODEL, lambda: self.lose_model(key), enabled=not t.destroyed),
                         MenuEntry(ADD_MODEL, lambda: self.add_model(key), enabled=t.lost > 0),
+                        MenuEntry(FULL_STRENGTH, lambda: self.restore(key), enabled=t.lost > 0),
                         MenuEntry(DESTROYED, lambda: self.destroy(key), enabled=not t.destroyed)]
         return entries
 
@@ -510,6 +512,14 @@ class UnitMap(LayoutMap):
             return
         t.lost -= 1
         t.destroyed = False
+        self._resized(t)
+
+    def restore(self, key: str):
+        """Give a unit all its models back: as it started, destroyed or not (it stays where it is)."""
+        t = self.tokens[key]
+        if not t.bases or t.lost <= 0:
+            return
+        t.lost, t.destroyed = 0, False
         self._resized(t)
 
     def destroy(self, key: str):

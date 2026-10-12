@@ -332,10 +332,12 @@ Under **Unit**, the menu counts the unit's models on that board:
   the smallest bases first; then the characters (`bases.remaining_bases`). Taking the
   last one destroys the unit.
 - **+1 Model** gives one back, up to the strength the unit started at (greyed out there).
+- **Full strength** gives them all back at once, to a destroyed unit too; it stays
+  where it is.
 - **Destroyed** takes them all: the token turns grey and fainter, keeps the size it had
   and goes to the reserves; it can be put back on the board, where nothing is measured
-  or seen from it and no line of sight glows on it. Only "+1 Model" gives it its colour
-  back, with its first model.
+  or seen from it and no line of sight glows on it. Only "+1 Model" (with its first model) or
+  "Full strength" gives it its colour back.
 
 The token is sized again for the models left, in its formation, and while some are
 missing "left/started" (6/11) is written above it.
