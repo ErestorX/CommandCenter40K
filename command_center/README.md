@@ -12,10 +12,14 @@ python -m command_center                # the same
 python -m command_center ui --data DIR  # with a folder of Wahapedia CSVs used as it is (no update check)
 ```
 
-Data: `command_center.data.fetch.update()` downloads Wahapedia's CSV export, the mission deck
-page and Rapid Ingress's layouts into `wahapedia_data/<edition>/` (raw/, json/, missions/,
-manifest.json), only what changed. The app runs it at start-up (`command_center/ui/updater.py`)
-when the manifest's `checked_at` is more than 24 hours old or there is no data, with one attempt
+Data: `command_center.data.fetch.update()` first brings BSData's army data up to date
+(`update_bsdata`: the last commit of `config.BSDATA_REPO` asked of GitHub's API; when it isn't the
+one on disk, that commit's zip, whose top-level .json files go to `wahapedia_data/bsdata/wh40k-11e/`
+with an index and a manifest; a failure there is only logged), then downloads Wahapedia's CSV
+export, the mission deck page and Rapid Ingress's layouts into `wahapedia_data/<edition>/` (raw/,
+json/, missions/, manifest.json), only what changed. The app runs it at start-up
+(`command_center/ui/updater.py`) when the manifest's `checked_at` is more than 24 hours old, there
+is no data, or BSData's files aren't there yet, with one attempt
 and 20 seconds per request; a failure leaves everything as it is and the app starts with the
 data on disk. From the command line (three attempts, 60 seconds):
 
@@ -113,13 +117,16 @@ command_center/
     modifiers.py          everything that can change an attack sequence
     engine.py             simulate() and allocation (11th-edition save ordering)
   data/
-    fetch.py              download Wahapedia CSVs, build json/ tree, check missions and layouts
+    fetch.py              download BSData's files and Wahapedia's CSVs, build json/ tree, check missions and layouts
+    bsdata.py             BSData's files (read when needed) -> Unit objects, abilities, enhancements,
+                          detachments, who can join whom (Leader / Support abilities)
+    armies.py             what lists link with: BSData first, completed by Wahapedia (Unit.fallback)
     missions.py           Wahapedia mission deck page -> missions/json/: Force Dispositions,
                           primary and secondary missions
     layouts.py            Rapid Ingress layout data -> missions/json/layouts.json: the 45
                           layouts (deployment zones, objectives, terrain) per disposition pairing
     wahapedia.py          CSVs -> Unit objects
-    rules.py              army rules, detachments, stratagems, abilities (lazy)
+    rules.py              army rules, detachments, stratagems, abilities (BSData's where it has them; lazy)
     missionbook.py        primary missions and layouts from missions/json (lazy), per disposition pairing
   lists/
     registry.py           pluggable list formats
@@ -308,7 +315,7 @@ right, or in a strip under them.
 
 Tick a unit (✓) to put it on every map, each at its own random spot in its side's
 deployment zone; drag it anywhere on its board, it stops at the edges. A single model
-is its base (Wahapedia's base size); a unit is one ellipse holding every base with 1"
+is its base (BSData's base size, else Wahapedia's); a unit is one ellipse holding every base with 1"
 between neighbours (Leaders and Support characters included). Models without an
 official base size (vehicles: "Use model") get an oval estimated from their Wounds,
 drawn dashed. Units are half see-through so terrain shows underneath, and new ones are
@@ -474,11 +481,25 @@ for a consistent look.
 ## Adding a list format
 
 Write `command_center/lists/<format>.py` with `detect(text) -> bool` and
-`parse(text, path, wd) -> ArmyList`, call `register_parser(...)`, and import the
+`parse(text, path, source) -> ArmyList`, call `register_parser(...)`, and import the
 module in `command_center/lists/__init__.py`. Datasheet linking, weapon loads and targets
 then work unchanged.
 
-How a list's names find the datasheet's (`lists/linking.py`, `Unit.profile`):
+Where a list's units come from (`data/armies.py`, `ctx.armies`): BSData first. NewRecruit builds
+lists from BSData's files, so a unit, its model lines and its items are found there by the exact
+names the list gives them (`data/bsdata.py`; `Unit.gear` maps each item to its weapon profiles).
+BSData's files are community work, updated daily, with gaps: a BSData unit is completed from
+Wahapedia's datasheet of the same name (`Unit.fallback`): base sizes it leaves blank, and items the
+list names that it doesn't have. A unit BSData doesn't have is Wahapedia's, matched as below. What
+is blank in both stays blank (an estimated base is drawn). Who can join whom: the units a
+character's BSData Leader or Support ability names, else Wahapedia's table. Rules text: abilities,
+enhancements and detachment rules from BSData; army rules and stratagems from Wahapedia (BSData has
+no stratagems). The launcher's preview names the units that came from Wahapedia. Without BSData's
+files (not downloaded yet) everything is Wahapedia's.
+
+The tests read `tests/fixtures/bsdata`, cut from the real files by `scripts/bsdata_fixture.py`.
+
+How a list's names find a Wahapedia datasheet's (`lists/linking.py`, `Unit.profile`):
 - a model line takes the profile of its name, "w/" read as "with"; else the longest profile name
   it starts with, in whole words ("Intercessor w/ Grenade Launcher": the Intercessor); else the
   first profile;

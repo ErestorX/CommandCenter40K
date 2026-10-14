@@ -7,7 +7,7 @@ from command_center.lists import formats, parse_list, target_for, weapon_loads
 from command_center.lists.library import (DEMO_LISTS, can_delete, clean_name, delete_list, is_demo, name_problem,
                                           save_list, text_problem)
 from command_center.lists.newrecruit import split_items
-from tests.helpers import FIXTURES, FIXTURE_LIST, fixture_wd
+from tests.helpers import FIXTURE_BSDATA, FIXTURES, FIXTURE_LIST, fixture_wd
 
 
 class SplitItemsTest(unittest.TestCase):
@@ -147,7 +147,7 @@ class DeleteListTest(unittest.TestCase):
         for army, role in ((mine, ATTACKER), (mine, DEFENDER), (demo, ATTACKER)):
             plans.get(army, role, army.units[0]).set_included(True, role)
         plans.save()
-        ctx = AppContext(fixture_wd().data_dir)
+        ctx = AppContext(fixture_wd().data_dir, bsdata_dir=FIXTURE_BSDATA)
         ctx.test_plans_path = folder / "test_plans.json"
         ctx._army_plans = ArmyPlanStore(folder / "army_plans.json")
         ctx._games = GameStore(folder / "games")

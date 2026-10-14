@@ -31,7 +31,9 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import zipfile
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -368,6 +370,7 @@ def main(argv=None) -> None:
     ap.add_argument("--from-dir", type=Path, help="build from CSVs already on disk instead of downloading")
     ap.add_argument("--rebuild-json", action="store_true", help="only rebuild json/ from the existing raw/")
     ap.add_argument("--no-missions", action="store_true", help="skip the mission deck page")
+    ap.add_argument("--no-bsdata", action="store_true", help="skip BSData's army data")
     a = ap.parse_args(argv)
 
     edition_dir = Path(a.out) / a.edition
@@ -388,21 +391,28 @@ def main(argv=None) -> None:
         build_csv_tree(edition_dir, base_url, missions_url, a.edition, blobs)
     else:
         try:
-            update(edition_dir, a.edition, a.force, a.from_dir, not a.no_missions)
+            update(edition_dir, a.edition, a.force, a.from_dir, not a.no_missions, not a.no_bsdata)
         except RuntimeError as e:
             sys.exit(f"{e}\nIf Wahapedia blocks scripted downloads, save the CSVs from "
                      f"{base_url}  (links on its 'Data Export' page) into a folder and rerun with --from-dir.")
 
 
 def update(edition_dir: Path, edition: str = DEFAULT_EDITION, force: bool = False, from_dir: Path | None = None,
-           with_missions: bool = True) -> bool:
-    """Bring the data tree up to date: download what changed (or read it from `from_dir`) and rebuild.
-    Returns whether the CSV data changed. RuntimeError when Wahapedia can't be reached or a required
-    table is missing: nothing is then changed, and the missions are not checked either.
+           with_missions: bool = True, with_bsdata: bool = True) -> bool:
+    """Bring the data up to date: BSData's files first (see update_bsdata; a failure there is only
+    logged), then Wahapedia's: download what changed (or read it from `from_dir`) and rebuild.
+    Returns whether any data changed. RuntimeError when Wahapedia can't be reached or a required table
+    is missing: nothing of Wahapedia's is then changed, and the missions are not checked either.
     A check against the site is noted in the manifest (checked_at): see is_stale()."""
     edition_dir.mkdir(parents=True, exist_ok=True)
     base_url = BASE_URL.format(edition=edition)
     missions_url = config.MISSION_DECK_URL.format(edition=edition)
+    bsdata_changed = False
+    if with_bsdata and not from_dir:
+        try:
+            bsdata_changed = update_bsdata(config.bsdata_dir(edition_dir.parent), force)
+        except (RuntimeError, OSError, ValueError) as e:
+            log(f"  BSData skipped: {e}")
     blobs = download(edition_dir, base_url, force, from_dir)
     if with_missions:
         update_missions_step(edition_dir, missions_url, force, from_dir)
@@ -410,7 +420,69 @@ def update(edition_dir: Path, edition: str = DEFAULT_EDITION, force: bool = Fals
         build_csv_tree(edition_dir, base_url, missions_url, edition, blobs)
     if not from_dir:
         mark_checked(edition_dir)
-    return blobs is not None
+    return blobs is not None or bsdata_changed
+
+
+BSDATA_COMMIT_URL = "https://api.github.com/repos/{repo}/commits/{branch}"
+BSDATA_ZIP_URL = "https://codeload.github.com/{repo}/zip/{sha}"
+BSDATA_MAX_FILE = 64 * 1024 * 1024          # bytes: no file of theirs is near this; a zip claiming more is refused
+
+
+def update_bsdata(folder: Path, force: bool = False, get: Callable[[str], bytes | None] | None = None) -> bool:
+    """Bring BSData's files (config.BSDATA_REPO) up to date in `folder`: ask GitHub for the branch's last
+    commit; when it isn't the one on disk, download that commit's zip and keep its .json files (those at
+    the top of the repository only: no path from the archive is used). The new folder replaces the old
+    one in one move, with its index (bsdata.INDEX_FILE) and a manifest (commit, date). Returns whether
+    new files were written; RuntimeError when GitHub can't be reached or the zip isn't what is expected
+    (the files on disk are then left as they were)."""
+    from command_center.data.bsdata import MANIFEST_FILE, write_index
+    get = get or fetch
+    folder = Path(folder)
+    repo, branch = config.BSDATA_REPO, config.BSDATA_BRANCH
+    log("Checking BSData's army data...")
+    raw = get(BSDATA_COMMIT_URL.format(repo=repo, branch=branch))
+    if not raw:
+        raise RuntimeError(f"no commit found for {repo}")
+    commit = json.loads(raw)
+    sha = commit.get("sha", "")
+    date = (commit.get("commit", {}).get("committer") or {}).get("date", "")
+    try:
+        on_disk = json.loads((folder / MANIFEST_FILE).read_text(encoding="utf-8")).get("sha")
+    except (OSError, ValueError):
+        on_disk = None
+    if not force and sha and on_disk == sha and (folder / config.BSDATA_SYSTEM_FILE).exists():
+        log("  BSData is up to date.")
+        return False
+    log(f"  Downloading BSData's files ({date[:10] or sha[:7]})...")
+    blob = get(BSDATA_ZIP_URL.format(repo=repo, sha=sha or branch))
+    if not blob:
+        raise RuntimeError(f"no archive for {repo}")
+    files: dict[str, bytes] = {}
+    with zipfile.ZipFile(io.BytesIO(blob)) as z:
+        for info in z.infolist():
+            parts = info.filename.split("/")
+            if len(parts) == 2 and parts[1].endswith(".json") and not info.is_dir():
+                if info.file_size > BSDATA_MAX_FILE:
+                    raise RuntimeError(f"{parts[1]} is too large")
+                files[Path(parts[1]).name] = z.read(info)
+    if config.BSDATA_SYSTEM_FILE not in files:
+        raise RuntimeError("the archive doesn't hold BSData's game system file")
+    new, old = folder.with_name(folder.name + ".new"), folder.with_name(folder.name + ".old")
+    for d in (new, old):
+        shutil.rmtree(d, ignore_errors=True)
+    new.mkdir(parents=True)
+    for name, data in files.items():
+        (new / name).write_bytes(data)
+    write_json(new / MANIFEST_FILE, {"repository": repo, "branch": branch, "sha": sha, "date": date,
+                                     "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                                     "files": len(files)})
+    write_index(new)
+    if folder.exists():
+        folder.rename(old)
+    new.rename(folder)
+    shutil.rmtree(old, ignore_errors=True)
+    log(f"  BSData: {len(files)} files, {date[:10]}.")
+    return True
 
 
 def mark_checked(edition_dir: Path, when: datetime | None = None) -> None:

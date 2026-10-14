@@ -85,6 +85,12 @@ class Wahapedia:
         same = [i for i in hits if self.datasheets[i].get("faction_id") == faction_id]
         return (same or hits)[0]
 
+    def datasheet_for(self, name: str, army) -> Unit | None:
+        """The datasheet a list's unit names, preferring the list's faction (see Armies, which asks
+        BSData first)."""
+        did = self.find(name, army.faction_id)
+        return self.unit(did) if did else None
+
     def unit(self, did: str) -> Unit:
         if did in self._cache:
             return self._cache[did]

@@ -177,7 +177,7 @@ class ListPicker(Panel):
         self.delete_btn.setEnabled(p is not None and can_delete(p, LISTS_DIR))
         if p:
             try:
-                self.army = parse_list(p, self.app.ctx.wd)
+                self.army = parse_list(p, self.app.ctx.armies)
             except Exception as e:  # noqa: BLE001 - show any parse problem to the user
                 self.preview.setText(f"Could not read {p.name}:\n{e}")
                 self.launcher.update_buttons()
@@ -197,6 +197,9 @@ class ListPicker(Panel):
             lines.append("⚠ Faction not recognised, units matched across all factions")
         if a.unmatched_units:
             lines.append("⚠ No datasheet for: " + ", ".join(a.unmatched_units))
+        from_wahapedia = [u.name for u in a.units if u.datasheet and u.datasheet.source == "wahapedia"]
+        if self.app.ctx.bs and from_wahapedia:
+            lines.append("Not in BSData, taken from Wahapedia: " + ", ".join(dict.fromkeys(from_wahapedia)))
         if a.unknown_gear:
             lines.append("⚠ Not found on the datasheet: " + ", ".join(a.unknown_gear))
         self.preview.setText("\n".join(lines))
@@ -285,7 +288,7 @@ class AddListDialog(QDialog):
 
     def save(self):
         text, name = self.text.toPlainText(), self.name.text()
-        problem = text_problem(text, self.app.ctx.wd) or name_problem(name, LISTS_DIR)
+        problem = text_problem(text, self.app.ctx.armies) or name_problem(name, LISTS_DIR)
         if problem:
             self.problem.setText(problem)
             return
@@ -309,8 +312,9 @@ class Launcher(QWidget):
         grid.setContentsMargins(18, 18, 18, 18)
         grid.setSpacing(0)
         grid.addWidget(label("Command Center 40K — choose the armies", "h1"), 0, 0, 1, 3)
-        sub = label(f"Wahapedia data: last update {app.ctx.wd.last_update or 'unknown'}   ·   "
-                    f"lists folder: {LISTS_DIR}", "muted")
+        bs = app.ctx.bs
+        sub = label((f"BSData: {bs.revision or 'downloaded'}   ·   " if bs else "BSData: not downloaded yet   ·   ")
+                    + f"Wahapedia: {app.ctx.wd.last_update or 'unknown'}   ·   lists folder: {LISTS_DIR}", "muted")
         sub.setContentsMargins(0, 2, 0, 12)
         grid.addWidget(sub, 1, 0, 1, 3)
         self.att = ListPicker(self, app, "attacker")

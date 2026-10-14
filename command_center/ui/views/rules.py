@@ -32,7 +32,7 @@ def show_army_rules(parent, book: RulesBook, army) -> RichTextWindow:
         w.h3(r["name"])
         w.html(r.get("description", ""))
 
-    dets = book.detachments(army.faction_id, army.detachment_names)
+    dets = book.detachments(army.faction_id, army.detachment_names, army)
     if not dets:
         w.h2("Detachment")
         w.meta(f"Could not match “{army.detachment or 'no detachment'}” to a Wahapedia detachment.")
@@ -64,7 +64,7 @@ def show_army_rules(parent, book: RulesBook, army) -> RichTextWindow:
         w.h2("Core stratagems")
         w.cards(core)
     w.gap()
-    w.meta("Powered by Wahapedia · rules © Games Workshop")
+    w.meta(ATTRIBUTION_SHORT)
     w.done()
     return w
 
@@ -78,15 +78,15 @@ def show_unit_abilities(parent, book: RulesBook, units: list) -> RichTextWindow:
         ds = u.datasheet
         if not ds:
             continue
-        row = book.datasheet_row(ds.id)
+        row = book.datasheet_row(ds)
         w.h2(u.label + ("  (Support)" if u.is_support else "  (Leader)" if u is not units[0] and u.is_character else ""))
         for p in ds.models:
             inv = f"  {p.inv}++" if p.inv else ""
             w.meta(f"{p.name}:  M {p.M}   T {p.T}   Sv {p.Sv}+{inv}   W {p.W}")
-        inv_descr = book.invuln_description(ds.id)
+        inv_descr = book.invuln_description(ds)
         if inv_descr:
             w.html(inv_descr)
-        ab = book.unit_abilities(ds.id)
+        ab = book.abilities_of(ds)
         for kind in ("Core", "Faction"):
             if ab.get(kind):
                 w.line(f"{kind}:", ", ".join(n for n, _ in ab[kind]))
@@ -98,7 +98,8 @@ def show_unit_abilities(parent, book: RulesBook, units: list) -> RichTextWindow:
         for e in book.enhancements_of(u):
             w.h3(e["name"], "Enhancement")
             w.html(e.get("description", ""))
-        if row.get("leader_head") or row.get("leader_footer"):
+        attach_said = any(n in ("Leader", "Support") for n, _ in ab.get("Datasheet", []))     # BSData's says it
+        if (row.get("leader_head") or row.get("leader_footer")) and not attach_said:
             w.h3("Attachment")
             w.html(row.get("leader_head", "") + "<br>" + row.get("leader_footer", ""))
         if row.get("damaged_w"):
@@ -106,6 +107,6 @@ def show_unit_abilities(parent, book: RulesBook, units: list) -> RichTextWindow:
             w.html(row.get("damaged_description", ""))
         w.line("Keywords:", ", ".join(sorted(k.upper() for k in ds.keywords)), keywords=True)
     w.gap()
-    w.meta("Powered by Wahapedia · rules © Games Workshop")
+    w.meta(ATTRIBUTION_SHORT)
     w.done()
     return w

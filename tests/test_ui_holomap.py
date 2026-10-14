@@ -31,7 +31,7 @@ class HolomapTest(unittest.TestCase):
         cls.app = App(cls.ctx)
         cls.app.resize(1500, 900)
         cls.app.show()
-        cls.selection = Selection(parse_list(FIXTURE_LIST, cls.ctx.wd), parse_list(FIXTURE_LIST, cls.ctx.wd))
+        cls.selection = Selection(parse_list(FIXTURE_LIST, cls.ctx.armies), parse_list(FIXTURE_LIST, cls.ctx.armies))
 
     @classmethod
     def tearDownClass(cls):

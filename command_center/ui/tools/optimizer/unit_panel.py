@@ -47,7 +47,7 @@ class UnitPlanPanel(Panel):
     def __init__(self, win: "OptimizerWindow", army: ArmyList, role: str):
         super().__init__()
         self.win, self.army, self.role = win, army, role
-        self.wd = win.ctx.wd
+        self.wd = win.ctx.armies
         self.store = win.store
         self.unit: ListUnit | None = None
         attacker = role == ATTACKER

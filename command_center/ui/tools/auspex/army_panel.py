@@ -26,7 +26,7 @@ class ArmyPanel(Panel):
     def __init__(self, win: "AuspexWindow", army: ArmyList, role: str, state: dict | None = None):
         super().__init__()
         self.win, self.army, self.role = win, army, role
-        self.wd = win.ctx.wd
+        self.wd = win.ctx.armies
         self.unit: ListUnit | None = None
         self.options: dict[str, list[ListUnit]] = {"leader": [], "support": []}
         self.checked: dict[tuple[str, str], bool] = {}

@@ -1,0 +1,18 @@
+[
+ {
+  "file": "Imperium - Space Marines.json",
+  "id": "e0af-67df-9d63-8fb7",
+  "name": "Imperium - Adeptus Astartes - Space Marines",
+  "type": "catalogue",
+  "library": false,
+  "links": []
+ },
+ {
+  "file": "Warhammer 40,000.json",
+  "id": "sys-352e-adc2-7639-d610",
+  "name": "Warhammer 40,000 11th Edition",
+  "type": "gameSystem",
+  "library": false,
+  "links": []
+ }
+]

@@ -132,7 +132,7 @@ class OptimizerWindow(ToolWindow):
         self._n_cases = n
 
     def build_specs(self) -> tuple[list[AttackerSpec], list[DefenderSpec]]:
-        wd = self.ctx.wd
+        wd = self.ctx.armies
         atts: list[AttackerSpec] = []
         for u in self.left.selected_units():
             p = self.left.plan(u)

@@ -1,8 +1,9 @@
-"""The data update the app runs before anything else: when the Wahapedia data was last checked more
-than a day ago (or never fetched), a small window fetches it again (command_center.data.fetch.update,
-what `python -m command_center fetch` does), showing what it is doing; then the app starts.
+"""The data update the app runs before anything else: when the data was last checked more than a day
+ago (or never fetched, or BSData's files aren't there yet), a small window fetches it again
+(command_center.data.fetch.update, what `python -m command_center fetch` does: BSData's army data, then
+Wahapedia's), showing what it is doing; then the app starts.
 
-Wahapedia out of reach: it says so and the app starts with the data already on disk."""
+Out of reach: it says so and the app starts with the data already on disk."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -37,8 +38,8 @@ class _Thread(QThread):
 class UpdateWindow(QDialog):
     """Runs the update on a thread; closes itself when it is over. To show with exec()."""
 
-    headline = "Checking Wahapedia for new data (done once a day)"
-    failed = "Wahapedia could not be checked: starting with the data on disk."
+    headline = "Checking BSData and Wahapedia for new data (done once a day)"
+    failed = "The data could not be checked: starting with the data on disk."
     message = Signal(str)                   # from the worker thread: delivered on the window's
 
     def __init__(self, target):
@@ -112,10 +113,12 @@ class UpdateWindow(QDialog):
 
 
 def refresh_data(target: Path | None = None, max_age_hours: float = fetch.MAX_AGE_HOURS) -> bool | None:
-    """Fetch the data again if its last check is more than `max_age_hours` old, in a window of its own.
-    Returns whether the data changed; None when nothing was due, or when the update failed."""
+    """Fetch the data again if its last check is more than `max_age_hours` old, or BSData's files aren't
+    there yet, in a window of its own. Returns whether the data changed; None when nothing was due, or
+    when the update failed."""
     target = target or edition_dir()
-    if not fetch.is_stale(target, max_age_hours):
+    has_bsdata = (config.bsdata_dir(target.parent) / config.BSDATA_SYSTEM_FILE).exists()
+    if not fetch.is_stale(target, max_age_hours) and has_bsdata:
         return None
     win = UpdateWindow(target)
     win.exec()

@@ -15,8 +15,8 @@ what's the score right now?*
   into their deployment zones: their moves and charges, their lines of sight, the targets your
   plan gave them, and a score sheet that follows the game.
 
-It runs on your own computer, fetches its rules data from Wahapedia by itself, and remembers
-your work between sessions.
+It runs on your own computer, fetches its rules data by itself (the army data NewRecruit builds
+your lists from, by BSData, completed by Wahapedia), and remembers your work between sessions.
 
 ![The launcher](assets/screenshots/launcher.png)
 
@@ -48,7 +48,7 @@ The app comes with two small demonstration lists, DemOrks and TestMarines, and w
 already saved for them (Optimizer tests, an army plan, Estimates), so every tool has something
 to show straight away.
 
-The first time it starts, the app downloads what it needs from Wahapedia: give it a minute.
+The first time it starts, the app downloads what it needs from BSData and Wahapedia: give it a minute.
 After that it checks for new data once a day at start-up, and simply carries on with what it
 has if you are offline.
 
@@ -184,6 +184,8 @@ Curious about how it works, or want to add a tool? The technical notes are in
 
 ## Credits
 
-Powered by [Wahapedia](https://wahapedia.ru); battlefield layouts from the Event Companion via
+Army data from [BSData](https://github.com/BSData/wh40k-11e), the community data NewRecruit uses,
+completed by [Wahapedia](https://wahapedia.ru) (stratagems, missions, what BSData doesn't have yet);
+battlefield layouts from the Event Companion via
 [Rapid Ingress](https://rapidingress.com). Rules, names and stats are © Games Workshop. This is
 a fan-made tool, not affiliated with Games Workshop.

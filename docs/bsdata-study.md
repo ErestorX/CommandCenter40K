@@ -8,6 +8,10 @@ reads Wahapedia's export, so names differ and a list has to be matched to the da
 (`lists/linking.py`, `Unit.profile`). How much of what the app reads from Wahapedia can come from
 BSData instead?
 
+**Since done, on this branch:** the app reads BSData first and completes it with Wahapedia (stages
+1 to 3 below; the options' modifiers, stage 4, are not applied). How it works is described in
+`command_center/README.md` ("Where a list's units come from").
+
 **Short answer.** Everything a list names: units, models, their stats, their weapons, wargear,
 enhancements, keywords, abilities. On the four lists of `lists/`, every one of these is found **by its
 exact name**, with no matching rules at all. Not stratagems, missions and battlefield layouts, which

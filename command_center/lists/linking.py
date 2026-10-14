@@ -1,28 +1,31 @@
-"""Link a parsed army list to Wahapedia datasheets, and turn list units into what the engine needs."""
+"""Link a parsed army list to its units' data, and turn list units into what the engine needs.
+
+The data is what `source` gives: command_center.data.armies.Armies (BSData first, completed by
+Wahapedia), or a plain Wahapedia."""
 from __future__ import annotations
 
 import re
 
 from command_center.core.models import Target, TargetGroup, Unit, Weapon, WeaponLoad
-from command_center.data.wahapedia import Wahapedia
 from command_center.lists.model import ArmyList, ListUnit
 from command_center.util import norm, words
 
 
-def link_datasheets(army: ArmyList, wd: Wahapedia) -> ArmyList:
+def link_datasheets(army: ArmyList, source) -> ArmyList:
     """Attach a datasheet to every unit, give duplicates unique labels, note unmatched wargear."""
     seen: dict[str, int] = {}
     totals: dict[str, int] = {}
     for u in army.units:
         totals[u.name] = totals.get(u.name, 0) + 1
     for u in army.units:
-        did = wd.find(u.name, army.faction_id)
-        u.datasheet = wd.unit(did) if did else None
+        u.datasheet = source.datasheet_for(u.name, army)
         seen[u.name] = seen.get(u.name, 0) + 1
         u.label = u.name + (f" #{seen[u.name]}" if totals[u.name] > 1 else "")
         if u.datasheet:
-            u.unmatched_gear = sorted({n for n, _ in all_gear(u) if not match_weapon(n, u.datasheet)})
-            u.unknown_gear = [n for n in u.unmatched_gear if norm(n) not in u.datasheet.other_gear]
+            ds = u.datasheet
+            known = ds.other_gear | (ds.fallback.other_gear if ds.fallback else frozenset())
+            u.unmatched_gear = sorted({n for n, _ in all_gear(u) if not match_weapon(n, ds)})
+            u.unknown_gear = [n for n in u.unmatched_gear if norm(n) not in known and norm(n) not in ds.gear]
     return army
 
 
@@ -39,7 +42,18 @@ def _keys(name: str) -> set[str]:
 
 
 def match_weapon(item: str, ds: Unit) -> list[Weapon]:
-    """All weapon profiles on the datasheet that a list item refers to."""
+    """All weapon profiles a list item refers to. A BSData unit knows each item by the name the list
+    gives it (Unit.gear; [] for wargear that isn't a weapon). Otherwise the datasheet's weapons named
+    like it; and for a BSData unit without the item, what its Wahapedia datasheet has (Unit.fallback)."""
+    if norm(item) in ds.gear:
+        return list(ds.gear[norm(item)])
+    hits = _by_name(item, ds)
+    if not hits and ds.fallback is not None:
+        return match_weapon(item, ds.fallback)
+    return hits
+
+
+def _by_name(item: str, ds: Unit) -> list[Weapon]:
     keys = _keys(item)
     hits = [w for w in ds.weapons if _keys(w.name) & keys or _keys(w.base_name) & keys]
     if hits:
@@ -88,7 +102,8 @@ def weapon_loads(u: ListUnit, source: str = "") -> list[WeaponLoad]:
             counts[w.name] = counts.get(w.name, 0) + cnt
             order.setdefault(w.name, w)
     if not order:   # gear not itemised in the list (e.g. "Melee Weapons"): assume the datasheet loadout
-        for w in u.datasheet.weapons:
+        ds = u.datasheet.fallback or u.datasheet       # BSData's weapons are every option; Wahapedia's, fewer
+        for w in ds.weapons:
             counts[w.name] = u.model_count
             order[w.name] = w
     return [WeaponLoad(order[n], counts[n], source or u.label) for n in order]

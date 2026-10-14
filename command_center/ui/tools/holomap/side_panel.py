@@ -134,7 +134,7 @@ class SidePanel(Panel):
         col = QVBoxLayout(f)
         col.setContentsMargins(0, 6, 0, 0)
         col.setSpacing(0)
-        rows = roster(army, self.win.ctx.wd)
+        rows = roster(army, self.win.ctx.armies)
         self.rows[role] = {r.key: r for r in rows}
         head = QHBoxLayout()
         head.setSpacing(8)

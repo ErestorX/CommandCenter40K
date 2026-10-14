@@ -1,0 +1,263 @@
+{
+ "gameSystem": {
+  "name": "Warhammer 40,000 11th Edition",
+  "id": "sys-352e-adc2-7639-d610",
+  "battleScribeVersion": 2.03,
+  "revision": 16,
+  "type": "gameSystem",
+  "profileTypes": [
+   {
+    "name": "Unit",
+    "id": "c547-1836-d8a-ff4f",
+    "sortIndex": 1,
+    "characteristicTypes": [
+     {
+      "name": "M",
+      "id": "e703-ecb6-5ce7-aec1"
+     },
+     {
+      "name": "T",
+      "id": "d29d-cf75-fc2d-34a4"
+     },
+     {
+      "name": "Sv",
+      "id": "450-a17e-9d5e-29da"
+     },
+     {
+      "name": "W",
+      "id": "750a-a2ec-90d3-21fe"
+     },
+     {
+      "name": "LD",
+      "id": "58d2-b879-49c7-43bc"
+     },
+     {
+      "name": "OC",
+      "id": "bef7-942a-1a23-59f8"
+     },
+     {
+      "name": "InSv",
+      "id": "55a7-5b54-c60d-11dc",
+      "formatRules": [
+       {
+        "name": "New Format Rule",
+        "id": "11c5-ee61-344f-d1a1",
+        "comment": "Empty → -",
+        "hidden": false,
+        "match": "^$",
+        "replace": "-",
+        "type": "regex"
+       }
+      ]
+     },
+     {
+      "name": "Base",
+      "id": "nr-base-size"
+     }
+    ]
+   },
+   {
+    "name": "Ranged Weapons",
+    "id": "f77d-b953-8fa4-b762",
+    "sortIndex": 2,
+    "characteristicTypes": [
+     {
+      "name": "Range",
+      "id": "9896-9419-16a1-92fc"
+     },
+     {
+      "name": "A",
+      "id": "3bb-c35f-f54-fb08"
+     },
+     {
+      "name": "BS",
+      "id": "94d-8a98-cf90-183e"
+     },
+     {
+      "name": "S",
+      "id": "2229-f494-25db-c5d3"
+     },
+     {
+      "name": "AP",
+      "id": "9ead-8a10-520-de15"
+     },
+     {
+      "name": "D",
+      "id": "a354-c1c8-a745-f9e3"
+     },
+     {
+      "name": "Keywords",
+      "id": "7f1b-8591-2fcf-d01c"
+     }
+    ]
+   },
+   {
+    "name": "Abilities",
+    "id": "9cc3-6d83-4dd3-9b64",
+    "sortIndex": 4,
+    "characteristicTypes": [
+     {
+      "name": "Description",
+      "id": "9b8f-694b-e5e-b573"
+     }
+    ]
+   },
+   {
+    "name": "Melee Weapons",
+    "id": "8a40-4aaa-c780-9046",
+    "sortIndex": 3,
+    "characteristicTypes": [
+     {
+      "name": "Range",
+      "id": "914c-b413-91e3-a132",
+      "defaultValue": "Melee"
+     },
+     {
+      "name": "A",
+      "id": "2337-daa1-6682-b110"
+     },
+     {
+      "name": "WS",
+      "id": "95d1-95f-45b4-11d6"
+     },
+     {
+      "name": "S",
+      "id": "ab33-d393-96ce-ccba"
+     },
+     {
+      "name": "AP",
+      "id": "41a0-1301-112a-e2f2"
+     },
+     {
+      "name": "D",
+      "id": "3254-9fe6-d824-513e"
+     },
+     {
+      "name": "Keywords",
+      "id": "893f-9000-ccf7-648e"
+     }
+    ]
+   },
+   {
+    "name": "Transport",
+    "id": "74f8-5443-9d6d-1f1e",
+    "sortIndex": 6,
+    "characteristicTypes": [
+     {
+      "name": "Capacity",
+      "id": "30f2-be70-861d-1b84"
+     }
+    ]
+   },
+   {
+    "name": "Psychic Abilities",
+    "id": "7e03-38c2-7fea-e955",
+    "hidden": false,
+    "characteristicTypes": [
+     {
+      "name": "Descriptions",
+      "id": "1917-301f-5d49-2f76"
+     }
+    ]
+   }
+  ],
+  "sharedRules": [
+   {
+    "name": "Extra Attacks",
+    "id": "115b-79dc-f723-d761",
+    "description": "Each time a unit containing one or more models with an **[EXTRA ATTACKS]** weapon fights, those models will make attacks with those weapons in addition to any others. In the Select Weapons step (04.01), for each of those models, you must select: \n- All of that model’s **[EXTRA ATTACKS]** weapons. \n- One of that model’s other melee weapons, if possible.",
+    "hidden": false,
+    "alias": [
+     "EXTRA ATTACKS"
+    ]
+   },
+   {
+    "name": "Support",
+    "id": "3342-2180-9c5d-925f",
+    "description": "Before the battle, in the Muster Armies step, for each **leader** and **support** unit in your army, you can select one friendly **bodyguard** unit that unit can lead. That unit will then lead that **bodyguard** unit for the battle and form an **attached** unit with it. \nUnless otherwise stated, each **bodyguard** unit can only have one **leader** unit and one **support** unit attached to it.",
+    "hidden": false
+   },
+   {
+    "name": "Feel No Pain",
+    "id": "9bf4-280f-bbe2-6fbb",
+    "description": "This ability always takes the form **Feel No Pain X+**. Each time a model with this ability would lose a wound, roll one D6: on an **X+**, that wound is not lost. ",
+    "hidden": false
+   },
+   {
+    "name": "Leader",
+    "id": "b4dd-3e1f-41cb-218f",
+    "description": "Before the battle, in the Muster Armies step, for each leader and support unit in your army, you can select one friendly bodyguard unit that unit can lead. That unit will then lead that bodyguard unit for the battle and form an attached unit with it. Unless otherwise stated, each bodyguard unit can only have one leader unit and one support unit attached to it.",
+    "hidden": false
+   },
+   {
+    "name": "Heavy",
+    "id": "1202-10a8-78e9-4c67",
+    "description": "In your Shooting phase, each time an attack is made with a **[HEAVY]** weapon, add 1 to the **hit roll** if all of the following apply to the attacking unit: \n- That unit is **unengaged**. \n- That unit was not set up on the battlefield this turn. \n- No model in that unit has moved more than 3\" this turn.",
+    "hidden": false,
+    "alias": [
+     "HEAVY"
+    ]
+   },
+   {
+    "name": "Close-quarters",
+    "id": "5238-5ad4-52f7-6eb4",
+    "description": "Units containing one or more models with a **[CLOSE-QUARTERS]** weapon can shoot using **close-quarters shooting** (10.06). When using another **shooting type**, for each model in that unit (excluding **MONSTER/VEHICLE** models), you can only select one of the following to make attacks with: \n- One or more of its **[CLOSE-QUARTERS]** weapons. \n- One or more of its other ranged weapons.",
+    "hidden": false
+   },
+   {
+    "name": "Torrent",
+    "id": "5edf-d619-23e0-9b56",
+    "description": "Each time an attack is made with a **[TORRENT]** weapon, that attack automatically hits the target.",
+    "hidden": false,
+    "alias": [
+     "TORRENT"
+    ]
+   },
+   {
+    "name": "Blast",
+    "id": "6c1f-1cf7-ff25-c99e",
+    "description": "Each time you gather attack dice for a **[BLAST]** weapon, add one additional **attack dice** for every five models that were in the target unit in the Select Targets step (rounding down). If this ability takes the form **[BLAST X]**, each time you gather **attack dice** for such a weapon, add **X** additional **attack dice** for every five models that were in the target unit in the Select Targets step (rounding down) instead. \n***Example:** If a **[BLAST 2]** weapon with an **A** characteristic of 3 targets a unit containing 12 models, you would gather four additional **attack dice** for that weapon (for a total of seven for that weapon).*",
+    "hidden": false,
+    "alias": [
+     "BLAST"
+    ]
+   },
+   {
+    "name": "Hazardous",
+    "id": "8367-374c-f87-c627",
+    "description": "Each time a unit is **selected to shoot** or **selected to fight**, after that unit has resolved all of its attacks, make a number of **hazard rolls** (06.03) for that unit equal to the number of **[HAZARDOUS]** weapons you selected in the Select Weapons step.",
+    "hidden": false,
+    "alias": [
+     "HAZARDOUS"
+    ]
+   },
+   {
+    "name": "Devastating Wounds",
+    "id": "be1e-ac8e-1e2c-3528",
+    "description": "Each time an attack made with a **[DEVASTATING WOUNDS]** weapon results in a **critical wound**, the attack sequence for that attack ends and the target unit suffers a number of **mortal wounds** equal to the **D** characteristic of that weapon. These are inflicted after resolving any normal damage inflicted by those attacks. \n**Mortal wounds** inflicted by **[DEVASTATING WOUNDS]** weapons can damage a maximum of one model for each **critical wound**; any remaining **mortal wounds** inflicted by that attack are lost. \n***Example:** An attack made with a **[DEVASTATING WOUNDS]** weapon with a **D** characteristic of 3 results in a **critical wound** against an Intercessor Squad, so inflicts 3 **mortal wounds**. The first 2 **mortal wounds** are sufficient to **destroy** 1 Intercessor model, so the remaining **mortal wound** is lost.*",
+    "hidden": false,
+    "alias": [
+     "DEVASTATING WOUNDS"
+    ]
+   },
+   {
+    "name": "Rapid Fire",
+    "id": "c5c8-8b58-b8b6-7786",
+    "description": "This ability always takes the form **[RAPID FIRE X]**. Each time you gather **attack dice** for a **[RAPID FIRE]** weapon, add **X** additional **attack dice** if the target unit was within half range of that weapon in the Select Targets step. \n***Example:** If a **[RAPID FIRE 1]** weapon with an **A** characteristic of 1 targets a unit that is within half range, you would gather one additional **attack dice** for that weapon (for a total of two for that weapon).*",
+    "hidden": false,
+    "alias": [
+     "RAPID FIRE"
+    ]
+   },
+   {
+    "name": "Assault",
+    "id": "fc8a-8c24-bae9-cc1c",
+    "description": "Units containing one or more models with an **[ASSAULT]** weapon can shoot using **assault shooting** (10.05).",
+    "hidden": false,
+    "alias": [
+     "ASSAULT"
+    ]
+   }
+  ]
+ }
+}

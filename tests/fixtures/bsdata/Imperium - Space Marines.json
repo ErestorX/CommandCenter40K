@@ -1,0 +1,3133 @@
+{
+ "catalogue": {
+  "name": "Imperium - Adeptus Astartes - Space Marines",
+  "id": "e0af-67df-9d63-8fb7",
+  "battleScribeVersion": 2.03,
+  "gameSystemId": "sys-352e-adc2-7639-d610",
+  "gameSystemRevision": 1,
+  "library": false,
+  "revision": 18,
+  "type": "catalogue",
+  "sharedSelectionEntries": [
+   {
+    "name": "Intercessor Squad",
+    "id": "8da0-4570-c3c-819f",
+    "hidden": false,
+    "import": true,
+    "type": "unit",
+    "categoryLinks": [
+     {
+      "name": "Infantry",
+      "id": "5263-c35f-bf93-70f0",
+      "primary": false,
+      "targetId": "cf47-a0d7-7207-29dc"
+     },
+     {
+      "name": "Battleline",
+      "id": "96ed-6749-a7d8-bbac",
+      "primary": true,
+      "targetId": "e338-111e-d0c6-b687"
+     },
+     {
+      "name": "Imperium",
+      "id": "bcfd-1b27-adfb-68ec",
+      "primary": false,
+      "targetId": "aff3-d6a3-2a95-9dc"
+     },
+     {
+      "name": "Tacticus",
+      "id": "d26f-e30b-ddbd-d086",
+      "primary": false,
+      "targetId": "5179-8ede-45e3-49a2"
+     },
+     {
+      "name": "Intercessor Squad",
+      "id": "fb5f-83bc-fc82-489e",
+      "primary": false,
+      "targetId": "7b57-816b-44b2-65ec"
+     },
+     {
+      "name": "Faction: Adeptus Astartes",
+      "id": "f5f-7542-3d16-b01f",
+      "primary": false,
+      "targetId": "6e7-40c-58d9-e402"
+     },
+     {
+      "name": "Explosives",
+      "id": "25ad-cbda-6089-422a",
+      "hidden": false,
+      "primary": false,
+      "targetId": "e33d-891d-33aa-e9bf"
+     }
+    ],
+    "costs": [
+     {
+      "name": "pts",
+      "typeId": "51b2-306e-1021-d207",
+      "value": 85
+     }
+    ],
+    "entryLinks": [],
+    "infoLinks": [
+     {
+      "name": "Combat Doctrines",
+      "id": "302c-3b21-8448-92f9",
+      "hidden": false,
+      "targetId": "3b76-4053-ece9-6e7d",
+      "type": "rule"
+     },
+     {
+      "name": "Templar Vows",
+      "id": "80ea-c214-fb5d-3c44",
+      "hidden": false,
+      "targetId": "f26c-4b28-aaea-40cf",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Bolter Discipline",
+      "id": "1164-3aff-c9a6-718d",
+      "hidden": false,
+      "typeId": "9cc3-6d83-4dd3-9b64",
+      "typeName": "Abilities",
+      "characteristics": [
+       {
+        "name": "Description",
+        "$text": "In your Shooting phase, if any of the following apply, this unit's ranged attacks have +1 to hit rolls: \n▪ This unit is within range of an objective. \n▪ The target of that attack is within range of an objective.",
+        "typeId": "9b8f-694b-e5e-b573"
+       }
+      ]
+     },
+     {
+      "name": "Tactical Mainstay",
+      "id": "4207-56a0-b930-84bd",
+      "hidden": false,
+      "typeId": "9cc3-6d83-4dd3-9b64",
+      "typeName": "Abilities",
+      "characteristics": [
+       {
+        "name": "Description",
+        "$text": "▪ Being engaged/battle-shocked does not prevent this unit from being eligible to start an action. \n▪ When this unit starts an action, that action does not prevent this unit from being eligible to shoot.",
+        "typeId": "9b8f-694b-e5e-b573"
+       }
+      ]
+     }
+    ],
+    "selectionEntryGroups": [
+     {
+      "name": "Intercessors",
+      "id": "e371-90b3-5640-949",
+      "hidden": false,
+      "sortIndex": 2,
+      "selectionEntries": [
+       {
+        "name": "Intercessor Sergeant",
+        "id": "8ea3-b125-7273-5ffb",
+        "hidden": false,
+        "import": true,
+        "sortIndex": 1,
+        "type": "model",
+        "entryLinks": [
+         {
+          "name": "Bolt pistol",
+          "id": "b231-4afe-7568-3505",
+          "collective": false,
+          "hidden": false,
+          "import": true,
+          "targetId": "18b0-8c2-173f-5",
+          "type": "selectionEntry",
+          "entryLinks": []
+         },
+         {
+          "name": "Terminator Honours upgrade",
+          "id": "6c16-153b-5bcd-fdee",
+          "hidden": false,
+          "import": true,
+          "targetId": "e7f9-66f5-9b9e-c587",
+          "type": "selectionEntry"
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Intercessor Sergeant",
+          "id": "82a7-522d-d5e7-a2f1",
+          "hidden": false,
+          "typeId": "c547-1836-d8a-ff4f",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "6\"",
+            "typeId": "e703-ecb6-5ce7-aec1"
+           },
+           {
+            "name": "T",
+            "$text": "5",
+            "typeId": "d29d-cf75-fc2d-34a4"
+           },
+           {
+            "name": "Sv",
+            "$text": "3+",
+            "typeId": "450-a17e-9d5e-29da"
+           },
+           {
+            "name": "W",
+            "$text": "2",
+            "typeId": "750a-a2ec-90d3-21fe"
+           },
+           {
+            "name": "LD",
+            "$text": "6+",
+            "typeId": "58d2-b879-49c7-43bc"
+           },
+           {
+            "name": "OC",
+            "$text": "2",
+            "typeId": "bef7-942a-1a23-59f8"
+           },
+           {
+            "name": "InSv",
+            "$text": "",
+            "typeId": "55a7-5b54-c60d-11dc"
+           },
+           {
+            "name": "Base",
+            "$text": "",
+            "typeId": "nr-base-size"
+           }
+          ]
+         }
+        ],
+        "selectionEntryGroups": [
+         {
+          "name": "Weapon 1",
+          "id": "bcb6-f6d1-cfc6-f4f3",
+          "defaultSelectionEntryId": "fd17-cf82-6413-f1d7",
+          "flatten": false,
+          "hidden": false,
+          "entryLinks": [
+           {
+            "name": "Hand flamer",
+            "id": "56fa-651e-457a-fe7f",
+            "hidden": false,
+            "import": true,
+            "targetId": "9dc6-6ad8-818e-db2e",
+            "type": "selectionEntry",
+            "entryLinks": []
+           },
+           {
+            "name": "Power weapon",
+            "id": "c568-61ab-2f7a-149",
+            "hidden": false,
+            "import": true,
+            "targetId": "50dd-3e76-d993-4d1a",
+            "type": "selectionEntry",
+            "entryLinks": []
+           },
+           {
+            "name": "Plasma pistol",
+            "id": "fc0e-46ce-c0e5-5fae",
+            "hidden": false,
+            "import": true,
+            "targetId": "25c2-104f-fa0c-809e",
+            "type": "selectionEntry",
+            "entryLinks": []
+           },
+           {
+            "name": "Chainsword",
+            "id": "4a9c-2893-d570-ab94",
+            "hidden": false,
+            "import": true,
+            "targetId": "c1b9-f39d-7390-d4cb",
+            "type": "selectionEntry",
+            "entryLinks": []
+           },
+           {
+            "name": "Bolt Rifle",
+            "id": "fd17-cf82-6413-f1d7",
+            "hidden": false,
+            "import": true,
+            "targetId": "6155-c404-a228-cb72",
+            "type": "selectionEntry",
+            "entryLinks": []
+           },
+           {
+            "name": "Thunder Hammer",
+            "id": "84d4-0109-c9d8-a4d0",
+            "hidden": false,
+            "import": true,
+            "targetId": "4913-96d4-2b1f-2c21",
+            "type": "selectionEntry",
+            "entryLinks": []
+           }
+          ]
+         },
+         {
+          "name": "Weapon 2",
+          "id": "2f51-71c7-9d80-8e6a",
+          "defaultSelectionEntryId": "38-fca-2eb5-af1",
+          "hidden": false,
+          "entryLinks": [
+           {
+            "name": "Power weapon",
+            "id": "e58b-72d0-cf6d-e771",
+            "hidden": false,
+            "import": true,
+            "targetId": "50dd-3e76-d993-4d1a",
+            "type": "selectionEntry",
+            "entryLinks": []
+           },
+           {
+            "name": "Chainsword",
+            "id": "d6c-8051-345f-4c7a",
+            "hidden": false,
+            "import": true,
+            "targetId": "c1b9-f39d-7390-d4cb",
+            "type": "selectionEntry",
+            "entryLinks": []
+           },
+           {
+            "name": "Power fist",
+            "id": "6452-4b48-5267-5325",
+            "hidden": false,
+            "import": true,
+            "targetId": "f8d8-7e77-4b71-faac",
+            "type": "selectionEntry",
+            "entryLinks": []
+           },
+           {
+            "name": "Thunder Hammer",
+            "id": "e859-ef7d-8693-9e20",
+            "hidden": false,
+            "import": true,
+            "targetId": "4913-96d4-2b1f-2c21",
+            "type": "selectionEntry",
+            "entryLinks": []
+           },
+           {
+            "name": "Knives and Fists",
+            "id": "38-fca-2eb5-af1",
+            "hidden": false,
+            "import": true,
+            "targetId": "b552-e2fb-4634-b098",
+            "type": "selectionEntry",
+            "entryLinks": []
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "name": "Intercessor",
+        "id": "420-464f-93cb-e019",
+        "collective": false,
+        "hidden": false,
+        "import": true,
+        "sortIndex": 2,
+        "type": "model",
+        "entryLinks": [
+         {
+          "name": "Knives and Fists",
+          "id": "f2e3-8f5c-71-2f8d",
+          "collective": true,
+          "hidden": false,
+          "import": true,
+          "targetId": "b552-e2fb-4634-b098",
+          "type": "selectionEntry"
+         },
+         {
+          "name": "Bolt pistol",
+          "id": "312d-e959-8e7d-4f3a",
+          "collective": false,
+          "hidden": false,
+          "import": true,
+          "targetId": "18b0-8c2-173f-5",
+          "type": "selectionEntry"
+         },
+         {
+          "name": "Bolt Rifle",
+          "id": "a00f-2db9-d388-baf4",
+          "hidden": false,
+          "import": true,
+          "targetId": "6155-c404-a228-cb72",
+          "type": "selectionEntry"
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Intercessor Squad",
+          "id": "c46b-2f86-bebb-57a4",
+          "hidden": false,
+          "typeId": "c547-1836-d8a-ff4f",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "6\"",
+            "typeId": "e703-ecb6-5ce7-aec1"
+           },
+           {
+            "name": "T",
+            "$text": "5",
+            "typeId": "d29d-cf75-fc2d-34a4"
+           },
+           {
+            "name": "Sv",
+            "$text": "3+",
+            "typeId": "450-a17e-9d5e-29da"
+           },
+           {
+            "name": "W",
+            "$text": "2",
+            "typeId": "750a-a2ec-90d3-21fe"
+           },
+           {
+            "name": "LD",
+            "$text": "6+",
+            "typeId": "58d2-b879-49c7-43bc"
+           },
+           {
+            "name": "OC",
+            "$text": "2",
+            "typeId": "bef7-942a-1a23-59f8"
+           },
+           {
+            "name": "InSv",
+            "$text": "",
+            "typeId": "55a7-5b54-c60d-11dc"
+           },
+           {
+            "name": "Base",
+            "$text": "",
+            "typeId": "nr-base-size"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "name": "Intercessor w/ Grenade Launcher",
+        "id": "d735-eafd-a8de-fa80",
+        "collective": false,
+        "hidden": false,
+        "import": true,
+        "sortIndex": 3,
+        "type": "model",
+        "entryLinks": [
+         {
+          "name": "Knives and Fists",
+          "id": "6259-9842-fe29-0127",
+          "collective": true,
+          "hidden": false,
+          "import": true,
+          "targetId": "b552-e2fb-4634-b098",
+          "type": "selectionEntry"
+         },
+         {
+          "name": "Bolt pistol",
+          "id": "6c49-d913-160a-6531",
+          "collective": false,
+          "hidden": false,
+          "import": true,
+          "targetId": "18b0-8c2-173f-5",
+          "type": "selectionEntry"
+         },
+         {
+          "name": "Bolt Rifle",
+          "id": "1c89-bd18-6ad4-32a5",
+          "hidden": false,
+          "import": true,
+          "targetId": "6155-c404-a228-cb72",
+          "type": "selectionEntry"
+         },
+         {
+          "name": "Grenade Launcher",
+          "id": "a0dd-1572-c636-9fd1",
+          "hidden": false,
+          "import": true,
+          "targetId": "ef0a-b1da-8926-b298",
+          "type": "selectionEntry"
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Intercessor Squad",
+          "id": "8ab-5a82-4b1f-59f6",
+          "hidden": false,
+          "typeId": "c547-1836-d8a-ff4f",
+          "typeName": "Unit",
+          "characteristics": [
+           {
+            "name": "M",
+            "$text": "6\"",
+            "typeId": "e703-ecb6-5ce7-aec1"
+           },
+           {
+            "name": "T",
+            "$text": "5",
+            "typeId": "d29d-cf75-fc2d-34a4"
+           },
+           {
+            "name": "Sv",
+            "$text": "3+",
+            "typeId": "450-a17e-9d5e-29da"
+           },
+           {
+            "name": "W",
+            "$text": "2",
+            "typeId": "750a-a2ec-90d3-21fe"
+           },
+           {
+            "name": "LD",
+            "$text": "6+",
+            "typeId": "58d2-b879-49c7-43bc"
+           },
+           {
+            "name": "OC",
+            "$text": "2",
+            "typeId": "bef7-942a-1a23-59f8"
+           },
+           {
+            "name": "InSv",
+            "$text": "",
+            "typeId": "55a7-5b54-c60d-11dc"
+           },
+           {
+            "name": "Base",
+            "$text": "",
+            "typeId": "nr-base-size"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Apothecary",
+    "id": "8a9d-11f-fad-bd0f",
+    "hidden": false,
+    "import": true,
+    "type": "model",
+    "categoryLinks": [
+     {
+      "name": "Character",
+      "id": "b96e-3c8c-981d-5cf7",
+      "primary": true,
+      "targetId": "9cfd-1c32-585f-7d5c"
+     },
+     {
+      "name": "Imperium",
+      "id": "ed74-ed7a-add7-7524",
+      "primary": false,
+      "targetId": "aff3-d6a3-2a95-9dc"
+     },
+     {
+      "name": "Faction: Adeptus Astartes",
+      "id": "aa59-7930-ff17-26cc",
+      "primary": false,
+      "targetId": "6e7-40c-58d9-e402"
+     },
+     {
+      "name": "Tacticus",
+      "id": "23ad-91b8-c738-aef8",
+      "primary": false,
+      "targetId": "5179-8ede-45e3-49a2"
+     },
+     {
+      "name": "Infantry",
+      "id": "582e-5fcf-afde-547d",
+      "primary": false,
+      "targetId": "cf47-a0d7-7207-29dc"
+     },
+     {
+      "name": "Apothecary",
+      "id": "50fd-11c5-300e-25a3",
+      "hidden": false,
+      "primary": false,
+      "targetId": "2170-4f11-9bf7-ae56"
+     },
+     {
+      "name": "Support",
+      "id": "fcc9-299b-93b7-186e",
+      "primary": false,
+      "targetId": "7dcd-7f61-69a7-0294"
+     }
+    ],
+    "costs": [
+     {
+      "name": "pts",
+      "typeId": "51b2-306e-1021-d207",
+      "value": 45
+     }
+    ],
+    "entryLinks": [
+     {
+      "name": "Warlord",
+      "id": "fca3-e016-2f9e-7ff",
+      "collective": false,
+      "hidden": false,
+      "import": true,
+      "sortIndex": 2,
+      "targetId": "caa-f869-3cbd-b48e",
+      "type": "selectionEntry"
+     }
+    ],
+    "infoLinks": [
+     {
+      "name": "Support",
+      "id": "bdb5-c15-f33e-ebb6",
+      "targetId": "3342-2180-9c5d-925f",
+      "type": "rule"
+     },
+     {
+      "name": "Combat Doctrines",
+      "id": "366c-ed2b-2e99-b23b",
+      "hidden": false,
+      "targetId": "3b76-4053-ece9-6e7d",
+      "type": "rule"
+     },
+     {
+      "name": "Templar Vows",
+      "id": "537d-6f09-1156-ed56",
+      "hidden": false,
+      "targetId": "f26c-4b28-aaea-40cf",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Apothecary",
+      "id": "3e73-5871-b359-b78",
+      "hidden": false,
+      "typeId": "c547-1836-d8a-ff4f",
+      "typeName": "Unit",
+      "characteristics": [
+       {
+        "name": "M",
+        "$text": "6\"",
+        "typeId": "e703-ecb6-5ce7-aec1"
+       },
+       {
+        "name": "T",
+        "$text": "5",
+        "typeId": "d29d-cf75-fc2d-34a4"
+       },
+       {
+        "name": "Sv",
+        "$text": "3+",
+        "typeId": "450-a17e-9d5e-29da"
+       },
+       {
+        "name": "W",
+        "$text": "4",
+        "typeId": "750a-a2ec-90d3-21fe"
+       },
+       {
+        "name": "LD",
+        "$text": "6+",
+        "typeId": "58d2-b879-49c7-43bc"
+       },
+       {
+        "name": "OC",
+        "$text": "1",
+        "typeId": "bef7-942a-1a23-59f8"
+       },
+       {
+        "name": "InSv",
+        "$text": "",
+        "typeId": "55a7-5b54-c60d-11dc"
+       },
+       {
+        "name": "Base",
+        "$text": "",
+        "typeId": "nr-base-size"
+       }
+      ]
+     },
+     {
+      "name": "Narthecium",
+      "id": "1b7d-5cf9-f91f-3938",
+      "hidden": false,
+      "typeId": "9cc3-6d83-4dd3-9b64",
+      "typeName": "Abilities",
+      "characteristics": [
+       {
+        "name": "Description",
+        "$text": "In your Command phase, this unit heals D3+1 wounds. ",
+        "typeId": "9b8f-694b-e5e-b573"
+       }
+      ]
+     },
+     {
+      "name": "Support",
+      "id": "a19-ea12-9d03-65c4",
+      "hidden": false,
+      "typeId": "9cc3-6d83-4dd3-9b64",
+      "typeName": "Abilities",
+      "characteristics": [
+       {
+        "name": "Description",
+        "$text": "This model can be attached to the following units: ASSAULT INTERCESSOR SQUAD, BLADEGUARD VETERAN SQUAD, COMPANY HEROES, CRUSADER SQUAD, DEATHWATCH VETERANS, DECIMUS KILL TEAM, DESOLATION SQUAD, FORTIS KILL TEAM, HELLBLASTER SQUAD, INFERNUS SQUAD, INNER CIRCLE COMPANIONS, INTERCESSOR SQUAD, STERNGUARD VETERAN SQUAD, SWORD BRETHREN SQUAD\n",
+        "typeId": "9b8f-694b-e5e-b573"
+       }
+      ]
+     }
+    ],
+    "selectionEntryGroups": [
+     {
+      "name": "Wargear",
+      "id": "b8bf-49fc-63d7-3421",
+      "hidden": false,
+      "sortIndex": 4,
+      "entryLinks": [
+       {
+        "name": "Absolvor bolt pistol",
+        "id": "7c7b-e0a5-f7ce-a060",
+        "hidden": false,
+        "import": true,
+        "targetId": "a490-361-c9c4-afeb",
+        "type": "selectionEntry",
+        "entryLinks": []
+       },
+       {
+        "name": "Servo-armature",
+        "id": "30cf-4433-7be8-c2c0",
+        "hidden": false,
+        "import": true,
+        "targetId": "27de-1fea-9481-c6ce",
+        "type": "selectionEntry"
+       }
+      ],
+      "selectionEntries": [
+       {
+        "name": "Reductor Pistol",
+        "id": "284a-1df6-ca31-16e7",
+        "hidden": false,
+        "import": true,
+        "type": "upgrade",
+        "categoryLinks": [
+         {
+          "name": "Ranged Weapon",
+          "id": "9989-3823-c8c7-9b82",
+          "hidden": false,
+          "primary": false,
+          "targetId": "eeda-8544-a2f3-3fab"
+         }
+        ],
+        "entryLinks": [],
+        "infoLinks": [
+         {
+          "name": "Extra Attacks",
+          "id": "533e-be79-421-3c38",
+          "hidden": false,
+          "targetId": "115b-79dc-f723-d761",
+          "type": "rule"
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Reductor Pistol",
+          "id": "46d1-c07b-d1bb-4778",
+          "hidden": false,
+          "typeId": "8a40-4aaa-c780-9046",
+          "typeName": "Melee Weapons",
+          "characteristics": [
+           {
+            "name": "Range",
+            "$text": "3\"",
+            "typeId": "914c-b413-91e3-a132"
+           },
+           {
+            "name": "A",
+            "$text": "1",
+            "typeId": "2337-daa1-6682-b110"
+           },
+           {
+            "name": "WS",
+            "$text": "3+",
+            "typeId": "95d1-95f-45b4-11d6"
+           },
+           {
+            "name": "S",
+            "$text": "5",
+            "typeId": "ab33-d393-96ce-ccba"
+           },
+           {
+            "name": "AP",
+            "$text": "-4",
+            "typeId": "41a0-1301-112a-e2f2"
+           },
+           {
+            "name": "D",
+            "$text": "2",
+            "typeId": "3254-9fe6-d824-513e"
+           },
+           {
+            "name": "Keywords",
+            "$text": "Extra Attacks",
+            "typeId": "893f-9000-ccf7-648e"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Captain",
+    "id": "6c10-5b51-5bc0-8d2c",
+    "hidden": false,
+    "import": true,
+    "type": "model",
+    "categoryLinks": [
+     {
+      "name": "Character",
+      "id": "2216-f594-1ac3-85eb",
+      "primary": true,
+      "targetId": "9cfd-1c32-585f-7d5c"
+     },
+     {
+      "name": "Infantry",
+      "id": "d6a8-a50e-babc-5270",
+      "primary": false,
+      "targetId": "cf47-a0d7-7207-29dc"
+     },
+     {
+      "name": "Captain",
+      "id": "29b9-1b48-3a9e-616b",
+      "primary": false,
+      "targetId": "2d7f-1892-2fd0-e29c"
+     },
+     {
+      "name": "Imperium",
+      "id": "f16b-de9-d417-4a88",
+      "primary": false,
+      "targetId": "aff3-d6a3-2a95-9dc"
+     },
+     {
+      "name": "Tacticus",
+      "id": "2071-c3fe-9f63-9292",
+      "primary": false,
+      "targetId": "5179-8ede-45e3-49a2"
+     },
+     {
+      "name": "Faction: Adeptus Astartes",
+      "id": "57cf-55ec-47da-1d02",
+      "primary": false,
+      "targetId": "6e7-40c-58d9-e402"
+     },
+     {
+      "name": "Leader",
+      "id": "8b67-d021-d704-3ebe",
+      "primary": false,
+      "targetId": "1556-9b56-fba6-4370"
+     },
+     {
+      "name": "Explosives",
+      "id": "0db8-b8a1-c992-a05d",
+      "hidden": false,
+      "primary": false,
+      "targetId": "e33d-891d-33aa-e9bf"
+     }
+    ],
+    "costs": [
+     {
+      "name": "pts",
+      "typeId": "51b2-306e-1021-d207",
+      "value": 90
+     }
+    ],
+    "entryLinks": [
+     {
+      "name": "Warlord",
+      "id": "a89c-b01e-ffab-8ebb",
+      "collective": false,
+      "hidden": false,
+      "import": true,
+      "sortIndex": 2,
+      "targetId": "caa-f869-3cbd-b48e",
+      "type": "selectionEntry"
+     }
+    ],
+    "infoLinks": [
+     {
+      "name": "Finest Hour",
+      "id": "891a-e8c7-6549-4399",
+      "targetId": "fdf1-64a5-906c-3474",
+      "type": "profile"
+     },
+     {
+      "name": "Leader",
+      "id": "2814-e93f-5a97-a2c6",
+      "targetId": "b4dd-3e1f-41cb-218f",
+      "type": "rule"
+     },
+     {
+      "name": "Strategic Acumen",
+      "id": "8a13-952a-4a5-70e5",
+      "hidden": false,
+      "targetId": "90c7-c55c-21e2-2232",
+      "type": "profile"
+     },
+     {
+      "name": "Combat Doctrines",
+      "id": "23b9-915-c3d6-3d21",
+      "hidden": false,
+      "targetId": "3b76-4053-ece9-6e7d",
+      "type": "rule"
+     },
+     {
+      "name": "Templar Vows",
+      "id": "cd01-df1f-c140-302e",
+      "hidden": false,
+      "targetId": "f26c-4b28-aaea-40cf",
+      "type": "rule"
+     },
+     {
+      "name": "Transhuman Strategist",
+      "id": "e284-bc09-8ef9-bfe2",
+      "hidden": false,
+      "targetId": "c6cc-c38c-dfe6-dbb8",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Captain",
+      "id": "c1ba-2289-ba1-9cb8",
+      "hidden": false,
+      "typeId": "c547-1836-d8a-ff4f",
+      "typeName": "Unit",
+      "characteristics": [
+       {
+        "name": "M",
+        "$text": "6\"",
+        "typeId": "e703-ecb6-5ce7-aec1"
+       },
+       {
+        "name": "T",
+        "$text": "5",
+        "typeId": "d29d-cf75-fc2d-34a4"
+       },
+       {
+        "name": "Sv",
+        "$text": "3+",
+        "typeId": "450-a17e-9d5e-29da"
+       },
+       {
+        "name": "W",
+        "$text": "5",
+        "typeId": "750a-a2ec-90d3-21fe"
+       },
+       {
+        "name": "LD",
+        "$text": "6+",
+        "typeId": "58d2-b879-49c7-43bc"
+       },
+       {
+        "name": "OC",
+        "$text": "1",
+        "typeId": "bef7-942a-1a23-59f8"
+       },
+       {
+        "name": "InSv",
+        "$text": "4+",
+        "typeId": "55a7-5b54-c60d-11dc"
+       },
+       {
+        "name": "Base",
+        "$text": "",
+        "typeId": "nr-base-size"
+       }
+      ]
+     },
+     {
+      "name": "Leader",
+      "id": "6e66-2c98-4726-d12d",
+      "hidden": false,
+      "typeId": "9cc3-6d83-4dd3-9b64",
+      "typeName": "Abilities",
+      "characteristics": [
+       {
+        "name": "Description",
+        "$text": "This model can be attached to the following units: \n\nASSAULT INTERCESSOR SQUAD, BLADEGUARD VETERAN SQUAD, COMPANY HEROES, CRUSADER SQUAD, DEATHWATCH VETERANS, DECIMUS KILL TEAM, DESOLATION SQUAD, FORTIS KILL TEAM, HELLBLASTER SQUAD, INFERNUS SQUAD, INNER CIRCLE COMPANIONS, INTERCESSOR SQUAD, STERNGUARD VETERAN SQUAD, SWORD BRETHREN SQUAD, VANGUARD VETERAN SQUAD, VICTRIX HONOUR GUARD",
+        "typeId": "9b8f-694b-e5e-b573"
+       }
+      ]
+     }
+    ],
+    "selectionEntryGroups": [
+     {
+      "name": "Wargear",
+      "id": "ccdb-b984-df14-9b54",
+      "collective": false,
+      "defaultSelectionEntryId": "c6aa-b3a5-4ff3-e0d3",
+      "hidden": false,
+      "import": true,
+      "sortIndex": 4,
+      "selectionEntries": [
+       {
+        "name": "Heavy Bolt Pistol, Master-crafted Bolter, Melee Weapon",
+        "id": "c6aa-b3a5-4ff3-e0d3",
+        "collective": false,
+        "hidden": false,
+        "import": true,
+        "type": "upgrade",
+        "costs": [
+         {
+          "name": "pts",
+          "typeId": "51b2-306e-1021-d207",
+          "value": 0
+         }
+        ],
+        "entryLinks": [
+         {
+          "name": "Heavy Bolt Pistol",
+          "id": "87a5-6849-3981-d57e",
+          "collective": false,
+          "hidden": false,
+          "import": true,
+          "targetId": "eca4-d5d2-18a1-01a8",
+          "type": "selectionEntry",
+          "entryLinks": []
+         },
+         {
+          "name": "Master-crafted bolter",
+          "id": "d3c2-6cd8-5ac7-87f6",
+          "collective": false,
+          "hidden": false,
+          "import": true,
+          "targetId": "c3bc-26b4-6fa0-bd39",
+          "type": "selectionEntry",
+          "entryLinks": []
+         }
+        ],
+        "selectionEntryGroups": [
+         {
+          "name": "Melee Weapon",
+          "id": "1591-a4ae-50fb-3c21",
+          "collective": false,
+          "defaultSelectionEntryId": "74b1-e680-e6f1-2845",
+          "hidden": false,
+          "import": true,
+          "entryLinks": [
+           {
+            "name": "Power fist",
+            "id": "667f-2fe-d8c8-c6f7",
+            "collective": false,
+            "hidden": false,
+            "import": true,
+            "targetId": "99de-5985-8cb8-f571",
+            "type": "selectionEntry",
+            "entryLinks": []
+           },
+           {
+            "name": "Master-crafted power weapon",
+            "id": "e77-5303-12ad-cbde",
+            "collective": false,
+            "hidden": false,
+            "import": true,
+            "targetId": "3728-095b-3418-111b",
+            "type": "selectionEntry",
+            "entryLinks": []
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "name": "Heavy Bolt Pistol, Master-crafted power weapon and 1 Relic Shield",
+        "id": "1fd4-9cd4-eda6-baad",
+        "collective": false,
+        "hidden": false,
+        "import": true,
+        "type": "upgrade",
+        "costs": [
+         {
+          "name": "pts",
+          "typeId": "51b2-306e-1021-d207",
+          "value": 0
+         }
+        ],
+        "entryLinks": [
+         {
+          "name": "Master-crafted power weapon",
+          "id": "c552-195a-d3a4-54c",
+          "collective": false,
+          "hidden": false,
+          "import": true,
+          "targetId": "3728-095b-3418-111b",
+          "type": "selectionEntry",
+          "entryLinks": []
+         },
+         {
+          "name": "Relic Shield",
+          "id": "3009-ebd0-faf7-259f",
+          "collective": false,
+          "hidden": false,
+          "import": true,
+          "targetId": "6198-7228-4a39-7926",
+          "type": "selectionEntry",
+          "profiles": [
+           {
+            "name": "Relic Shield",
+            "id": "cbc5-87e5-a711-57f9",
+            "hidden": false,
+            "typeId": "9cc3-6d83-4dd3-9b64",
+            "typeName": "Abilities",
+            "characteristics": [
+             {
+              "name": "Description",
+              "$text": "The bearer has a Wounds characteristic of 6.",
+              "typeId": "9b8f-694b-e5e-b573"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "name": "Heavy Bolt Pistol",
+          "id": "5b84-c97d-68b5-d546",
+          "hidden": false,
+          "import": true,
+          "targetId": "eca4-d5d2-18a1-01a8",
+          "type": "selectionEntry",
+          "entryLinks": []
+         }
+        ]
+       },
+       {
+        "name": "Pistol and Melee Weapon",
+        "id": "94ae-c877-fc3a-a82a",
+        "hidden": false,
+        "import": true,
+        "type": "upgrade",
+        "selectionEntryGroups": [
+         {
+          "name": "Pistol",
+          "id": "fdce-66b7-9c68-d1f0",
+          "hidden": false,
+          "entryLinks": [
+           {
+            "name": "Plasma pistol",
+            "id": "be25-b3d6-a644-d3d6",
+            "collective": false,
+            "hidden": false,
+            "import": true,
+            "targetId": "72c9-4b92-5aed-2fbe",
+            "type": "selectionEntry",
+            "entryLinks": []
+           },
+           {
+            "name": "Neo-volkite Pistol",
+            "id": "94ea-a08a-b947-949b",
+            "hidden": false,
+            "import": true,
+            "targetId": "7644-d9c7-8e85-f953",
+            "type": "selectionEntry",
+            "entryLinks": []
+           }
+          ]
+         },
+         {
+          "name": "Melee Weapon",
+          "id": "3cda-f42-c3ed-57ed",
+          "hidden": false,
+          "entryLinks": [
+           {
+            "name": "Power fist",
+            "id": "d2a4-170e-4e16-e9e",
+            "collective": false,
+            "hidden": false,
+            "import": true,
+            "targetId": "99de-5985-8cb8-f571",
+            "type": "selectionEntry",
+            "entryLinks": []
+           },
+           {
+            "name": "Master-crafted power weapon",
+            "id": "c964-1cfb-8795-a9a8",
+            "collective": false,
+            "hidden": false,
+            "import": true,
+            "targetId": "3728-095b-3418-111b",
+            "type": "selectionEntry",
+            "entryLinks": []
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Bolt pistol",
+    "id": "18b0-8c2-173f-5",
+    "collective": true,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Ranged Weapon",
+      "id": "24ed-e6e4-13a6-e739",
+      "hidden": false,
+      "primary": false,
+      "targetId": "eeda-8544-a2f3-3fab"
+     },
+     {
+      "name": "Bolt Weapon",
+      "id": "b9b9-f05b-029b-a7f1",
+      "hidden": false,
+      "primary": false,
+      "targetId": "1c08-e7e4-55b9-8e30"
+     },
+     {
+      "name": "Pistol Weapon",
+      "id": "387d-cfe6-6ec6-7638",
+      "hidden": false,
+      "primary": false,
+      "targetId": "1db0-c6b5-19db-8d0c"
+     }
+    ],
+    "infoLinks": [
+     {
+      "name": "Close-quarters",
+      "id": "fce6-333e-b6c1-fa9c",
+      "hidden": false,
+      "targetId": "5238-5ad4-52f7-6eb4",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Bolt pistol",
+      "id": "d093-797a-4c76-eea3",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "12\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "1",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "3+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "5",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "-1",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "1",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Close-quarters",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Plasma pistol",
+    "id": "25c2-104f-fa0c-809e",
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Ranged Weapon",
+      "id": "87fc-6532-20a9-811d",
+      "hidden": false,
+      "primary": false,
+      "targetId": "eeda-8544-a2f3-3fab"
+     },
+     {
+      "name": "Pistol Weapon",
+      "id": "8f77-c3a0-a5d2-fa19",
+      "hidden": false,
+      "primary": false,
+      "targetId": "1db0-c6b5-19db-8d0c"
+     },
+     {
+      "name": "Plasma",
+      "id": "7b9a-1a54-44e2-397b",
+      "primary": false,
+      "targetId": "cb29-f4bb-ff15-6b11"
+     }
+    ],
+    "infoLinks": [
+     {
+      "name": "Hazardous",
+      "id": "dfa2-3bc4-90a7-5a2a",
+      "hidden": false,
+      "targetId": "8367-374c-f87-c627",
+      "type": "rule"
+     },
+     {
+      "name": "Close-quarters",
+      "id": "e0d3-e72e-9be4-fa60",
+      "hidden": false,
+      "targetId": "5238-5ad4-52f7-6eb4",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "➤ Plasma pistol - supercharge",
+      "id": "4a80-2594-8839-c0bf",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "12\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "1",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "3+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "8",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "-3",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "2",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Hazardous, Close-quarters",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     },
+     {
+      "name": "➤ Plasma pistol - standard",
+      "id": "5edb-fb23-55e8-8415",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "12\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "1",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "3+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "7",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "-2",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "1",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Close-quarters",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Servo-armature",
+    "id": "27de-1fea-9481-c6ce",
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "profiles": [
+     {
+      "name": "Servo-armature",
+      "id": "3fb2-a662-8734-6e96",
+      "hidden": false,
+      "typeId": "8a40-4aaa-c780-9046",
+      "typeName": "Melee Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "Melee",
+        "typeId": "914c-b413-91e3-a132"
+       },
+       {
+        "name": "A",
+        "$text": "4",
+        "typeId": "2337-daa1-6682-b110"
+       },
+       {
+        "name": "WS",
+        "$text": "3+",
+        "typeId": "95d1-95f-45b4-11d6"
+       },
+       {
+        "name": "S",
+        "$text": "5",
+        "typeId": "ab33-d393-96ce-ccba"
+       },
+       {
+        "name": "AP",
+        "$text": "0",
+        "typeId": "41a0-1301-112a-e2f2"
+       },
+       {
+        "name": "D",
+        "$text": "1",
+        "typeId": "3254-9fe6-d824-513e"
+       },
+       {
+        "name": "Keywords",
+        "$text": "",
+        "typeId": "893f-9000-ccf7-648e"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Master-crafted power weapon",
+    "id": "3728-095b-3418-111b",
+    "collective": false,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Melee Weapon",
+      "id": "0881-4b69-d9e3-0d56",
+      "hidden": false,
+      "primary": false,
+      "targetId": "ccdd-3987-11ed-90cd"
+     },
+     {
+      "name": "Power Weapon",
+      "id": "c862-787c-6e6b-a886",
+      "hidden": false,
+      "primary": false,
+      "targetId": "72a2-ff76-451c-9d12"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Master-crafted power weapon",
+      "id": "672a-add6-aa39-f0a9",
+      "hidden": false,
+      "typeId": "8a40-4aaa-c780-9046",
+      "typeName": "Melee Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "Melee",
+        "typeId": "914c-b413-91e3-a132"
+       },
+       {
+        "name": "A",
+        "$text": "6",
+        "typeId": "2337-daa1-6682-b110"
+       },
+       {
+        "name": "WS",
+        "$text": "2+",
+        "typeId": "95d1-95f-45b4-11d6"
+       },
+       {
+        "name": "S",
+        "$text": "6",
+        "typeId": "ab33-d393-96ce-ccba"
+       },
+       {
+        "name": "AP",
+        "$text": "-2",
+        "typeId": "41a0-1301-112a-e2f2"
+       },
+       {
+        "name": "D",
+        "$text": "2",
+        "typeId": "3254-9fe6-d824-513e"
+       },
+       {
+        "name": "Keywords",
+        "$text": "",
+        "typeId": "893f-9000-ccf7-648e"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Thunder Hammer",
+    "id": "4913-96d4-2b1f-2c21",
+    "collective": true,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Melee Weapon",
+      "id": "1af4-1b8d-92d2-e9a6",
+      "hidden": false,
+      "primary": false,
+      "targetId": "ccdd-3987-11ed-90cd"
+     }
+    ],
+    "infoLinks": [
+     {
+      "name": "Devastating Wounds",
+      "id": "0a93-b92e-e940-746d",
+      "hidden": false,
+      "targetId": "be1e-ac8e-1e2c-3528",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Thunder Hammer",
+      "id": "7d4-47b7-439b-b2ca",
+      "hidden": false,
+      "typeId": "8a40-4aaa-c780-9046",
+      "typeName": "Melee Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "Melee",
+        "typeId": "914c-b413-91e3-a132"
+       },
+       {
+        "name": "A",
+        "$text": "3",
+        "typeId": "2337-daa1-6682-b110"
+       },
+       {
+        "name": "WS",
+        "$text": "4+",
+        "typeId": "95d1-95f-45b4-11d6"
+       },
+       {
+        "name": "S",
+        "$text": "8",
+        "typeId": "ab33-d393-96ce-ccba"
+       },
+       {
+        "name": "AP",
+        "$text": "-2",
+        "typeId": "41a0-1301-112a-e2f2"
+       },
+       {
+        "name": "D",
+        "$text": "3",
+        "typeId": "3254-9fe6-d824-513e"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Devastating Wounds",
+        "typeId": "893f-9000-ccf7-648e"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Power weapon",
+    "id": "50dd-3e76-d993-4d1a",
+    "collective": true,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Melee Weapon",
+      "id": "58ad-4a89-f332-cc2e",
+      "hidden": false,
+      "primary": false,
+      "targetId": "ccdd-3987-11ed-90cd"
+     },
+     {
+      "name": "Power Weapon",
+      "id": "279e-8e09-72bb-afa0",
+      "hidden": false,
+      "primary": false,
+      "targetId": "72a2-ff76-451c-9d12"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Power weapon",
+      "id": "8f2f-6d13-36c5-eded",
+      "hidden": false,
+      "typeId": "8a40-4aaa-c780-9046",
+      "typeName": "Melee Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "Melee",
+        "typeId": "914c-b413-91e3-a132"
+       },
+       {
+        "name": "A",
+        "$text": "4",
+        "typeId": "2337-daa1-6682-b110"
+       },
+       {
+        "name": "WS",
+        "$text": "3+",
+        "typeId": "95d1-95f-45b4-11d6"
+       },
+       {
+        "name": "S",
+        "$text": "5",
+        "typeId": "ab33-d393-96ce-ccba"
+       },
+       {
+        "name": "AP",
+        "$text": "-2",
+        "typeId": "41a0-1301-112a-e2f2"
+       },
+       {
+        "name": "D",
+        "$text": "1",
+        "typeId": "3254-9fe6-d824-513e"
+       },
+       {
+        "name": "Keywords",
+        "typeId": "893f-9000-ccf7-648e"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Bolt Rifle",
+    "id": "6155-c404-a228-cb72",
+    "collective": true,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Ranged Weapon",
+      "id": "087f-88dd-5ec5-93c9",
+      "hidden": false,
+      "primary": false,
+      "targetId": "eeda-8544-a2f3-3fab"
+     }
+    ],
+    "infoLinks": [
+     {
+      "name": "Assault",
+      "id": "4bf4-3dc0-ba78-1ef",
+      "hidden": false,
+      "targetId": "fc8a-8c24-bae9-cc1c",
+      "type": "rule"
+     },
+     {
+      "name": "Heavy",
+      "id": "86d2-1aee-5b65-4b52",
+      "hidden": false,
+      "targetId": "1202-10a8-78e9-4c67",
+      "type": "rule"
+     },
+     {
+      "name": "Rapid Fire",
+      "id": "9aa6-de57-196c-967f",
+      "hidden": false,
+      "targetId": "c5c8-8b58-b8b6-7786",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "➤ Bolt Rifle - Focused Fire",
+      "id": "837b-6918-767-152b",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "24\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "1",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "3+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "6",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "-1",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "2",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Heavy, Rapid Fire 1",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     },
+     {
+      "name": "➤ Bolt Rifle - Saturation",
+      "id": "1246-9297-174a-fcf7",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "24\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "2",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "3+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "5",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "-1",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "1",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Assault, Rapid Fire 1",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Relic Shield",
+    "id": "6198-7228-4a39-7926",
+    "collective": false,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "profiles": [
+     {
+      "name": "Relic Shield",
+      "id": "d54c-ae42-9d78-71df",
+      "hidden": false,
+      "typeId": "9cc3-6d83-4dd3-9b64",
+      "typeName": "Abilities",
+      "characteristics": [
+       {
+        "name": "Description",
+        "$text": "Add 1 to the bearer's Wounds characteristic.",
+        "typeId": "9b8f-694b-e5e-b573"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Plasma pistol",
+    "id": "72c9-4b92-5aed-2fbe",
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Ranged Weapon",
+      "id": "6d16-0ee7-f2f0-264d",
+      "hidden": false,
+      "primary": false,
+      "targetId": "eeda-8544-a2f3-3fab"
+     },
+     {
+      "name": "Pistol Weapon",
+      "id": "bff9-9f64-969c-1a6d",
+      "hidden": false,
+      "primary": false,
+      "targetId": "1db0-c6b5-19db-8d0c"
+     },
+     {
+      "name": "Plasma",
+      "id": "89e4-c91b-cd0c-f70f",
+      "primary": false,
+      "targetId": "cb29-f4bb-ff15-6b11"
+     }
+    ],
+    "infoLinks": [
+     {
+      "name": "Hazardous",
+      "id": "4235-6cbb-c79a-f745",
+      "hidden": false,
+      "targetId": "8367-374c-f87-c627",
+      "type": "rule"
+     },
+     {
+      "name": "Close-quarters",
+      "id": "9229-786a-f607-1cc2",
+      "hidden": false,
+      "targetId": "5238-5ad4-52f7-6eb4",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "➤ Plasma pistol - supercharge",
+      "id": "b069-0b39-b014-21d8",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "12\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "1",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "2+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "8",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "-3",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "2",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Hazardous, Close-quarters",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     },
+     {
+      "name": "➤ Plasma pistol - standard",
+      "id": "1d1e-f80d-86a9-0b7a",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "12\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "1",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "2+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "7",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "-2",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "1",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Close-quarters",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Neo-volkite Pistol",
+    "id": "7644-d9c7-8e85-f953",
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "infoLinks": [
+     {
+      "name": "Devastating Wounds",
+      "id": "1ace-9bf0-e4ae-95b2",
+      "hidden": false,
+      "targetId": "be1e-ac8e-1e2c-3528",
+      "type": "rule"
+     },
+     {
+      "name": "Close-quarters",
+      "id": "dd5e-8433-82c9-53c4",
+      "hidden": false,
+      "targetId": "5238-5ad4-52f7-6eb4",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Neo-volkite Pistol",
+      "id": "9a7c-72d9-2528-560e",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "12\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "1",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "2+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "5",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "0",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "2",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Devastating Wounds, Pistol",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Power fist",
+    "id": "99de-5985-8cb8-f571",
+    "collective": false,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Melee Weapon",
+      "id": "7edc-d81f-efcc-f821",
+      "hidden": false,
+      "primary": false,
+      "targetId": "ccdd-3987-11ed-90cd"
+     },
+     {
+      "name": "Power Fist Weapon",
+      "id": "0f65-f3b4-a6b8-3401",
+      "hidden": false,
+      "primary": false,
+      "targetId": "0241-18a2-8ea4-2341"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Power fist",
+      "id": "0f7e-39a9-fc61-122a",
+      "hidden": false,
+      "typeId": "8a40-4aaa-c780-9046",
+      "typeName": "Melee Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "Melee",
+        "typeId": "914c-b413-91e3-a132"
+       },
+       {
+        "name": "A",
+        "$text": "5",
+        "typeId": "2337-daa1-6682-b110"
+       },
+       {
+        "name": "WS",
+        "$text": "2+",
+        "typeId": "95d1-95f-45b4-11d6"
+       },
+       {
+        "name": "S",
+        "$text": "8",
+        "typeId": "ab33-d393-96ce-ccba"
+       },
+       {
+        "name": "AP",
+        "$text": "-2",
+        "typeId": "41a0-1301-112a-e2f2"
+       },
+       {
+        "name": "D",
+        "$text": "2",
+        "typeId": "3254-9fe6-d824-513e"
+       },
+       {
+        "name": "Keywords",
+        "typeId": "893f-9000-ccf7-648e"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Hand flamer",
+    "id": "9dc6-6ad8-818e-db2e",
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Ranged Weapon",
+      "id": "8f7a-b6b8-cc3f-713f",
+      "hidden": false,
+      "primary": false,
+      "targetId": "eeda-8544-a2f3-3fab"
+     },
+     {
+      "name": "Pistol Weapon",
+      "id": "15d0-ed9b-d55b-cfd6",
+      "hidden": false,
+      "primary": false,
+      "targetId": "1db0-c6b5-19db-8d0c"
+     },
+     {
+      "name": "Torrent Weapon",
+      "id": "7c0e-7da0-ba58-32c3",
+      "hidden": false,
+      "primary": false,
+      "targetId": "064a-0470-60eb-e3ef"
+     },
+     {
+      "name": "Attacks Dx Weapon",
+      "id": "c4f9-c2e2-6e3b-0506",
+      "hidden": false,
+      "primary": false,
+      "targetId": "e993-e086-6de1-12af"
+     }
+    ],
+    "infoLinks": [
+     {
+      "name": "Close-quarters",
+      "id": "3852-5446-e10a-a9a7",
+      "hidden": false,
+      "targetId": "5238-5ad4-52f7-6eb4",
+      "type": "rule"
+     },
+     {
+      "name": "Torrent",
+      "id": "d812-2a33-a3c8-4aa7",
+      "hidden": false,
+      "targetId": "5edf-d619-23e0-9b56",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Hand flamer",
+      "id": "5dec-ac64-4bf5-7d6c",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "9\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "3",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "-",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "4",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "0",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "1",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Close-quarters, Torrent",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Absolvor bolt pistol",
+    "id": "a490-361-c9c4-afeb",
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Ranged Weapon",
+      "id": "9b43-513c-6ab1-c478",
+      "hidden": false,
+      "primary": false,
+      "targetId": "eeda-8544-a2f3-3fab"
+     },
+     {
+      "name": "Pistol Weapon",
+      "id": "331e-8c31-0e96-e20d",
+      "hidden": false,
+      "primary": false,
+      "targetId": "1db0-c6b5-19db-8d0c"
+     },
+     {
+      "name": "Bolt Weapon",
+      "id": "1bb9-e756-9e4f-3ce5",
+      "hidden": false,
+      "primary": false,
+      "targetId": "1c08-e7e4-55b9-8e30"
+     }
+    ],
+    "infoLinks": [
+     {
+      "name": "Close-quarters",
+      "id": "f931-4454-45dc-750c",
+      "hidden": false,
+      "targetId": "5238-5ad4-52f7-6eb4",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Absolvor bolt pistol",
+      "id": "cb64-ddb1-cbc3-3621",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "18\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "1",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "3+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "5",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "-2",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "2",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Close-quarters",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Knives and Fists",
+    "id": "b552-e2fb-4634-b098",
+    "collective": true,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "profiles": [
+     {
+      "name": "Knives and Fists",
+      "id": "091a-2eb1-b71d-7102",
+      "hidden": false,
+      "typeId": "8a40-4aaa-c780-9046",
+      "typeName": "Melee Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "Melee",
+        "typeId": "914c-b413-91e3-a132"
+       },
+       {
+        "name": "A",
+        "$text": "3",
+        "typeId": "2337-daa1-6682-b110"
+       },
+       {
+        "name": "WS",
+        "$text": "3+",
+        "typeId": "95d1-95f-45b4-11d6"
+       },
+       {
+        "name": "S",
+        "$text": "5",
+        "typeId": "ab33-d393-96ce-ccba"
+       },
+       {
+        "name": "AP",
+        "$text": "0",
+        "typeId": "41a0-1301-112a-e2f2"
+       },
+       {
+        "name": "D",
+        "$text": "1",
+        "typeId": "3254-9fe6-d824-513e"
+       },
+       {
+        "name": "Keywords",
+        "$text": "",
+        "typeId": "893f-9000-ccf7-648e"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Chainsword",
+    "id": "c1b9-f39d-7390-d4cb",
+    "collective": true,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Melee Weapon",
+      "id": "e8ed-24a9-86a0-ed5d",
+      "hidden": false,
+      "primary": false,
+      "targetId": "ccdd-3987-11ed-90cd"
+     }
+    ],
+    "entryLinks": [],
+    "profiles": [
+     {
+      "name": "Chainsword",
+      "id": "a474-3508-518d-1582",
+      "hidden": false,
+      "typeId": "8a40-4aaa-c780-9046",
+      "typeName": "Melee Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "Melee",
+        "typeId": "914c-b413-91e3-a132"
+       },
+       {
+        "name": "A",
+        "$text": "5",
+        "typeId": "2337-daa1-6682-b110"
+       },
+       {
+        "name": "WS",
+        "$text": "3+",
+        "typeId": "95d1-95f-45b4-11d6"
+       },
+       {
+        "name": "S",
+        "$text": "5",
+        "typeId": "ab33-d393-96ce-ccba"
+       },
+       {
+        "name": "AP",
+        "$text": "-1",
+        "typeId": "41a0-1301-112a-e2f2"
+       },
+       {
+        "name": "D",
+        "$text": "1",
+        "typeId": "3254-9fe6-d824-513e"
+       },
+       {
+        "name": "Keywords",
+        "$text": "",
+        "typeId": "893f-9000-ccf7-648e"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Master-crafted bolter",
+    "id": "c3bc-26b4-6fa0-bd39",
+    "collective": false,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Ranged Weapon",
+      "id": "035c-21e7-ce7a-c21a",
+      "hidden": false,
+      "primary": false,
+      "targetId": "eeda-8544-a2f3-3fab"
+     },
+     {
+      "name": "Bolt Weapon",
+      "id": "816c-1a8e-d593-4fa7",
+      "hidden": false,
+      "primary": false,
+      "targetId": "1c08-e7e4-55b9-8e30"
+     }
+    ],
+    "infoLinks": [
+     {
+      "name": "Assault",
+      "id": "b6f5-7aed-3d31-c140",
+      "hidden": false,
+      "targetId": "fc8a-8c24-bae9-cc1c",
+      "type": "rule"
+     },
+     {
+      "name": "Rapid Fire",
+      "id": "46d7-aba9-91fc-229a",
+      "hidden": false,
+      "targetId": "c5c8-8b58-b8b6-7786",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Master-crafted bolter",
+      "id": "eff9-b1b3-de43-fb11",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "24\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "2",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "2+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "5",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "-1",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "2",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Assault, Rapid Fire 1",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Warlord",
+    "id": "caa-f869-3cbd-b48e",
+    "collective": false,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Warlord",
+      "id": "1527-94f9-b9d7-783b",
+      "primary": false,
+      "targetId": "5c0e-4c31-d51b-e470"
+     }
+    ],
+    "costs": [
+     {
+      "name": "pts",
+      "typeId": "51b2-306e-1021-d207",
+      "value": 0
+     }
+    ]
+   },
+   {
+    "name": "Terminator Honours upgrade",
+    "id": "e7f9-66f5-9b9e-c587",
+    "hidden": false,
+    "import": true,
+    "type": "upgrade"
+   },
+   {
+    "name": "Heavy Bolt Pistol",
+    "id": "eca4-d5d2-18a1-01a8",
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Ranged Weapon",
+      "id": "ad94-6ae9-8a79-1c68",
+      "hidden": false,
+      "primary": false,
+      "targetId": "eeda-8544-a2f3-3fab"
+     }
+    ],
+    "infoLinks": [
+     {
+      "name": "Close-quarters",
+      "id": "42a2-d5a3-c0e7-b951",
+      "hidden": false,
+      "targetId": "5238-5ad4-52f7-6eb4",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Heavy Bolt Pistol",
+      "id": "2cbe-10b2-3653-4b55",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "18\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "1",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "2+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "5",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "-1",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "1",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Close-quarters",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Grenade Launcher",
+    "id": "ef0a-b1da-8926-b298",
+    "collective": true,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "infoLinks": [
+     {
+      "name": "Rapid Fire",
+      "id": "9ec3-646d-d3cc-ff38",
+      "hidden": false,
+      "targetId": "c5c8-8b58-b8b6-7786",
+      "type": "rule"
+     },
+     {
+      "name": "Blast",
+      "id": "a105-00f8-8007-813b",
+      "hidden": false,
+      "targetId": "6c1f-1cf7-ff25-c99e",
+      "type": "rule"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "➤ Grenade Launcher - Krak",
+      "id": "ff96-544f-1a33-6c54",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "24\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "1",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "3+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "10",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "-2",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "3",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Rapid Fire 1",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     },
+     {
+      "name": "➤ Grenade Launcher - Frag",
+      "id": "623f-5421-81e6-28db",
+      "hidden": false,
+      "typeId": "f77d-b953-8fa4-b762",
+      "typeName": "Ranged Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "24\"",
+        "typeId": "9896-9419-16a1-92fc"
+       },
+       {
+        "name": "A",
+        "$text": "4",
+        "typeId": "3bb-c35f-f54-fb08"
+       },
+       {
+        "name": "BS",
+        "$text": "3+",
+        "typeId": "94d-8a98-cf90-183e"
+       },
+       {
+        "name": "S",
+        "$text": "4",
+        "typeId": "2229-f494-25db-c5d3"
+       },
+       {
+        "name": "AP",
+        "$text": "-1",
+        "typeId": "9ead-8a10-520-de15"
+       },
+       {
+        "name": "D",
+        "$text": "1",
+        "typeId": "a354-c1c8-a745-f9e3"
+       },
+       {
+        "name": "Keywords",
+        "$text": "Blast 1",
+        "typeId": "7f1b-8591-2fcf-d01c"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Power fist",
+    "id": "f8d8-7e77-4b71-faac",
+    "collective": true,
+    "hidden": false,
+    "import": true,
+    "type": "upgrade",
+    "categoryLinks": [
+     {
+      "name": "Melee Weapon",
+      "id": "da2e-dd21-47fc-7c1c",
+      "hidden": false,
+      "primary": false,
+      "targetId": "ccdd-3987-11ed-90cd"
+     },
+     {
+      "name": "Power Fist Weapon",
+      "id": "f8ca-2396-3cfe-c284",
+      "hidden": false,
+      "primary": false,
+      "targetId": "0241-18a2-8ea4-2341"
+     }
+    ],
+    "profiles": [
+     {
+      "name": "Power fist",
+      "id": "3a24-34af-7558-5365",
+      "hidden": false,
+      "typeId": "8a40-4aaa-c780-9046",
+      "typeName": "Melee Weapons",
+      "characteristics": [
+       {
+        "name": "Range",
+        "$text": "Melee",
+        "typeId": "914c-b413-91e3-a132"
+       },
+       {
+        "name": "A",
+        "$text": "3",
+        "typeId": "2337-daa1-6682-b110"
+       },
+       {
+        "name": "WS",
+        "$text": "3+",
+        "typeId": "95d1-95f-45b4-11d6"
+       },
+       {
+        "name": "S",
+        "$text": "8",
+        "typeId": "ab33-d393-96ce-ccba"
+       },
+       {
+        "name": "AP",
+        "$text": "-2",
+        "typeId": "41a0-1301-112a-e2f2"
+       },
+       {
+        "name": "D",
+        "$text": "2",
+        "typeId": "3254-9fe6-d824-513e"
+       },
+       {
+        "name": "Keywords",
+        "typeId": "893f-9000-ccf7-648e"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "sharedSelectionEntryGroups": [
+   {
+    "name": "Detachment",
+    "id": "821b-9477-6c47-eab5",
+    "collapsible": false,
+    "defaultSelectionEntryId": "none",
+    "hidden": false,
+    "selectionEntries": [
+     {
+      "name": "Gladius Task Force",
+      "id": "d2dc-693e-b491-b16d",
+      "collective": false,
+      "hidden": false,
+      "import": true,
+      "type": "upgrade",
+      "categoryLinks": [
+       {
+        "name": "Priority Assets",
+        "id": "7031-b0e8-8f5b-904a",
+        "hidden": false,
+        "primary": false,
+        "targetId": "0936-9767-1cc7-52ae"
+       },
+       {
+        "name": "3DP Detachment",
+        "id": "fa3b-602a-5d15-13a1",
+        "hidden": false,
+        "primary": false,
+        "targetId": "7d80-2de5-816e-9d2b"
+       },
+       {
+        "name": "Take and Hold",
+        "id": "6289-e667-aef2-b922",
+        "hidden": false,
+        "primary": false,
+        "targetId": "1cc1-f11a-4e8f-1bcc"
+       }
+      ],
+      "costs": [
+       {
+        "name": "pts",
+        "typeId": "51b2-306e-1021-d207",
+        "value": 0
+       }
+      ],
+      "rules": [
+       {
+        "name": "Codex Discipline",
+        "id": "cf8e-b330-be85-11d0",
+        "description": "You can select one Combat Doctrine one additional time per battle. ",
+        "hidden": false
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Enhancements",
+    "id": "9e5d-de4c-c5d1-1d3e",
+    "collapsible": true,
+    "hidden": false,
+    "selectionEntryGroups": [
+     {
+      "name": "Gladius Task Force Enhancements",
+      "id": "dff5-fd4c-749d-e42",
+      "hidden": false,
+      "selectionEntries": [
+       {
+        "name": "Artificer Armour",
+        "id": "e57e-d55a-be75-2205",
+        "hidden": false,
+        "import": true,
+        "type": "upgrade",
+        "costs": [
+         {
+          "name": "pts",
+          "typeId": "51b2-306e-1021-d207",
+          "value": 15
+         }
+        ],
+        "infoLinks": [
+         {
+          "name": "Feel No Pain",
+          "id": "84bb-e22f-709c-23db",
+          "hidden": false,
+          "targetId": "9bf4-280f-bbe2-6fbb",
+          "type": "rule"
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Artificer Armour",
+          "id": "420d-447-d2c3-42fc",
+          "hidden": false,
+          "typeId": "9cc3-6d83-4dd3-9b64",
+          "typeName": "Abilities",
+          "characteristics": [
+           {
+            "name": "Description",
+            "$text": "**^^Adeptus Astartes^^** model only. This model has:\n▪ 2+ Sv\n▪  Feel No Pain 5+",
+            "typeId": "9b8f-694b-e5e-b573"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "name": "Laurels of Triumph",
+        "id": "899b-69cc-2e8f-f8ea",
+        "hidden": false,
+        "import": true,
+        "type": "upgrade",
+        "costs": [
+         {
+          "name": "pts",
+          "typeId": "51b2-306e-1021-d207",
+          "value": 20
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Laurels of Triumph",
+          "id": "14c8-9bca-c010-7510",
+          "hidden": false,
+          "typeId": "9cc3-6d83-4dd3-9b64",
+          "typeName": "Abilities",
+          "characteristics": [
+           {
+            "name": "Description",
+            "$text": "Adeptus Astartes model only. This model's melee attacks have:\n▪ +1S and AP\n▪ Or: if the assault doctrine is active for this unit, +2S and AP",
+            "typeId": "9b8f-694b-e5e-b573"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "name": "Adept of the Codex",
+        "id": "c0aa-7c93-7b8f-5585",
+        "hidden": false,
+        "import": true,
+        "type": "upgrade",
+        "costs": [
+         {
+          "name": "pts",
+          "typeId": "51b2-306e-1021-d207",
+          "value": 20
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Adept of the Codex",
+          "id": "e89b-8acc-fbf3-b69a",
+          "hidden": false,
+          "typeId": "9cc3-6d83-4dd3-9b64",
+          "typeName": "Abilities",
+          "characteristics": [
+           {
+            "name": "Description",
+            "$text": "Captain model only. The tactical doctrine is active for this unit in addition to any other combat doctrine",
+            "typeId": "9b8f-694b-e5e-b573"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "name": "Standard of the Emperor Ascendant",
+        "id": "3635-6f41-c807-71c2",
+        "hidden": false,
+        "import": true,
+        "type": "upgrade",
+        "costs": [
+         {
+          "name": "pts",
+          "typeId": "51b2-306e-1021-d207",
+          "value": 25
+         }
+        ],
+        "profiles": [
+         {
+          "name": "Standard of the Emperor Ascendant",
+          "id": "f52e-c2ae-4dd1-8964",
+          "hidden": false,
+          "typeId": "9cc3-6d83-4dd3-9b64",
+          "typeName": "Abilities",
+          "characteristics": [
+           {
+            "name": "Description",
+            "$text": "Ancient Model only. This model has:\n▪ +1OC and Ld\n▪ Feel No Pain 5+\n▪ The following ability:\nAncient Exhortation (Once per battle, per army). When this unit is selected to fight, you can use this ability. If you do, this unit's melee attacks have +1A until the end of the phase. ",
+            "typeId": "9b8f-694b-e5e-b573"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Priority Assets",
+    "id": "0936-9767-1cc7-52ae",
+    "hidden": false
+   },
+   {
+    "name": "Leader",
+    "id": "1556-9b56-fba6-4370",
+    "hidden": true
+   },
+   {
+    "name": "Take and Hold",
+    "id": "1cc1-f11a-4e8f-1bcc",
+    "hidden": false
+   },
+   {
+    "name": "Apothecary",
+    "id": "2170-4f11-9bf7-ae56",
+    "hidden": false
+   },
+   {
+    "name": "Captain",
+    "id": "2d7f-1892-2fd0-e29c",
+    "hidden": false
+   },
+   {
+    "name": "Tacticus",
+    "id": "5179-8ede-45e3-49a2",
+    "hidden": false
+   },
+   {
+    "name": "Faction: Adeptus Astartes",
+    "id": "6e7-40c-58d9-e402",
+    "hidden": false
+   },
+   {
+    "name": "Intercessor Squad",
+    "id": "7b57-816b-44b2-65ec",
+    "hidden": false
+   },
+   {
+    "name": "3DP Detachment",
+    "id": "7d80-2de5-816e-9d2b",
+    "hidden": true
+   },
+   {
+    "name": "Support",
+    "id": "7dcd-7f61-69a7-0294",
+    "hidden": true
+   },
+   {
+    "name": "Character",
+    "id": "9cfd-1c32-585f-7d5c",
+    "hidden": false
+   },
+   {
+    "name": "Imperium",
+    "id": "aff3-d6a3-2a95-9dc",
+    "hidden": false
+   },
+   {
+    "name": "Infantry",
+    "id": "cf47-a0d7-7207-29dc",
+    "hidden": false
+   },
+   {
+    "name": "Battleline",
+    "id": "e338-111e-d0c6-b687",
+    "hidden": false
+   },
+   {
+    "name": "Explosives",
+    "id": "e33d-891d-33aa-e9bf",
+    "hidden": false
+   },
+   {
+    "name": "Ranged Weapon",
+    "id": "eeda-8544-a2f3-3fab",
+    "hidden": true
+   },
+   {
+    "name": "Power Fist Weapon",
+    "id": "0241-18a2-8ea4-2341",
+    "hidden": true
+   },
+   {
+    "name": "Torrent Weapon",
+    "id": "064a-0470-60eb-e3ef",
+    "hidden": true
+   },
+   {
+    "name": "Bolt Weapon",
+    "id": "1c08-e7e4-55b9-8e30",
+    "hidden": true
+   },
+   {
+    "name": "Pistol Weapon",
+    "id": "1db0-c6b5-19db-8d0c",
+    "hidden": true
+   },
+   {
+    "name": "Warlord",
+    "id": "5c0e-4c31-d51b-e470",
+    "hidden": false
+   },
+   {
+    "name": "Power Weapon",
+    "id": "72a2-ff76-451c-9d12",
+    "hidden": true
+   },
+   {
+    "name": "Plasma",
+    "id": "cb29-f4bb-ff15-6b11",
+    "hidden": false
+   },
+   {
+    "name": "Melee Weapon",
+    "id": "ccdd-3987-11ed-90cd",
+    "hidden": true
+   },
+   {
+    "name": "Attacks Dx Weapon",
+    "id": "e993-e086-6de1-12af",
+    "hidden": true
+   }
+  ],
+  "sharedProfiles": [
+   {
+    "name": "Strategic Acumen",
+    "id": "90c7-c55c-21e2-2232",
+    "hidden": false,
+    "typeId": "9cc3-6d83-4dd3-9b64",
+    "typeName": "Abilities",
+    "characteristics": [
+     {
+      "name": "Description",
+      "$text": "In your Command phase, you can use this ability. If you do, select one combat doctrine to be active for this unit until the start of your next Command phase.",
+      "typeId": "9b8f-694b-e5e-b573"
+     }
+    ]
+   },
+   {
+    "name": "Finest Hour",
+    "id": "fdf1-64a5-906c-3474",
+    "hidden": false,
+    "typeId": "9cc3-6d83-4dd3-9b64",
+    "typeName": "Abilities",
+    "characteristics": [
+     {
+      "name": "Description",
+      "$text": "(Once per battle, per unit): In the Fight phase, when this unit is selected to fight, you can use this ability. If you do, this model's melee attacks have: \n▪ +3 A \n▪ [DEVASTATING WOUNDS].",
+      "typeId": "9b8f-694b-e5e-b573"
+     }
+    ]
+   }
+  ],
+  "sharedRules": [
+   {
+    "name": "Combat Doctrines",
+    "id": "3b76-4053-ece9-6e7d",
+    "description": "At the start of your Command phase, you can select one Combat Doctrine listed below. If you do, that Combat Doctrine is active for friendly ADEPTUS ASTARTES units with this ability until the start of your next Command Phase\n\n\nAssault Doctrine\nWhen this unit is selected to make an Advance move, that Advance move does not prevent this unit from being eligible to declare a charge. \n\n\nDevastator Doctrine\nThis unit's ranged attacks have [ASSAULT]\n\n\nTactical Doctrine\nWhen this unit is selected to make a Fall-back move, that Fall-back move does not prevent this unit from being eligible to shoot and eligible to declare a charge. \n\n\nUnless otherwise stated. \n- You can only select each Combat Doctrine once per battle\n- Only one Combat Doctrine can be active for each unit. If a rule make a Combat Doctrine active for a unit, any Combat Doctrine previously active for that unit is no longer active for that unit. \n\n",
+    "hidden": false
+   },
+   {
+    "name": "Transhuman Strategist",
+    "id": "c6cc-c38c-dfe6-dbb8",
+    "description": "At the start of the battle round, if a model with this ability is your WARLORD, gain 1 CP",
+    "hidden": false
+   },
+   {
+    "name": "Templar Vows",
+    "id": "f26c-4b28-aaea-40cf",
+    "description": "If your Army Faction is **^^Adeptus Astartes^^**, at the start of the first battle round, select one of the following Vows to be active for **^^Adeptus Astartes^^** units from your army. While a Vow is active for your army, that unit has the associated ability below. \n\n**Abhor the Witch, Destroy the Witch**\n■ Each time this unit declares a charge, if one or more targets of that charge have the **^^Psyker^^** keyword, you can re-roll the Charge roll. Melee weapons equipped by models in this unit have the **[PRECISION]** ability while targeting **^^Psyker^^** units. \n\n**Accept Any Challenge, No Matter the Odds**\n■ Each time a model in this unit makes a melee attack, if the Strength characteristic of that attack is less than or equal to the Toughness characteristic of the target, add 1 to the wound roll\n\n**Suffer Not the Unclean to Live**\n■ This unit is eligible to declare a charge in a turn in which it Fell Back, and each time a model in this unit makes a Pile-in or Consolidation move, it does not need to end that move closer to the closest enemy model, provided it ends that move as close as possible to the nearest enemy unit. \n\n**Uphold the Honour of the Emperor**\nIf this unit has the **^^Infantry^^** keyword:\n■ At the end of your Command phase, if this unit is within range of an objective marker you control, that objective marker remains under your control until your opponent's level of control over that objective marker is greater than yours at the end of the phase. \n■ If the mission you are playing features Actions, this unit is eligible to start to perform an Action in a turn in which it Advanced.",
+    "hidden": true
+   }
+  ]
+ }
+}

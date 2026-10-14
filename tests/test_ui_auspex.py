@@ -36,8 +36,8 @@ class AuspexTest(unittest.TestCase):
         cls.ctx.settings.trials = 2_000
         cls.app = App(cls.ctx)
         cls.app.show()
-        army = parse_list(FIXTURE_LIST, cls.ctx.wd)
-        cls.selection = Selection(army, parse_list(FIXTURE_LIST, cls.ctx.wd))
+        army = parse_list(FIXTURE_LIST, cls.ctx.armies)
+        cls.selection = Selection(army, parse_list(FIXTURE_LIST, cls.ctx.armies))
 
     @classmethod
     def tearDownClass(cls):

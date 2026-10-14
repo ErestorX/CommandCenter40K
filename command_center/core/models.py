@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from command_center.core.dice import Dice
 from command_center.core.keywords import WeaponKeywords
@@ -54,7 +54,8 @@ class ModelProfile:
     Sv: int
     inv: int | None
     W: int
-    base: str = ""       # base size as Wahapedia writes it: "32mm", "120 x 92mm", "Use model"
+    base: str = ""       # base size as the data writes it: "32mm", "120 x 92mm", "60mm Flying", "Use model", "Hull";
+                         # blank when the data has none (an estimate is drawn: command_center.deploy.bases)
 
 
 @dataclass
@@ -68,6 +69,11 @@ class Unit:
     is_support: bool = False
     other_gear: frozenset[str] = frozenset()    # norm()-ed names a list may give it that aren't weapons:
                                                 # its faction's enhancements, its abilities, "Warlord"
+    gear: dict[str, list[Weapon]] = field(default_factory=dict)    # norm()-ed name of what a list may name
+                                                # on it -> the weapons that item is ([]: wargear); BSData only
+    source: str = "wahapedia"                   # where it comes from: "bsdata" or "wahapedia"
+    fallback: Unit | None = field(default=None, repr=False)        # the same unit in Wahapedia, for what
+                                                # BSData leaves blank (command_center.data.armies)
 
     @property
     def is_character(self) -> bool:

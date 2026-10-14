@@ -34,6 +34,13 @@ MISSION_DECK_URL = "https://wahapedia.ru/{edition}/the-rules/mission-deck-2026-2
 # as data by Rapid Ingress: https://rapidingress.com/40k-layout-reference
 LAYOUTS_BASE_URL = "https://rapidingress.com/"
 
+# BSData's data files for the edition (https://github.com/BSData/wh40k-11e): the army data NewRecruit
+# builds its lists from, so a list's names are theirs (command_center.data.bsdata). Downloaded as the
+# repository's zip, checked by its last commit; kept under DATA_ROOT, in bsdata/<repository name>.
+BSDATA_REPO = "BSData/wh40k-11e"
+BSDATA_BRANCH = "main"
+BSDATA_SYSTEM_FILE = "Warhammer 40,000.json"     # the game system, there when the files are
+
 # Where fetch writes by default, followed by other places the data may already live.
 DATA_ROOT = PROJECT_ROOT / "wahapedia_data"
 DATA_ROOT_CANDIDATES = [DATA_ROOT, PROJECT_ROOT / "data"]
@@ -52,8 +59,9 @@ RELEASE_ASSET = "CommandCenter40K-macos.zip" if MACOS else "CommandCenter40K-win
 # The app's icon, made from skull_icon.png: icon.ico (Windows), icon.icns (the macOS .app), icon.png (windows elsewhere)
 ICON_DIR = BUNDLE_ROOT / "assets" / "icon"
 
-ATTRIBUTION = "Powered by Wahapedia (https://wahapedia.ru). Rules, names and stats are (c) Games Workshop."
-ATTRIBUTION_SHORT = "Powered by Wahapedia · rules and stats © Games Workshop"
+ATTRIBUTION = ("Army data from BSData (https://github.com/BSData), completed by Wahapedia (https://wahapedia.ru). "
+               "Rules, names and stats are (c) Games Workshop.")
+ATTRIBUTION_SHORT = "Data: BSData and Wahapedia · rules and stats © Games Workshop"
 
 
 def raw_dir(root: Path = DATA_ROOT, edition: str = EDITION) -> Path:
@@ -66,5 +74,19 @@ def find_data_dir(edition: str = EDITION) -> Path | None:
     for root in DATA_ROOT_CANDIDATES:
         d = raw_dir(root, edition)
         if (d / "Datasheets.csv").exists():
+            return d
+    return None
+
+
+def bsdata_dir(root: Path = DATA_ROOT) -> Path:
+    """Folder holding BSData's files for the edition."""
+    return Path(root) / "bsdata" / BSDATA_REPO.rsplit("/", 1)[-1]
+
+
+def find_bsdata_dir() -> Path | None:
+    """First BSData folder that actually holds the files, or None."""
+    for root in DATA_ROOT_CANDIDATES:
+        d = bsdata_dir(root)
+        if (d / BSDATA_SYSTEM_FILE).exists():
             return d
     return None

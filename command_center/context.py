@@ -1,7 +1,10 @@
 """Shared application state handed to every window/tool: loaded data plus user settings.
 
-Tools should read data through the context (ctx.wd, ctx.rules) rather than loading their own,
-so everything is loaded once and new tools get it for free.
+Tools should read data through the context rather than loading their own, so everything is loaded once
+and new tools get it for free:
+    ctx.armies   what lists are parsed and linked with: BSData first, completed by Wahapedia
+    ctx.rules    rules text (abilities, detachments, stratagems...)
+    ctx.wd       Wahapedia alone; ctx.bs BSData alone (None when its files aren't downloaded yet)
 """
 from __future__ import annotations
 
@@ -10,6 +13,8 @@ from pathlib import Path
 
 from command_center.analysis.army_plans import ArmyPlanStore
 from command_center.analysis.plan import PlanStore
+from command_center.data.armies import Armies
+from command_center.data.bsdata import BSData
 from command_center.data.missionbook import MissionBook
 from command_center.data.rules import RulesBook
 from command_center.data.wahapedia import Wahapedia
@@ -23,8 +28,14 @@ class Settings:
 
 
 class AppContext:
-    def __init__(self, data_dir: str | Path | None = None, settings: Settings | None = None):
+    def __init__(self, data_dir: str | Path | None = None, settings: Settings | None = None,
+                 bsdata_dir: str | Path | None = None):
         self.wd = Wahapedia(data_dir)          # raises FileNotFoundError if no data yet
+        try:
+            self.bs: BSData | None = BSData(bsdata_dir)
+        except (FileNotFoundError, OSError):
+            self.bs = None                     # not downloaded yet: Wahapedia alone, as before
+        self.armies = Armies(self.wd, self.bs)
         self.settings = settings or Settings()
         self._rules: RulesBook | None = None
         self._missions: MissionBook | None = None
@@ -37,7 +48,7 @@ class AppContext:
     def rules(self) -> RulesBook:
         """Rules text tables, loaded on first use."""
         if self._rules is None:
-            self._rules = RulesBook(self.wd)
+            self._rules = RulesBook(self.wd, self.bs)
         return self._rules
 
     @property
