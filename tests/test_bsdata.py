@@ -177,6 +177,34 @@ class LinkingTest(unittest.TestCase):
         self.assertIs(army.default_attached(sq1, self.armies, support=True), apo)
         self.assertEqual(sq2.unknown_gear, ["Auspex"])                         # neither BSData's nor Wahapedia's
 
+    def test_an_enhancement_that_is_a_weapon(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "bs"
+            folder.mkdir()
+            for f in FIXTURE_BSDATA.glob("*.json"):
+                (folder / f.name).write_bytes(f.read_bytes())
+            sm = folder / "Imperium - Space Marines.json"
+            doc = json.loads(sm.read_text(encoding="utf-8"))
+            enhancements = next(g for g in doc["catalogue"]["sharedSelectionEntryGroups"] if g["name"] == "Enhancements")
+            sword = {"name": "Melee Weapons", "typeName": "Melee Weapons", "characteristics": [
+                {"name": n, "$text": v} for n, v in (("Range", "Melee"), ("A", "6"), ("WS", "2+"), ("S", "7"),
+                                                     ("AP", "-3"), ("D", "3"), ("Keywords", ""))]}
+            enhancements["selectionEntryGroups"][0]["selectionEntries"].append(
+                {"name": "Imperium's Sword", "id": "test-sword", "type": "upgrade",
+                 "profiles": [{**sword, "name": "Imperium's Sword", "id": "test-sword-p"}]})
+            sm.write_text(json.dumps(doc), encoding="utf-8")
+            armies = Armies(fixture_wd(), BSData(folder))
+            text = FIXTURE_LIST.read_text(encoding="utf-8").replace("Power weapon, Warlord", "Power weapon, Warlord, Imperium's Sword")
+            path = Path(tmp) / "list.txt"
+            path.write_text(text, encoding="utf-8")
+            army = parse_list(path, armies)
+        captain, squad = army.units[0], army.units[2]
+        sword = next(ld for ld in weapon_loads(captain) if ld.weapon.name == "Imperium's Sword")
+        self.assertEqual((sword.count, sword.weapon.type, sword.weapon.S, sword.weapon.AP), (1, "Melee", 7, 3))
+        self.assertIn("Master-crafted bolter", {ld.weapon.name for ld in weapon_loads(captain)})    # and the rest of its gear
+        self.assertEqual((captain.unmatched_gear, captain.unknown_gear), (["Warlord"], []))
+        self.assertNotIn("Imperium's Sword", {ld.weapon.name for ld in weapon_loads(squad)})       # only for its bearer
+
     def test_not_in_bsdata_is_wahapedia(self):
         with tempfile.TemporaryDirectory() as tmp:
             text = FIXTURE_LIST.read_text(encoding="utf-8").replace("Apothecary", "Ork Boyz")

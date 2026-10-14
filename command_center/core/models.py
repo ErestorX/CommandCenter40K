@@ -70,7 +70,8 @@ class Unit:
     other_gear: frozenset[str] = frozenset()    # norm()-ed names a list may give it that aren't weapons:
                                                 # its faction's enhancements, its abilities, "Warlord"
     gear: dict[str, list[Weapon]] = field(default_factory=dict)    # norm()-ed name of what a list may name
-                                                # on it -> the weapons that item is ([]: wargear); BSData only
+                                                # on it -> the weapons that item is ([]: wargear); BSData's,
+                                                # and the enhancements that give a weapon (Imperium's Sword)
     source: str = "wahapedia"                   # where it comes from: "bsdata" or "wahapedia"
     fallback: Unit | None = field(default=None, repr=False)        # the same unit in Wahapedia, for what
                                                 # BSData leaves blank (command_center.data.armies)

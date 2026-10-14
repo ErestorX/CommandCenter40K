@@ -5,6 +5,8 @@
   name (its Unit.fallback): the base sizes BSData leaves blank, and the items the list names that
   BSData doesn't have (command_center.lists.linking.match_weapon). Not found, the unit is Wahapedia's
   datasheet, matched as before (command_center.data.wahapedia).
+- An enhancement that gives a weapon (Imperium's Sword): BSData's profile of it, on whichever unit the
+  list gives it to (Unit.gear, by the enhancement's name).
 - Whether a character can join a unit: the units its BSData Leader or Support ability names; when it
   has none (or is a Wahapedia unit), Wahapedia's table.
 
@@ -45,6 +47,9 @@ class Armies:
         unit = unit or fallback
         if unit:
             self._by_id[unit.id] = unit
+            if self.bs:
+                for k, ws in self.bs.enhancement_weapons(army.title).items():
+                    unit.gear.setdefault(k, ws)
         return unit
 
     @staticmethod

@@ -439,9 +439,10 @@ class BSData:
                 if g.get("name") == name]
 
     def enhancements(self, book_id: str | None) -> dict[str, dict]:
-        """key(name) -> {"name", "description" (HTML), "cost", "detachment"} of the enhancements a
-        catalogue offers (with what it imports). They are laid out as: group "Enhancements" -> one group
-        "<Detachment> Enhancements" per detachment -> one entry per enhancement, with its profile."""
+        """key(name) -> {"name", "description" (HTML), "cost", "detachment", "weapons"} of the enhancements
+        a catalogue offers (with what it imports). They are laid out as: group "Enhancements" -> one group
+        "<Detachment> Enhancements" per detachment -> one entry per enhancement, with its profile.
+        "weapons": the weapon an enhancement gives its bearer (Imperium's Sword, Da Krunch), [] for most."""
         if book_id in self._enhancements:
             return self._enhancements[book_id]
         out: dict[str, dict] = {}
@@ -456,13 +457,21 @@ class BSData:
                                        for p in self.profiles(e))
                     cost = next((c.get("value") for c in e.get("costs", []) or [] if c.get("name") == "pts"), None)
                     out.setdefault(key(name), {"name": name, "description": to_html(text), "cost": cost,
-                                               "detachment": detachment})
+                                               "detachment": detachment, "weapons": self._own_weapons(e)})
         self._enhancements[book_id] = out
         return out
 
     def _enhancement_names(self, entry: dict) -> set[str]:
         owner = self._owner.get(entry.get("id", ""))
         return {norm(e["name"]) for e in self.enhancements(owner).values()} if owner else set()
+
+    def enhancement_weapons(self, title: str) -> dict[str, list[Weapon]]:
+        """norm(name) -> the weapons of the enhancements that give one, in the catalogues a list's title
+        points to: the list names the enhancement, its bearer gets the weapon."""
+        book_id = self.catalogue_for(title)
+        if not book_id:
+            return {}
+        return {norm(e["name"]): e["weapons"] for e in self.enhancements(book_id).values() if e["weapons"]}
 
     def detachment(self, name: str, title: str) -> dict | None:
         """{"name", "rules": [{"name", "description" (HTML)}], "enhancements": [...], "tags": [categories]}

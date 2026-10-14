@@ -509,6 +509,8 @@ How a list's names find a Wahapedia datasheet's (`lists/linking.py`, `Unit.profi
 - what isn't a weapon is not simulated (`unmatched_gear`). The faction's enhancements, the
   datasheet's abilities and "Warlord" are expected there (`Unit.other_gear`, never matched
   loosely); anything else is `unknown_gear`, shown with a ⚠ in the launcher and the Auspex.
+  An enhancement BSData gives a weapon profile (Imperium's Sword, Da Krunch) is that weapon,
+  on the unit the list gives it to (`BSData.enhancement_weapons`, added to `Unit.gear`).
 
 The army rules shown for a list leave out those carried by datasheets it has none of ("Kill
 Team") and other Chapters' (`rules.CHAPTER_RULES`: the data files them all under Space Marines).
