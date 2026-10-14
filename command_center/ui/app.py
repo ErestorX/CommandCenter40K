@@ -5,8 +5,10 @@ command_center.ui.updater), loads the shared context, shows the launcher and ope
 """
 from __future__ import annotations
 
+import gc
 import sys
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication, QMessageBox, QVBoxLayout, QWidget
 
 from command_center.context import AppContext
@@ -21,14 +23,42 @@ from command_center.release import use_bundled_certificates
 
 
 def application() -> QApplication:
-    """The process's Qt application, with the app's look: made at the first call."""
+    """The process's Qt application, with the app's look: made at the first call. Python's garbage
+    collector then runs on the main thread only (collect_on_main_thread)."""
     app = QApplication.instance()
     if app is None:
         app_identity()
         app = QApplication(sys.argv[:1])
         app.setApplicationName("Command Center 40K")
         setup_style(app)
+        collect_on_main_thread(app)
     return app
+
+
+GC_INTERVAL_MS = 250
+_gc_timer: QTimer | None = None
+
+
+def collect_on_main_thread(app: QApplication) -> None:
+    """Python collects garbage in whichever thread happens to be allocating when a collection is due:
+    a simulation's worker thread (command_center.ui.worker) too. Freeing a Qt object there (a window
+    closed a moment before, its timers) destroys it outside the thread it belongs to, which Qt
+    reports ("QBasicTimer::stop: Failed...") and can crash on. So automatic collection is off, and a
+    timer on the main thread does what it would: a generation is collected once its count is past its
+    threshold."""
+    global _gc_timer
+    gc.disable()
+    _gc_timer = QTimer(app)
+    _gc_timer.timeout.connect(_collect_garbage)
+    _gc_timer.start(GC_INTERVAL_MS)
+
+
+def _collect_garbage() -> None:
+    counts, thresholds = gc.get_count(), gc.get_threshold()
+    for generation in (2, 1, 0):
+        if generation < len(counts) and 0 < thresholds[generation] < counts[generation]:
+            gc.collect(generation)
+            return
 
 
 class App(QWidget):

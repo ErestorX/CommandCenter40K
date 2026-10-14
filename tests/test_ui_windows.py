@@ -44,6 +44,27 @@ class QtWindowsTest(unittest.TestCase):
     def tearDownClass(cls):
         cls.app.close()
 
+    def test_garbage_is_collected_on_the_main_thread_only(self):
+        import gc
+
+        from PySide6.QtCore import QEventLoop, QTimer
+
+        from command_center.ui import app as app_module
+        self.assertFalse(gc.isenabled())                      # never in a worker thread
+        self.assertTrue(app_module._gc_timer.isActive())
+        gc.collect()
+
+        class Cycle:
+            pass
+        for _ in range(gc.get_threshold()[0] + 50):           # past the youngest generation's threshold
+            a, b = Cycle(), Cycle()
+            a.other, b.other = b, a
+        self.assertGreater(gc.get_count()[0], gc.get_threshold()[0])
+        loop = QEventLoop()
+        QTimer.singleShot(app_module.GC_INTERVAL_MS * 2, loop.quit)
+        loop.exec()
+        self.assertLess(gc.get_count()[0], gc.get_threshold()[0])     # collected by the main thread's timer
+
     def test_tools_are_discovered(self):
         self.assertIn("cogitator", self.tools)
         self.assertFalse(self.tools["cogitator"].needs_armies)         # opens with no list chosen
