@@ -496,11 +496,15 @@ class ArmyPanel(Panel):
         notes = []
         if not u.datasheet:
             notes.append(f"No Wahapedia datasheet found for “{u.name}”.")
-        gear = list(u.unmatched_gear)
+        gear, unknown = list(u.unmatched_gear), list(u.unknown_gear)
         for a in attached:
             gear += a.unmatched_gear
-        if gear:
-            notes.append("Not simulated (abilities / wargear): " + ", ".join(dict.fromkeys(gear)))
+            unknown += a.unknown_gear
+        known = [g for g in dict.fromkeys(gear) if g not in unknown]
+        if known:
+            notes.append("Not simulated (abilities / wargear): " + ", ".join(known))
+        if unknown:
+            notes.append("⚠ Not found on the datasheet: " + ", ".join(dict.fromkeys(unknown)))
         self.note.setText("\n".join(notes))
         self.note.setVisible(bool(notes))
         if self.role == "attacker":

@@ -56,6 +56,8 @@ class Wahapedia:
         lu = read_table(d, "Last_update")
         self.last_update = next(iter(lu[0].values()), "") if lu else ""
         self._cache: dict[str, Unit] = {}
+        self._enhancements: dict[str, list[dict]] | None = None     # by faction, read with the first unit built
+        self._abilities: dict[str, list[dict]] = {}
 
     @staticmethod
     def _by_ds(rows):
@@ -113,9 +115,31 @@ class Wahapedia:
                 continue
         kws = {k["keyword"].lower() for k in self._keywords.get(did, []) if k.get("keyword")}
         u = Unit(did, ds["name"], ds.get("faction_id", ""), models, weapons, kws,
-                 ds.get("is_support", "").lower() == "true")
+                 ds.get("is_support", "").lower() == "true", self._other_gear(did))
         self._cache[did] = u
         return u
+
+    def _other_gear(self, did: str) -> frozenset[str]:
+        """What a list may name on this datasheet's units besides weapons: the enhancements of its
+        faction, its abilities (wargear ones like a Relic Shield included), "Warlord"."""
+        if self._enhancements is None:
+            self._enhancements = self._by_faction(read_table(self.data_dir, "Enhancements"))
+            abilities = {a["id"]: a.get("name", "") for a in read_table(self.data_dir, "Abilities")}
+            self._abilities = self._by_ds(read_table(self.data_dir, "Datasheets_abilities"))
+            for rows in self._abilities.values():
+                for r in rows:
+                    r["name"] = r.get("name") or abilities.get(r.get("ability_id", ""), "")
+        names = {"warlord"}
+        names |= {norm(e.get("name", "")) for e in self._enhancements.get(self.datasheets[did].get("faction_id", ""), [])}
+        names |= {norm(a["name"]) for a in self._abilities.get(did, []) if a["name"]}
+        return frozenset(names - {""})
+
+    @staticmethod
+    def _by_faction(rows):
+        g = defaultdict(list)
+        for r in rows:
+            g[r.get("faction_id", "")].append(r)
+        return g
 
     def unit_by_name(self, name: str, faction: str | None = None) -> Unit:
         did = self.find(name, self.faction_id(faction) if faction else None)

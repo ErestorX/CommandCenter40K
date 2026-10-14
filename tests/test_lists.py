@@ -17,6 +17,50 @@ class SplitItemsTest(unittest.TestCase):
                          [("Stubber", 1), ("Big gun", 2)])
 
 
+def _weapon(name, kind="Melee"):
+    from command_center.core.dice import Dice
+    from command_center.core.keywords import WeaponKeywords
+    from command_center.core.models import Weapon
+    return Weapon(name, kind, "Melee" if kind == "Melee" else '12"', Dice(0, 0, 1), 3, 4, 0, Dice(0, 0, 1), WeaponKeywords())
+
+
+def _datasheet(models, weapons, other=()):
+    from command_center.core.models import ModelProfile, Unit
+    return Unit("1", "Unit", "SM", [ModelProfile(n, '6"', 4, 3, None, w) for n, w in models],
+                [_weapon(*w) if isinstance(w, tuple) else _weapon(w) for w in weapons], set(),
+                other_gear=frozenset(other))
+
+
+class NamesThatDifferTest(unittest.TestCase):
+    """A list names models and weapons its own way: each still finds its datasheet line."""
+
+    def test_model_lines_find_their_profile(self):
+        heroes = _datasheet([("Ancient", 4), ("Company veteran with bolt rifle", 5), ("Company Champion", 6)], [])
+        self.assertEqual(heroes.profile("Company Veteran w/ Bolt Rifle").W, 5)     # "w/" is "with"
+        self.assertEqual(heroes.profile("Company Champion").W, 6)
+        squad = _datasheet([("Intercessor Sergeant", 3), ("Intercessor", 2)], [])
+        self.assertEqual(squad.profile("Intercessor w/ Grenade Launcher").name, "Intercessor")    # not the Sergeant
+        self.assertEqual(squad.profile("Intercessors").name, "Intercessor")
+        self.assertEqual(squad.profile("Something else").name, "Intercessor Sergeant")            # still the first
+        boyz = _datasheet([("Nob", 2), ("Boy", 1), ("Boy with banner", 1)], [])
+        self.assertEqual(boyz.profile("Boy w/ Big Shoota").name, "Boy")
+        self.assertEqual(boyz.profile("Boy w/ banner and shoota").name, "Boy with banner")       # the longest it starts with
+        self.assertEqual(boyz.profile("Boyish").name, "Nob")                         # whole words only
+
+    def test_weapons_named_differently(self):
+        from command_center.lists.linking import match_weapon
+        priest = _datasheet([("Priest", 4)], [("Absolvor Bolt Pistol", "Ranged"), "Chainsword", "Sword"],
+                            other={"imperiumssword", "warlord"})
+        self.assertEqual([w.name for w in match_weapon("Astartes Chainsword", priest)], ["Chainsword"])
+        self.assertEqual(match_weapon("Imperium's Sword", priest), [])              # an enhancement, not the Sword
+        self.assertEqual(match_weapon("Warlord", priest), [])
+        guard = _datasheet([("Veteran", 3)], ["Master-crafted Power Sword - strike", "Master-crafted Power Sword - sweep"])
+        self.assertEqual(len(match_weapon("Master-crafted power weapon", guard)), 2)     # both profiles
+        fists = _datasheet([("Captain", 5)], ["Power Fist", "Power Sword"])
+        self.assertEqual(match_weapon("Power weapon", fists), [])                  # two could be meant: neither
+        self.assertEqual(match_weapon("Relic Shield", _datasheet([("Captain", 5)], ["Relic Weapon"])), [])
+
+
 class AddListTest(unittest.TestCase):
     """A list pasted in the launcher: checked, then saved next to the others under a new name."""
 
@@ -202,6 +246,21 @@ class RealDataTest(unittest.TestCase):
                 army = parse_list(path, wd)
                 self.assertTrue(army.faction_id)
                 self.assertEqual(army.unmatched_units, [])
+                self.assertEqual(army.unknown_gear, [])
+
+    def test_army_rules_are_those_of_the_army(self):
+        from command_center.data import Wahapedia
+        from command_center.data.rules import RulesBook
+        wd = Wahapedia()
+        book = RulesBook(wd)
+        for path in sorted(config.LISTS_DIR.glob("*.txt")):
+            army = parse_list(path, wd)
+            if army.faction_id != "SM":
+                continue
+            with self.subTest(list=path.name):
+                names = {a["name"] for a in book.army_rules("SM", army)}
+                self.assertIn("Combat Doctrines", names)
+                self.assertFalse(names & {"The Ravenwing", "Sons of Russ", "Curse of the Wulfen"})    # other Chapters'
 
 
 if __name__ == "__main__":

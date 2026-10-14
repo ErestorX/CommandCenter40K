@@ -24,7 +24,7 @@ def show_army_rules(parent, book: RulesBook, army) -> RichTextWindow:
     w.h1(army.faction)
     w.meta(f"{army.path.stem}  ·  {army.points} pts" + (f"  ·  {army.detachment}" if army.detachment else ""))
 
-    rules = book.army_rules(army.faction_id)
+    rules = book.army_rules(army.faction_id, army)
     w.h2("Army rules")
     if not rules:
         w.meta("No army rule found for this faction.")
@@ -95,6 +95,9 @@ def show_unit_abilities(parent, book: RulesBook, units: list) -> RichTextWindow:
                 w.h3(name, title if kind != "Datasheet" else "")
                 if desc:
                     w.html(desc)
+        for e in book.enhancements_of(u):
+            w.h3(e["name"], "Enhancement")
+            w.html(e.get("description", ""))
         if row.get("leader_head") or row.get("leader_footer"):
             w.h3("Attachment")
             w.html(row.get("leader_head", "") + "<br>" + row.get("leader_footer", ""))

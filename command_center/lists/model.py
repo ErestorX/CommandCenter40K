@@ -29,7 +29,8 @@ class ListUnit:
     leading_name: str = ""         # "• Leading: Incubi" under a character
     datasheet: Unit | None = None
     label: str = ""                # unique display name ("Ravager #2")
-    unmatched_gear: list[str] = field(default_factory=list)
+    unmatched_gear: list[str] = field(default_factory=list)     # not a weapon of its datasheet: not simulated
+    unknown_gear: list[str] = field(default_factory=list)       # nor an enhancement or ability: not found at all
 
     @property
     def model_count(self) -> int:
@@ -110,3 +111,8 @@ class ArmyList:
     @property
     def unmatched_units(self) -> list[str]:
         return [u.name for u in self.units if not u.datasheet]
+
+    @property
+    def unknown_gear(self) -> list[str]:
+        """"Unit: item" for what the list gives a unit and its datasheet doesn't have, once each."""
+        return list(dict.fromkeys(f"{u.name}: {g}" for u in self.units for g in u.unknown_gear))

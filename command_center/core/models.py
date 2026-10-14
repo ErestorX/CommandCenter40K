@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from command_center.core.dice import Dice
 from command_center.core.keywords import WeaponKeywords
-from command_center.util import norm
+from command_center.util import words
 
 
 # -----------------------------------------------------------------------------
@@ -66,17 +66,25 @@ class Unit:
     weapons: list[Weapon]
     keywords: set[str]
     is_support: bool = False
+    other_gear: frozenset[str] = frozenset()    # norm()-ed names a list may give it that aren't weapons:
+                                                # its faction's enhancements, its abilities, "Warlord"
 
     @property
     def is_character(self) -> bool:
         return "character" in self.keywords
 
     def profile(self, model_name: str = "") -> ModelProfile:
-        n = norm(model_name)
+        """The profile a list's model line refers to: by its name ("Company Veteran w/ Bolt Rifle" is
+        "Company veteran with bolt rifle"), else the longest profile name it starts with ("Intercessor
+        w/ Grenade Launcher" is an Intercessor, not the Sergeant), else the first profile."""
+        said = words(model_name)
+        n = "".join(said)
         for m in self.models:
-            if n and norm(m.name) in (n, n.rstrip("s")):
+            if n and "".join(words(m.name)) in (n, n.rstrip("s")):
                 return m
-        return self.models[0]
+        starts = [m for m in self.models
+                  if any("".join(said[:i]) in (k, k + "s") for k in ["".join(words(m.name))] for i in range(1, len(said)))]
+        return max(starts, key=lambda m: len(words(m.name))) if starts else self.models[0]
 
 
 # -----------------------------------------------------------------------------

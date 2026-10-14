@@ -6,7 +6,7 @@ import re
 from command_center.core.models import Target, TargetGroup, Unit, Weapon, WeaponLoad
 from command_center.data.wahapedia import Wahapedia
 from command_center.lists.model import ArmyList, ListUnit
-from command_center.util import norm
+from command_center.util import norm, words
 
 
 def link_datasheets(army: ArmyList, wd: Wahapedia) -> ArmyList:
@@ -22,6 +22,7 @@ def link_datasheets(army: ArmyList, wd: Wahapedia) -> ArmyList:
         u.label = u.name + (f" #{seen[u.name]}" if totals[u.name] > 1 else "")
         if u.datasheet:
             u.unmatched_gear = sorted({n for n, _ in all_gear(u) if not match_weapon(n, u.datasheet)})
+            u.unknown_gear = [n for n in u.unmatched_gear if norm(n) not in u.datasheet.other_gear]
     return army
 
 
@@ -48,7 +49,31 @@ def match_weapon(item: str, ds: Unit) -> list[Weapon]:
         for part in re.split(r"\s+and\s+", item, flags=re.I):
             part = re.sub(r"^\d+\s*x?\s+", "", part.strip())
             out += match_weapon(part, ds)
-        return out
+        if out:
+            return out
+    return [] if norm(item) in ds.other_gear else _by_words(item, ds)
+
+
+GENERIC = {"weapon"}         # NewRecruit's word for what the datasheet names: "power weapon" for a Power Sword
+
+
+def _stems(name: str) -> set[str]:
+    return {w.rstrip("s") for w in words(name)}
+
+
+def _by_words(item: str, ds: Unit) -> list[Weapon]:
+    """The one weapon a list item means when the names differ: the datasheet's name with a qualifier
+    in front ("Astartes Chainsword": the Chainsword), or the item's words but its generic ones
+    ("Master-crafted power weapon": the Master-crafted Power Sword). Only when a single weapon fits."""
+    said = _stems(item)
+    specific = said - GENERIC
+    by_name: dict[str, list[Weapon]] = {}
+    for w in ds.weapons:
+        by_name.setdefault(w.base_name, []).append(w)
+    for fits in (lambda own: own < said, lambda own: specific and specific < own and said - specific):
+        names = [n for n in by_name if fits(_stems(n))]
+        if len(names) == 1:
+            return by_name[names[0]]
     return []
 
 

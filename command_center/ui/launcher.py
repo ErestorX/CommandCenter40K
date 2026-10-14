@@ -197,6 +197,8 @@ class ListPicker(Panel):
             lines.append("⚠ Faction not recognised, units matched across all factions")
         if a.unmatched_units:
             lines.append("⚠ No datasheet for: " + ", ".join(a.unmatched_units))
+        if a.unknown_gear:
+            lines.append("⚠ Not found on the datasheet: " + ", ".join(a.unknown_gear))
         self.preview.setText("\n".join(lines))
 
 

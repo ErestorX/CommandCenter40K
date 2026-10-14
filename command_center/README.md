@@ -478,6 +478,20 @@ Write `command_center/lists/<format>.py` with `detect(text) -> bool` and
 module in `command_center/lists/__init__.py`. Datasheet linking, weapon loads and targets
 then work unchanged.
 
+How a list's names find the datasheet's (`lists/linking.py`, `Unit.profile`):
+- a model line takes the profile of its name, "w/" read as "with"; else the longest profile name
+  it starts with, in whole words ("Intercessor w/ Grenade Launcher": the Intercessor); else the
+  first profile;
+- a weapon matches by name (plural, "– profile" suffix and "A and B" combos allowed); else, if a
+  single weapon fits, the datasheet's name with a qualifier in front ("Astartes Chainsword") or
+  the list's name with its generic "weapon" ("Master-crafted power weapon": the Power Sword);
+- what isn't a weapon is not simulated (`unmatched_gear`). The faction's enhancements, the
+  datasheet's abilities and "Warlord" are expected there (`Unit.other_gear`, never matched
+  loosely); anything else is `unknown_gear`, shown with a ⚠ in the launcher and the Auspex.
+
+The army rules shown for a list leave out those carried by datasheets it has none of ("Kill
+Team") and other Chapters' (`rules.CHAPTER_RULES`: the data files them all under Space Marines).
+
 ## Engine rules (11th edition)
 
 - Benefit of Cover worsens the BS of ranged attacks by 1 (not vs Ignores Cover / Torrent / melee).

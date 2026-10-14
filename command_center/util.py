@@ -11,6 +11,12 @@ def norm(s: str) -> str:
     return re.sub(r"[^a-z0-9]", "", s)
 
 
+def words(s: str) -> list[str]:
+    """Name -> its words, as norm() spells them; "w/" read as "with" ("Veteran w/ Bolt Rifle")."""
+    s = html.unescape(s or "").lower().replace("’", "").replace("'", "")
+    return re.findall(r"[a-z0-9]+", re.sub(r"\bw/", "with ", s))
+
+
 def strip_html(text: str) -> str:
     """HTML fragment -> single-line plain text."""
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", text or ""))).strip()
