@@ -26,6 +26,7 @@ import html
 import io
 import json
 import re
+import os
 import shutil
 import sys
 import time
@@ -477,12 +478,47 @@ def update_bsdata(folder: Path, force: bool = False, get: Callable[[str], bytes 
                                      "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                                      "files": len(files)})
     write_index(new)
-    if folder.exists():
-        folder.rename(old)
-    new.rename(folder)
-    shutil.rmtree(old, ignore_errors=True)
+    _swap_folder(new, folder, old)
     log(f"  BSData: {len(files)} files, {date[:10]}.")
     return True
+
+
+SWAP_TRIES, SWAP_WAIT = 20, 0.25          # a file held open for a moment (Windows: an antivirus scanning it)
+
+
+def _swap_folder(new: Path, folder: Path, old: Path) -> None:
+    """Put `new` in the place of `folder`. A folder can't be renamed while one of its files is open,
+    which on Windows an antivirus does to files just written: tried again for a few seconds, then the
+    files are moved over one by one (each replaced whole), and those `new` doesn't have removed."""
+    for _ in range(SWAP_TRIES):
+        try:
+            if folder.exists():
+                folder.rename(old)
+            new.rename(folder)
+            shutil.rmtree(old, ignore_errors=True)
+            return
+        except PermissionError:
+            if old.exists() and not folder.exists():
+                old.rename(folder)                                  # as it was, to try again
+            time.sleep(SWAP_WAIT)
+    folder.mkdir(parents=True, exist_ok=True)
+    keep = {f.name for f in new.iterdir()}
+    for f in folder.iterdir():
+        if f.is_file() and f.name not in keep:
+            _retry(f.unlink)
+    for f in new.iterdir():
+        _retry(lambda f=f: os.replace(f, folder / f.name))
+    shutil.rmtree(new, ignore_errors=True)
+
+
+def _retry(action) -> None:
+    for i in range(SWAP_TRIES):
+        try:
+            return action()
+        except PermissionError:
+            if i == SWAP_TRIES - 1:
+                raise
+            time.sleep(SWAP_WAIT)
 
 
 def mark_checked(edition_dir: Path, when: datetime | None = None) -> None:

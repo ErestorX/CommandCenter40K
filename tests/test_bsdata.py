@@ -267,6 +267,27 @@ class DownloadTest(unittest.TestCase):
             self.assertTrue(fetch_mod.update_bsdata(folder, get=get))           # a new commit
             self.assertFalse(folder.with_name(folder.name + ".old").exists())
 
+    def test_files_held_open_are_replaced_one_by_one(self):
+        """Windows can't rename a folder while a file in it is open (an antivirus scanning it)."""
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(fetch_mod, "log"):
+            folder = Path(tmp) / "wh40k-11e"
+            get, _ = self.github("abc123", self.files())
+            fetch_mod.update_bsdata(folder, get=get)
+            (folder / "Gone.json").write_text("{}", encoding="utf-8")         # no longer in the repository
+            real_rename = Path.rename
+
+            def held(self, target):
+                if self.name == folder.name:
+                    raise PermissionError("in use")
+                return real_rename(self, target)
+            get, _ = self.github("def456", self.files())
+            with mock.patch.object(Path, "rename", held), mock.patch.object(fetch_mod, "SWAP_WAIT", 0):
+                self.assertTrue(fetch_mod.update_bsdata(folder, get=get))
+            self.assertEqual(json.loads((folder / "manifest.json").read_text(encoding="utf-8"))["sha"], "def456")
+            self.assertFalse((folder / "Gone.json").exists())
+            self.assertFalse(folder.with_name(folder.name + ".new").exists())
+            self.assertIsNotNone(BSData(folder).find("Captain", SM))
+
     def test_a_bad_archive_changes_nothing(self):
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(fetch_mod, "log"):
             folder = Path(tmp) / "wh40k-11e"
