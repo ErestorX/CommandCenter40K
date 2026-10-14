@@ -92,6 +92,29 @@ class ReaderTest(unittest.TestCase):
         self.assertEqual(to_html("**Bold** for ^^Infantry^^ units\n<b>"), "<b>Bold</b> for <b>Infantry</b> units<br>&lt;b&gt;")
         self.assertEqual(key("Assault Squad [Legends]"), key("assault squad"))
 
+    def test_the_modes_of_a_weapon(self):
+        from command_center.core.dice import Dice
+        from command_center.core.keywords import WeaponKeywords
+        from command_center.core.models import Weapon
+        from command_center.data.bsdata import name_modes
+
+        def weapons(*names):
+            return [Weapon(n, "Ranged", '18"', Dice(0, 0, 1), 3, 10, 4, Dice(0, 0, 1), WeaponKeywords()) for n in names]
+        melta = weapons("Melta Rifle", "Melta Rifle HUNTER:Monster/Vehicle")
+        name_modes("Melta rifle", melta)
+        self.assertEqual([w.name for w in melta], ["Melta rifle", "Melta rifle - HUNTER:Monster/Vehicle"])
+        self.assertEqual({w.base_name for w in melta}, {"Melta rifle"})                 # one fires at a time
+        for item, names, expected in (
+                ("Multi-melta", ("Multi-melta", "Multi-melta (HUNTER:Monster/Vehicle)"), ["Multi-melta", "Multi-melta - HUNTER:Monster/Vehicle"]),
+                ("Plasma pistol", ("Plasma pistol - standard", "Plasma pistol- supercharge"), ["Plasma pistol - standard", "Plasma pistol - supercharge"]),
+                ("Infernus heavy bolter", ("Infernus heavy bolter (Bolt)", "Infernus heavy bolter (Infernus)"),
+                 ["Infernus heavy bolter - Bolt", "Infernus heavy bolter - Infernus"]),
+                ("Kroot bolt thrower and Kroot rifle", ("Kroot bolt thrower", "Kroot rifle (Ranged)"), ["Kroot bolt thrower", "Kroot rifle (Ranged)"]),
+                ("Melee Weapons", ("Lady's Blade", "Razor fan"), ["Lady's Blade", "Razor fan"])):     # two weapons, not modes
+            ws = weapons(*names)
+            name_modes(item, ws)
+            self.assertEqual([w.name for w in ws], expected)
+
     def test_missing_or_broken_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaises(FileNotFoundError):

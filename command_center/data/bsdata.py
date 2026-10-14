@@ -27,7 +27,7 @@ from command_center import config
 from command_center.core.dice import Dice
 from command_center.core.keywords import parse_weapon_keywords
 from command_center.core.models import ModelProfile, Unit, Weapon
-from command_center.util import norm, to_int
+from command_center.util import norm, to_int, words
 
 INDEX_FILE = "index.json"          # the files: id, name, library or not, catalogues each one imports
 MANIFEST_FILE = "manifest.json"    # what was downloaded: commit, its date (command_center.data.fetch)
@@ -327,6 +327,9 @@ class BSData:
     def _own_weapons(self, e: dict, depth: int = 0) -> list[Weapon]:
         """The weapons an item is: its profiles, and those of what it is made of (not of its options)."""
         out = [w for w in (self.weapon(p) for p in self.profiles(e) if p.get("typeName") in WEAPON_TYPES) if w]
+        for kind in ("Ranged", "Melee"):
+            name_modes(e.get("name", ""), [w for w in out if w.type == kind])
+        out.sort(key=lambda w: w.name != e.get("name", ""))      # the plain profile first: the one ticked by default
         for _, d in self.children(e):
             if not is_group(d) and d.get("type") != "model" and depth < 4:
                 out += self._own_weapons(d, depth + 1)
@@ -476,6 +479,37 @@ class BSData:
                                              if key(x["detachment"]) == key(name)],
                             "tags": [l.get("name", "") for l in e.get("categoryLinks", []) or []]}
         return None
+
+
+_TOKEN = re.compile(r"[^\W_]+(?:['’][^\W_]+)*")
+
+
+def name_modes(item: str, weapons: list[Weapon]) -> None:
+    """Name an item's profiles as the modes of one weapon, when they are: several profiles of one type
+    on one item, every name starting with the item's ("Melta rifle": "Melta Rifle" and "Melta Rifle
+    HUNTER:Monster/Vehicle"). They become "<item> - <mode>" ("Melta rifle - HUNTER:Monster/Vehicle"),
+    the names the app groups modes by (Weapon.base_name: one fires at a time). Different weapons on one
+    item ("Kroot bolt thrower" and "Kroot rifle") keep their names."""
+    said = words(item)
+    if len(weapons) < 2 or not said:
+        return
+    rests = []
+    for w in weapons:
+        tokens = list(_TOKEN.finditer(w.name))
+        got, end = [], 0
+        for t in tokens:
+            if len(got) >= len(said):
+                break
+            got += words(t.group())
+            end = t.end()
+        if got != said:
+            return                                      # not all named after the item: not its modes
+        rest = w.name[end:].strip().lstrip("-–—:").strip()
+        if rest.startswith("(") and rest.endswith(")"):
+            rest = rest[1:-1].strip()
+        rests.append(rest)
+    for w, rest in zip(weapons, rests):
+        w.name = f"{item} - {rest}" if rest else item
 
 
 def is_group(entry: dict) -> bool:
