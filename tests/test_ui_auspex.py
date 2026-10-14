@@ -103,6 +103,8 @@ class AuspexTest(unittest.TestCase):
     def test_modifiers(self):
         left, right = self.win.left, self.win.right
         left.checks["add_lethal_hits"].setChecked(True)
+        left.checks["add_lance"].setChecked(True)
+        left.checks["charged"].setChecked(True)
         left.fields["extra_attacks"][0].setText("+1")
         left.fields["extra_strength"][0].setText("x")             # not a number: shown as such, and ignored
         left._range_box.setEditText('12"')
@@ -112,6 +114,7 @@ class AuspexTest(unittest.TestCase):
         left.apply_mods(m)
         right.apply_mods(m)
         self.assertTrue(m.add_lethal_hits and m.cover)
+        self.assertTrue(m.add_lance and m.charged)
         self.assertEqual((m.effective_range, m.extra_strength), (12.0, 0))
         self.assertEqual(left.fields["extra_strength"][0].property("state"), "bad")
         self.assertEqual(left.fields["extra_attacks"][0].property("state"), "")

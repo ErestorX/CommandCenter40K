@@ -285,7 +285,9 @@ class ArmyPanel(Panel):
             combo(3, 2, "Crit wounds on", "crit_wound_on", ["6+", "5+", "4+", "3+", "2+"], "6+")
             checks(4, [("Lethal Hits", "add_lethal_hits", ""),
                        ("Devastating Wounds", "add_devastating_wounds", ""),
-                       ("Precision", "add_precision", "")])
+                       ("Precision", "add_precision", ""),
+                       ("Lance", "add_lance", "Grants [LANCE]: +1 to wound when the unit has charged. "
+                                             "A weapon that already has it gets the +1 once")])
             checks(5, [("cover", "ignores_cover", "Ranged attacks ignore the Benefit of Cover, and a Hidden target is visible to them"),
                        ("Skill mods", "ignores_skill_maluses",
                         "Whatever worsens the BS / WS is ignored (cover, -1 Skill); bonuses still apply"),
@@ -293,7 +295,8 @@ class ArmyPanel(Panel):
                         "Negative modifiers to the hit roll are ignored; bonuses still apply"),
                        ("wound mods", "ignores_wound_maluses",
                         "Negative modifiers to the wound roll are ignored; bonuses still apply")], title="Ignores")
-            _, not_visible, self._spotted = checks(6, [
+            _, _, not_visible, self._spotted = checks(6, [
+                ("Has Charged", "charged", "The unit made a Charge move this turn: [LANCE] weapons get +1 to wound"),
                 ("Plunging Fire", "plunging_fire", "Improves the BS of ranged attacks by 1"),
                 ("Target not visible", "not_visible", "Only [INDIRECT FIRE] weapons shoot, and only unmodified 6s hit"),
                 ("Spotted", "spotted", "A target that is not visible but spotted is hit on a fixed 4+")])
@@ -421,6 +424,7 @@ class ArmyPanel(Panel):
             m.add_sustained_hits = self.field_value("add_sustained_hits")
             m.add_lethal_hits, m.add_devastating_wounds = v["add_lethal_hits"], v["add_devastating_wounds"]
             m.add_precision = v["add_precision"]
+            m.add_lance, m.charged = v["add_lance"], v["charged"]
             m.extra_attacks = self.field_value("extra_attacks")
             m.extra_strength += self.field_value("extra_strength")
             m.extra_ap += self.field_value("extra_ap")

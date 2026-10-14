@@ -89,7 +89,8 @@ rather than just an average.
 - Add the Leader or Support character that joins the unit, switch between Shooting and Fight.
 - Tick any buff or debuff on either side: +1 to hit, re-rolls, Lethal Hits, cover, Feel No
   Pain... and give the distance to the target, which decides which weapons are in range and
-  whether Rapid Fire or Melta apply. The numbers update as you tick.
+  whether Rapid Fire or Melta apply. Tick *Has Charged* when the unit charged this turn: Lance
+  weapons then get +1 to wound. The numbers update as you tick.
 - Untick weapons you wouldn't fire, and drag the defender's models to change who takes the
   wounds first.
 - The little eye icons open the army's rules and stratagems, or a unit's abilities.

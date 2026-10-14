@@ -121,6 +121,39 @@ class FeelNoPainTest(unittest.TestCase):
                 self.assertAlmostEqual(kept(weapon, against, **m), expected, delta=0.03)
 
 
+class LanceTest(unittest.TestCase):
+    """[LANCE]: +1 to wound when the attacker has charged; had or not, so given twice it is still one +1."""
+
+    def wound_rate(self, weapon, **m):
+        w = run(weapon, Modifiers(**m)).weapons[0]                  # S4 v T4: 4+
+        return w.wounds / w.hits
+
+    def test_only_when_charged(self):
+        lance, plain = gun(skill=2, lance=True), gun(skill=2)
+        cases = [
+            (lance, {}, 3 / 6),                                     # not charged: nothing
+            (lance, {"charged": True}, 4 / 6),                      # 4+ -> 3+
+            (plain, {"charged": True}, 3 / 6),                      # charged, but no Lance
+            (plain, {"add_lance": True}, 3 / 6),                    # granted, not charged
+            (plain, {"add_lance": True, "charged": True}, 4 / 6),   # granted and charged
+        ]
+        for weapon, m, expected in cases:
+            with self.subTest(lance=weapon.keywords.lance, **m):
+                self.assertAlmostEqual(self.wound_rate(weapon, **m), expected, delta=0.01)
+
+    def test_counts_once(self):
+        lance = gun(skill=2, lance=True)
+        # with -1 to be wounded, one +1 brings it back to 4+; two would make it 3+
+        once = self.wound_rate(lance, charged=True, to_be_wounded_mod=-1)
+        twice = self.wound_rate(lance, charged=True, add_lance=True, to_be_wounded_mod=-1)
+        self.assertAlmostEqual(once, 3 / 6, delta=0.01)
+        self.assertAlmostEqual(twice, once, delta=0.01)
+        self.assertAlmostEqual(self.wound_rate(gun(skill=2), charged=True, add_lance=True, to_be_wounded_mod=-1),
+                               3 / 6, delta=0.01)
+        # and with another +1 to wound, the +/-1 cap still holds
+        self.assertAlmostEqual(self.wound_rate(lance, charged=True, add_lance=True, wound_mod=1), 4 / 6, delta=0.01)
+
+
 class TagsTest(unittest.TestCase):
     def test_tags_show_changes_only(self):
         m = Modifiers(extra_damage=DiceMod.parse("+D3"), reroll_hits="ones_twos")

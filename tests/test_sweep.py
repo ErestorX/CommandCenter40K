@@ -43,6 +43,11 @@ class PackageTest(unittest.TestCase):
         self.assertEqual((m.hit_mod, m.reroll_wounds, m.add_lethal_hits), (1, "fails", True))
         self.assertEqual((m.cover, m.feel_no_pain), (True, 5))
 
+    def test_lance_and_has_charged(self):
+        m = combined(["lance", "charged"], [])
+        self.assertEqual((m.add_lance, m.charged), (True, True))
+        self.assertEqual((combined(["lance"], []).charged, combined(["charged"], []).add_lance), (False, False))
+
     def test_packages_do_not_leak_between_tests(self):
         combined(["hit+1"], [])
         self.assertEqual(combined([], []).hit_mod, 0)

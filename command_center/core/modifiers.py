@@ -28,7 +28,9 @@ class Modifiers:
     add_sustained_hits: Dice = field(default_factory=Dice)   # grants [SUSTAINED HITS X]: 1, 2, D3
     add_devastating_wounds: bool = False
     add_precision: bool = False
-    add_blast: int = 0               # grants [BLAST X] / [CLEAVE X]: +X attacks per full 5 models in the target
+    add_lance: bool = False          # grants [LANCE]: a weapon that already has it has it once (one +1, not two)
+    charged: bool = False            # the attacking unit made a Charge move this turn: [LANCE] gives +1 to wound
+    add_blast: int = 0              # grants [BLAST X] / [CLEAVE X]: +X attacks per full 5 models in the target
     add_rapid_fire: Dice = field(default_factory=Dice)       # grants [RAPID FIRE X] to ranged weapons
     skill_mod: int = 0               # +1 improves the attacker's BS/WS by 1 (4+ -> 3+), -1 worsens it
     plunging_fire: bool = False      # Plunging Fire: improve BS of ranged attacks by 1

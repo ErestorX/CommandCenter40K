@@ -157,6 +157,8 @@ _A = [
     Variant("crit_wound", "Crit wounds on {v}", "Wound", BOTH, _value("crit_wound_on"),
             param=_p("roll", "5+", *ROLLS[1:])),
     Variant("dev", "Devastating Wounds", "Wound", BOTH, _set(add_devastating_wounds=True)),
+    Variant("lance", "Lance", "Wound", BOTH, _set(add_lance=True)),
+    Variant("charged", "Has Charged", "Wound", BOTH, _set(charged=True)),       # +1 to wound with [LANCE]
     # characteristics
     Variant("attacks", "{v} Attacks", "Characteristics", BOTH, _value("extra_attacks"),
             param=_p("dice", "+1", "+1", "+2", "+D3", "-1")),

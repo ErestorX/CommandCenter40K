@@ -520,3 +520,5 @@ Team") and other Chapters' (`rules.CHAPTER_RULES`: the data files them all under
 - The defender sets the allocation order; Precision attacks go to one chosen Character first.
 - Save rolls for a weapon's attacks are resolved from the lowest result to the highest.
 - Normal damage is resolved before mortal wounds (Devastating Wounds); mortals spill over.
+- [LANCE] gives +1 to the wound roll when the attacker has charged (`Modifiers.charged`). It is had
+  or not: a weapon with its own Lance that is granted it again (`add_lance`) still gets one +1.

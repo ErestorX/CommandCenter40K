@@ -246,6 +246,8 @@ def simulate(loads: list[WeaponLoad], target: Target, mods: Modifiers,
         # ---------- wounds ----------
         S = max(1, w.S + mods.extra_strength)
         wound_mods = [mods.wound_mod, mods.to_be_wounded_mod] + _s_vs_t_wound_mods(S, T, mods)
+        if (kw.lance or mods.add_lance) and mods.charged:      # [LANCE], however many times given: +1 once
+            wound_mods.append(1)
         if mods.ignores_wound_maluses:
             wound_mods = _no_maluses(wound_mods)
         need_w = wound_target(S, T) - _clamp(sum(wound_mods))
